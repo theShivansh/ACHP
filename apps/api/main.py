@@ -64,8 +64,13 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 # Logging
 # ─────────────────────────────────────────────────────────────────────────────
 
+_log_level = os.getenv("ACHP_LOG_LEVEL", "INFO").strip().upper()
+# Guard: fall back to INFO if secret has unexpected value (e.g. '\tINFO' from HF Spaces)
+if _log_level not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
+    _log_level = "INFO"
+
 logging.basicConfig(
-    level=os.getenv("ACHP_LOG_LEVEL", "INFO"),
+    level=_log_level,
     format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
