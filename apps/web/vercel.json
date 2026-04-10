@@ -4,9 +4,6 @@
   "buildCommand": "pnpm build",
   "installCommand": "pnpm install",
   "outputDirectory": ".next",
-  "env": {
-    "NEXT_PUBLIC_API_URL": "@achp_api_url"
-  },
   "headers": [
     {
       "source": "/(.*)",
