@@ -23,7 +23,7 @@ bias detection, and narrative integrity analysis.**
 
 ## 🔍 What is ACHP?
 
-ACHP (**A**dversarial **C**laim & **H**onesty **P**robe) is a **7-agent adversarial pipeline** inspired by the *Karpathy LLM Council* pattern. Rather than asking a single model "is this true?", ACHP routes every claim through a **structured debate** between specialised heterogeneous agents — a factual attacker, a narrative auditor, a five-dimensional integrity layer — and synthesises a verdict via a specialist Judge.
+ACHP (**A**dversarial **C**laim & **H**onesty **P**robe) is a **7-agent adversarial pipeline** . Rather than asking a single model "is this true?", ACHP routes every claim through a **structured debate** between specialised heterogeneous agents — a factual attacker, a narrative auditor, a five-dimensional integrity layer — and synthesises a verdict via a specialist Judge.
 
 The result is a **transparent, auditable, multi-dimensional fact-check report** that no single model can produce alone.
 
