@@ -31,12 +31,17 @@ dump.rdb
 .DS_Store
 Thumbs.db
 
-# ACHP runtime data (SQLite + FAISS indexes) - 
+# ACHP runtime data (SQLite + FAISS indexes) - do NOT commit
 apps/api/data/kb/
 apps/api/data/*.db
 
-# Zip artifacts
+# Zip artifacts and test output files (NOT requirements.txt)
 *.zip
 apps/api/*.png
-apps/api/*.txt
-apps/api/*.json
+apps/api/nil_test_output*.txt
+apps/api/pipeline_test_output*.txt
+apps/api/security_test_output.txt
+apps/api/test_run_output.txt
+apps/api/import_check.txt
+apps/api/verify_env_results.json
+apps/api/test_endpoints.json
