@@ -866,23 +866,11 @@ python apps/api/run_cache_tests.py
 
 ## 📄 License
 
-[MIT](LICENSE) © 2026 Shailendra Singh
+[MIT](LICENSE) © 2026 Shivansh Shukla
 
 ---
 
-## 📑 Citation
 
-If you use ACHP in your research, please cite:
-
-```bibtex
-@inproceedings{singh2026achp,
-  title     = {ACHP: An Adversarial Council of Heterogeneous Agents for
-               Automated Claim Verification and Narrative Integrity Analysis},
-  author    = {Singh, Shailendra},
-  booktitle = {Proceedings of the IEEE International Conference on ...},
-  year      = {2026}
-}
-```
 
 ---
 
