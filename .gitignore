@@ -31,7 +31,7 @@ dump.rdb
 .DS_Store
 Thumbs.db
 
-# ACHP runtime data (SQLite + FAISS indexes) - do NOT commit
+# ACHP runtime data (SQLite + FAISS indexes) - 
 apps/api/data/kb/
 apps/api/data/*.db
 
