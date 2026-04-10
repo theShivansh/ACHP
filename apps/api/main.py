@@ -22,6 +22,7 @@ from __future__ import annotations
 # ── Load .env FIRST — before any os.getenv() calls ───────────────────────────
 # This fixes the VS Code "python.terminal.useEnvFile" disabled warning.
 # python-dotenv loads .env from the current working directory (apps/api/).
+import sys as _sys
 from pathlib import Path as _Path
 try:
     from dotenv import load_dotenv as _load_dotenv
@@ -32,7 +33,6 @@ try:
     if _env_file.exists():
         # encoding='utf-8-sig' strips BOM \ufeff so line-1 keys parse correctly
         _load_dotenv(dotenv_path=_env_file, override=True, encoding='utf-8-sig')
-        import sys as _sys
         print(f"[ACHP] Loaded env from: {_env_file}", file=_sys.stderr)
     else:
         print("[ACHP] No .env file found — using OS environment only", file=_sys.stderr)
