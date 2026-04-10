@@ -15,7 +15,7 @@ bias detection, and narrative integrity analysis.**
 [![HuggingFace](https://img.shields.io/badge/🤗%20HF%20Spaces-live-yellow?style=flat-square)](https://huggingface.co/spaces/theshivansh/ACHP-api)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-[**Live Demo**](https://huggingface.co/spaces/theshivansh/ACHP-api) · [**API Docs**](https://huggingface.co/spaces/theshivansh/ACHP-api/docs) · [**IEEE Paper**](ACHP_IEEE_Paper.docx) · [**Report Issue**](https://github.com/theShivansh/ACHP/issues)
+[**Live Demo**](https://achp-seven.vercel.app/) · [**Report Issue**](https://github.com/theShivansh/ACHP/issues)
 
 ---
 
