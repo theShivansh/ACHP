@@ -1,0 +1,1455 @@
+{
+  "suite": "ACHP NIL Layer \u2014 7 Case Test Suite",
+  "timestamp": "2026-04-06T17:29:38Z",
+  "mode": "offline (VADER + sentence-transformers, no API keys)",
+  "summary": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0,
+    "pass_rate": 1.0,
+    "target": ">=5/7 (71%)",
+    "target_met": true,
+    "suite_latency_ms": 23043.28,
+    "avg_latency_ms": 3291.82,
+    "max_latency_ms": 22462.0
+  },
+  "nil_layer_config": {
+    "sub_agents": [
+      "SentimentEPS",
+      "BiasDeepSeek",
+      "PerspectiveLlama",
+      "FramingCosine",
+      "ConfidenceSynthesizer"
+    ],
+    "execution": "asyncio.gather (parallel)",
+    "groq_llm": false,
+    "openrouter_llm": false,
+    "embed_model": "sentence-transformers/all-MiniLM-L6-v2"
+  },
+  "cases": [
+    {
+      "id": 1,
+      "label": "climate_alarmism",
+      "text": "Climate change is an EXISTENTIAL CRISIS destroying our planet \u2014 the government must act NOW or we face CATASTROPHIC COLLAPSE!",
+      "expected": {
+        "nil_verdict_in": [
+          "biased",
+          "misleading",
+          "propaganda"
+        ],
+        "BIS_gt": 0.2,
+        "framing_score_gt": 0.1,
+        "note": "High emotional loading, agenda words (must, now), alarm framing"
+      },
+      "passed": true,
+      "failures": [],
+      "input_hash": "acec44621a9d",
+      "EPS": 0.1553,
+      "BIS": 0.4242,
+      "PCS": 0.625,
+      "framing_score": 0.378,
+      "nil_confidence": 0.5291,
+      "nil_verdict": "misleading",
+      "nil_summary": "NIL verdict: misleading (score=0.53). BIS=0.42 (dominant: gender_stereotyping). EPS=0.16. PCS=0.62. Framing: alarm (0.38). Missing perspectives: 0.",
+      "total_latency_ms": 22462.0,
+      "parallel_budget_ms": 22461.96,
+      "sub_agents": {
+        "sentiment": {
+          "name": "sentiment",
+          "ok": true,
+          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "latency_ms": 23.55,
+          "error": null,
+          "data": {
+            "polarity": -0.9558,
+            "classification": "strongly_negative",
+            "loaded_words": [
+              "crisis"
+            ],
+            "hedge_words": [],
+            "hedge_ratio": 0.0,
+            "EPS": 0.0442,
+            "vader_scores": {
+              "pos": 0.0,
+              "neg": 0.509,
+              "neu": 0.491
+            },
+            "llm_enhanced": false
+          }
+        },
+        "bias": {
+          "name": "bias",
+          "ok": true,
+          "model": "heuristic",
+          "latency_ms": 0.06,
+          "error": null,
+          "data": {
+            "bias_axes": {
+              "political_left": 0.05,
+              "political_right": 0.05,
+              "corporate": 0.05,
+              "nationalist": 0.05,
+              "gender_stereotyping": 0.3,
+              "racial": 0.05,
+              "cultural_western": 0.05,
+              "academic_elitism": 0.05,
+              "confirmation_bias": 0.05,
+              "sensationalism": 0.3
+            },
+            "dominant_bias": "gender_stereotyping",
+            "BIS": 0.3,
+            "evidence": [
+              "crisis",
+              "he"
+            ],
+            "reasoning": "keyword-heuristic fallback",
+            "method": "heuristic"
+          }
+        },
+        "perspective": {
+          "name": "perspective",
+          "ok": true,
+          "model": "offline",
+          "latency_ms": 0.01,
+          "error": null,
+          "data": {
+            "opposing": {
+              "stakeholder": "skeptic",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_arguments": []
+            },
+            "neutral": {
+              "stakeholder": "researcher",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_considerations": []
+            },
+            "missing_stakeholders": [],
+            "PCS": 0.5,
+            "perspective_note": "offline fallback \u2014 set GROQ_API_KEY for full perspective generation",
+            "method": "offline"
+          }
+        },
+        "framing": {
+          "name": "framing",
+          "ok": true,
+          "model": "all-MiniLM-L6-v2",
+          "latency_ms": 22437.53,
+          "error": null,
+          "data": {
+            "framing_score": 0.378,
+            "lexical_score": 0.42,
+            "cosine_vs_neutral": {
+              "factual": 0.14,
+              "scientific": 0.1406,
+              "economic": 0.0313,
+              "political": 0.1946,
+              "social": 0.1639,
+              "historical": 0.1195
+            },
+            "closest_neutral_frame": "political",
+            "max_neutrality_cosine": 0.1946,
+            "reference_similarity": null,
+            "dominant_frame": "alarm",
+            "loaded_phrases": {
+              "alarm": [
+                "crisis",
+                "collapse",
+                "destroying",
+                "existential"
+              ]
+            },
+            "presuppositions": [],
+            "agenda_indicators": [
+              "must",
+              "act now"
+            ],
+            "passive_ratio": 0.0,
+            "embed_available": true
+          }
+        },
+        "synthesizer": {
+          "name": "synthesizer",
+          "ok": true,
+          "model": "deterministic",
+          "latency_ms": 0.03,
+          "error": null,
+          "data": {
+            "BIS": 0.4242,
+            "EPS": 0.1553,
+            "PCS": 0.625,
+            "framing_score": 0.378,
+            "nil_confidence": 0.5291,
+            "nil_verdict": "misleading",
+            "nil_summary": "NIL verdict: misleading (score=0.53). BIS=0.42 (dominant: gender_stereotyping). EPS=0.16. PCS=0.62. Framing: alarm (0.38). Missing perspectives: 0.",
+            "components": {
+              "bis_raw": 0.3,
+              "eps_raw": 0.0442,
+              "pcs_llm": 0.5,
+              "framing_sc": 0.378,
+              "polarity": 0.9558,
+              "hedge_ratio": 0.0,
+              "missing_n": 0
+            },
+            "weight_matrix": {
+              "BIS": [
+                [
+                  "bias_score",
+                  0.6
+                ],
+                [
+                  "framing_score",
+                  0.25
+                ],
+                [
+                  "polarity_abs",
+                  0.15
+                ]
+              ],
+              "EPS": [
+                [
+                  "eps_raw",
+                  0.7
+                ],
+                [
+                  "framing_inv",
+                  0.2
+                ],
+                [
+                  "hedge_ratio",
+                  0.1
+                ]
+              ],
+              "PCS": [
+                [
+                  "pcs_llm",
+                  0.75
+                ],
+                [
+                  "missing_count",
+                  0.25
+                ]
+              ]
+            }
+          }
+        }
+      },
+      "test_latency_ms": 22462.03
+    },
+    {
+      "id": 2,
+      "label": "balanced_reporting",
+      "text": "According to a 2024 IPCC report, global temperatures have risen approximately 1.1\u00b0C above pre-industrial levels. Scientists attribute this primarily to greenhouse gas emissions, though natural variability also plays a role.",
+      "expected": {
+        "nil_verdict_in": [
+          "neutral",
+          "mildly_biased"
+        ],
+        "BIS_lt": 0.35,
+        "EPS_gt": 0.4,
+        "note": "Hedging (approximately, primarily, also), cites source, acknowledges nuance"
+      },
+      "passed": true,
+      "failures": [],
+      "input_hash": "2a7f532ec2c9",
+      "EPS": 0.5204,
+      "BIS": 0.1476,
+      "PCS": 0.625,
+      "framing_score": 0.0,
+      "nil_confidence": 0.2466,
+      "nil_verdict": "mildly_biased",
+      "nil_summary": "NIL verdict: mildly_biased (score=0.25). BIS=0.15 (dominant: political_left). EPS=0.52. PCS=0.62. Framing: neutral (0.00). Missing perspectives: 0.",
+      "total_latency_ms": 91.57,
+      "parallel_budget_ms": 91.53,
+      "sub_agents": {
+        "sentiment": {
+          "name": "sentiment",
+          "ok": true,
+          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "latency_ms": 13.47,
+          "error": null,
+          "data": {
+            "polarity": 0.5423,
+            "classification": "strongly_positive",
+            "loaded_words": [],
+            "hedge_words": [],
+            "hedge_ratio": 0.0,
+            "EPS": 0.4577,
+            "vader_scores": {
+              "pos": 0.138,
+              "neg": 0.0,
+              "neu": 0.862
+            },
+            "llm_enhanced": false
+          }
+        },
+        "bias": {
+          "name": "bias",
+          "ok": true,
+          "model": "heuristic",
+          "latency_ms": 0.06,
+          "error": null,
+          "data": {
+            "bias_axes": {
+              "political_left": 0.05,
+              "political_right": 0.05,
+              "corporate": 0.05,
+              "nationalist": 0.05,
+              "gender_stereotyping": 0.05,
+              "racial": 0.05,
+              "cultural_western": 0.05,
+              "academic_elitism": 0.05,
+              "confirmation_bias": 0.05,
+              "sensationalism": 0.05
+            },
+            "dominant_bias": "political_left",
+            "BIS": 0.15,
+            "evidence": [],
+            "reasoning": "keyword-heuristic fallback",
+            "method": "heuristic"
+          }
+        },
+        "perspective": {
+          "name": "perspective",
+          "ok": true,
+          "model": "offline",
+          "latency_ms": 0.0,
+          "error": null,
+          "data": {
+            "opposing": {
+              "stakeholder": "skeptic",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_arguments": []
+            },
+            "neutral": {
+              "stakeholder": "researcher",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_considerations": []
+            },
+            "missing_stakeholders": [],
+            "PCS": 0.5,
+            "perspective_note": "offline fallback \u2014 set GROQ_API_KEY for full perspective generation",
+            "method": "offline"
+          }
+        },
+        "framing": {
+          "name": "framing",
+          "ok": true,
+          "model": "all-MiniLM-L6-v2",
+          "latency_ms": 77.52,
+          "error": null,
+          "data": {
+            "framing_score": 0.0,
+            "lexical_score": 0.0,
+            "cosine_vs_neutral": {
+              "factual": 0.1276,
+              "scientific": 0.1179,
+              "economic": 0.2247,
+              "political": 0.0266,
+              "social": 0.0473,
+              "historical": 0.0437
+            },
+            "closest_neutral_frame": "economic",
+            "max_neutrality_cosine": 0.2247,
+            "reference_similarity": null,
+            "dominant_frame": "neutral",
+            "loaded_phrases": {},
+            "presuppositions": [],
+            "agenda_indicators": [],
+            "passive_ratio": 0.0,
+            "embed_available": true
+          }
+        },
+        "synthesizer": {
+          "name": "synthesizer",
+          "ok": true,
+          "model": "deterministic",
+          "latency_ms": 0.03,
+          "error": null,
+          "data": {
+            "BIS": 0.1476,
+            "EPS": 0.5204,
+            "PCS": 0.625,
+            "framing_score": 0.0,
+            "nil_confidence": 0.2466,
+            "nil_verdict": "mildly_biased",
+            "nil_summary": "NIL verdict: mildly_biased (score=0.25). BIS=0.15 (dominant: political_left). EPS=0.52. PCS=0.62. Framing: neutral (0.00). Missing perspectives: 0.",
+            "components": {
+              "bis_raw": 0.15,
+              "eps_raw": 0.4577,
+              "pcs_llm": 0.5,
+              "framing_sc": 0.0,
+              "polarity": 0.5423,
+              "hedge_ratio": 0.0,
+              "missing_n": 0
+            },
+            "weight_matrix": {
+              "BIS": [
+                [
+                  "bias_score",
+                  0.6
+                ],
+                [
+                  "framing_score",
+                  0.25
+                ],
+                [
+                  "polarity_abs",
+                  0.15
+                ]
+              ],
+              "EPS": [
+                [
+                  "eps_raw",
+                  0.7
+                ],
+                [
+                  "framing_inv",
+                  0.2
+                ],
+                [
+                  "hedge_ratio",
+                  0.1
+                ]
+              ],
+              "PCS": [
+                [
+                  "pcs_llm",
+                  0.75
+                ],
+                [
+                  "missing_count",
+                  0.25
+                ]
+              ]
+            }
+          }
+        }
+      },
+      "test_latency_ms": 91.59
+    },
+    {
+      "id": 3,
+      "label": "political_propaganda",
+      "text": "The radical left-wing regime is destroying our nation's values! Patriots must rise up and defend our heritage against these extremist socialist policies!",
+      "expected": {
+        "nil_verdict_in": [
+          "misleading",
+          "propaganda"
+        ],
+        "BIS_gt": 0.3,
+        "framing_score_gt": 0.15,
+        "note": "Extreme political framing, delegitimizing language, agenda words"
+      },
+      "passed": true,
+      "failures": [],
+      "input_hash": "1c1188851d35",
+      "EPS": 0.4752,
+      "BIS": 0.6996,
+      "PCS": 0.625,
+      "framing_score": 0.8717,
+      "nil_confidence": 0.669,
+      "nil_verdict": "misleading",
+      "nil_summary": "NIL verdict: misleading (score=0.67). BIS=0.70 (dominant: political_left). EPS=0.48. PCS=0.62. Framing: delegitimize (0.87). Missing perspectives: 0.",
+      "total_latency_ms": 79.88,
+      "parallel_budget_ms": 79.84,
+      "sub_agents": {
+        "sentiment": {
+          "name": "sentiment",
+          "ok": true,
+          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "latency_ms": 13.65,
+          "error": null,
+          "data": {
+            "polarity": -0.3578,
+            "classification": "mildly_negative",
+            "loaded_words": [
+              "radical"
+            ],
+            "hedge_words": [],
+            "hedge_ratio": 0.0,
+            "EPS": 0.6422,
+            "vader_scores": {
+              "pos": 0.1,
+              "neg": 0.156,
+              "neu": 0.744
+            },
+            "llm_enhanced": false
+          }
+        },
+        "bias": {
+          "name": "bias",
+          "ok": true,
+          "model": "heuristic",
+          "latency_ms": 0.04,
+          "error": null,
+          "data": {
+            "bias_axes": {
+              "political_left": 0.55,
+              "political_right": 0.3,
+              "corporate": 0.05,
+              "nationalist": 0.05,
+              "gender_stereotyping": 0.3,
+              "racial": 0.3,
+              "cultural_western": 0.05,
+              "academic_elitism": 0.05,
+              "confirmation_bias": 0.05,
+              "sensationalism": 0.05
+            },
+            "dominant_bias": "political_left",
+            "BIS": 0.525,
+            "evidence": [
+              "socialist",
+              "left-wing",
+              "patriot",
+              "he",
+              "heritage"
+            ],
+            "reasoning": "keyword-heuristic fallback",
+            "method": "heuristic"
+          }
+        },
+        "perspective": {
+          "name": "perspective",
+          "ok": true,
+          "model": "offline",
+          "latency_ms": 0.0,
+          "error": null,
+          "data": {
+            "opposing": {
+              "stakeholder": "skeptic",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_arguments": []
+            },
+            "neutral": {
+              "stakeholder": "researcher",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_considerations": []
+            },
+            "missing_stakeholders": [],
+            "PCS": 0.5,
+            "perspective_note": "offline fallback \u2014 set GROQ_API_KEY for full perspective generation",
+            "method": "offline"
+          }
+        },
+        "framing": {
+          "name": "framing",
+          "ok": true,
+          "model": "all-MiniLM-L6-v2",
+          "latency_ms": 65.63,
+          "error": null,
+          "data": {
+            "framing_score": 0.8717,
+            "lexical_score": 0.9,
+            "cosine_vs_neutral": {
+              "factual": 0.0944,
+              "scientific": 0.0265,
+              "economic": -0.0244,
+              "political": 0.2015,
+              "social": 0.1443,
+              "historical": 0.043
+            },
+            "closest_neutral_frame": "political",
+            "max_neutrality_cosine": 0.2015,
+            "reference_similarity": null,
+            "dominant_frame": "delegitimize",
+            "loaded_phrases": {
+              "alarm": [
+                "destroying"
+              ],
+              "delegitimize": [
+                "regime",
+                "extremist",
+                "radical"
+              ],
+              "legitimize": [
+                "patriot"
+              ]
+            },
+            "presuppositions": [],
+            "agenda_indicators": [
+              "must",
+              "rise up",
+              "defend"
+            ],
+            "passive_ratio": 0.0,
+            "embed_available": true
+          }
+        },
+        "synthesizer": {
+          "name": "synthesizer",
+          "ok": true,
+          "model": "deterministic",
+          "latency_ms": 0.04,
+          "error": null,
+          "data": {
+            "BIS": 0.6996,
+            "EPS": 0.4752,
+            "PCS": 0.625,
+            "framing_score": 0.8717,
+            "nil_confidence": 0.669,
+            "nil_verdict": "misleading",
+            "nil_summary": "NIL verdict: misleading (score=0.67). BIS=0.70 (dominant: political_left). EPS=0.48. PCS=0.62. Framing: delegitimize (0.87). Missing perspectives: 0.",
+            "components": {
+              "bis_raw": 0.525,
+              "eps_raw": 0.6422,
+              "pcs_llm": 0.5,
+              "framing_sc": 0.8717,
+              "polarity": 0.3578,
+              "hedge_ratio": 0.0,
+              "missing_n": 0
+            },
+            "weight_matrix": {
+              "BIS": [
+                [
+                  "bias_score",
+                  0.6
+                ],
+                [
+                  "framing_score",
+                  0.25
+                ],
+                [
+                  "polarity_abs",
+                  0.15
+                ]
+              ],
+              "EPS": [
+                [
+                  "eps_raw",
+                  0.7
+                ],
+                [
+                  "framing_inv",
+                  0.2
+                ],
+                [
+                  "hedge_ratio",
+                  0.1
+                ]
+              ],
+              "PCS": [
+                [
+                  "pcs_llm",
+                  0.75
+                ],
+                [
+                  "missing_count",
+                  0.25
+                ]
+              ]
+            }
+          }
+        }
+      },
+      "test_latency_ms": 79.91
+    },
+    {
+      "id": 4,
+      "label": "corporate_spin",
+      "text": "Our revolutionary breakthrough product will transform the market and create unprecedented shareholder value through our innovative solution.",
+      "expected": {
+        "nil_verdict_in": [
+          "mildly_biased",
+          "biased"
+        ],
+        "BIS_gt": 0.1,
+        "note": "Corporate bias, hype framing (revolutionary, breakthrough, unprecedented)"
+      },
+      "passed": true,
+      "failures": [],
+      "input_hash": "62a7b4da6905",
+      "EPS": 0.2838,
+      "BIS": 0.3521,
+      "PCS": 0.625,
+      "framing_score": 0.1862,
+      "nil_confidence": 0.4052,
+      "nil_verdict": "biased",
+      "nil_summary": "NIL verdict: biased (score=0.41). BIS=0.35 (dominant: corporate). EPS=0.28. PCS=0.62. Framing: hype (0.19). Missing perspectives: 0.",
+      "total_latency_ms": 70.36,
+      "parallel_budget_ms": 70.31,
+      "sub_agents": {
+        "sentiment": {
+          "name": "sentiment",
+          "ok": true,
+          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "latency_ms": 13.85,
+          "error": null,
+          "data": {
+            "polarity": 0.8271,
+            "classification": "strongly_positive",
+            "loaded_words": [
+              "revolutionary",
+              "unprecedented"
+            ],
+            "hedge_words": [],
+            "hedge_ratio": 0.0,
+            "EPS": 0.1729,
+            "vader_scores": {
+              "pos": 0.427,
+              "neg": 0.0,
+              "neu": 0.573
+            },
+            "llm_enhanced": false
+          }
+        },
+        "bias": {
+          "name": "bias",
+          "ok": true,
+          "model": "heuristic",
+          "latency_ms": 0.04,
+          "error": null,
+          "data": {
+            "bias_axes": {
+              "political_left": 0.05,
+              "political_right": 0.05,
+              "corporate": 0.3,
+              "nationalist": 0.05,
+              "gender_stereotyping": 0.3,
+              "racial": 0.05,
+              "cultural_western": 0.05,
+              "academic_elitism": 0.05,
+              "confirmation_bias": 0.05,
+              "sensationalism": 0.3
+            },
+            "dominant_bias": "corporate",
+            "BIS": 0.375,
+            "evidence": [
+              "market",
+              "unprecedented",
+              "he"
+            ],
+            "reasoning": "keyword-heuristic fallback",
+            "method": "heuristic"
+          }
+        },
+        "perspective": {
+          "name": "perspective",
+          "ok": true,
+          "model": "offline",
+          "latency_ms": 0.0,
+          "error": null,
+          "data": {
+            "opposing": {
+              "stakeholder": "skeptic",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_arguments": []
+            },
+            "neutral": {
+              "stakeholder": "researcher",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_considerations": []
+            },
+            "missing_stakeholders": [],
+            "PCS": 0.5,
+            "perspective_note": "offline fallback \u2014 set GROQ_API_KEY for full perspective generation",
+            "method": "offline"
+          }
+        },
+        "framing": {
+          "name": "framing",
+          "ok": true,
+          "model": "all-MiniLM-L6-v2",
+          "latency_ms": 55.92,
+          "error": null,
+          "data": {
+            "framing_score": 0.1862,
+            "lexical_score": 0.18,
+            "cosine_vs_neutral": {
+              "factual": -0.0207,
+              "scientific": 0.1811,
+              "economic": 0.147,
+              "political": -0.0007,
+              "social": 0.1764,
+              "historical": -0.0064
+            },
+            "closest_neutral_frame": "scientific",
+            "max_neutrality_cosine": 0.1811,
+            "reference_similarity": null,
+            "dominant_frame": "hype",
+            "loaded_phrases": {
+              "hype": [
+                "breakthrough",
+                "revolutionary",
+                "unprecedented"
+              ]
+            },
+            "presuppositions": [],
+            "agenda_indicators": [],
+            "passive_ratio": 0.0,
+            "embed_available": true
+          }
+        },
+        "synthesizer": {
+          "name": "synthesizer",
+          "ok": true,
+          "model": "deterministic",
+          "latency_ms": 0.03,
+          "error": null,
+          "data": {
+            "BIS": 0.3521,
+            "EPS": 0.2838,
+            "PCS": 0.625,
+            "framing_score": 0.1862,
+            "nil_confidence": 0.4052,
+            "nil_verdict": "biased",
+            "nil_summary": "NIL verdict: biased (score=0.41). BIS=0.35 (dominant: corporate). EPS=0.28. PCS=0.62. Framing: hype (0.19). Missing perspectives: 0.",
+            "components": {
+              "bis_raw": 0.375,
+              "eps_raw": 0.1729,
+              "pcs_llm": 0.5,
+              "framing_sc": 0.1862,
+              "polarity": 0.8271,
+              "hedge_ratio": 0.0,
+              "missing_n": 0
+            },
+            "weight_matrix": {
+              "BIS": [
+                [
+                  "bias_score",
+                  0.6
+                ],
+                [
+                  "framing_score",
+                  0.25
+                ],
+                [
+                  "polarity_abs",
+                  0.15
+                ]
+              ],
+              "EPS": [
+                [
+                  "eps_raw",
+                  0.7
+                ],
+                [
+                  "framing_inv",
+                  0.2
+                ],
+                [
+                  "hedge_ratio",
+                  0.1
+                ]
+              ],
+              "PCS": [
+                [
+                  "pcs_llm",
+                  0.75
+                ],
+                [
+                  "missing_count",
+                  0.25
+                ]
+              ]
+            }
+          }
+        }
+      },
+      "test_latency_ms": 70.38
+    },
+    {
+      "id": 5,
+      "label": "scientific_hedging",
+      "text": "Studies suggest that moderate exercise may reduce the risk of cardiovascular disease by approximately 30%, though researchers note that individual results could vary based on age and pre-existing conditions.",
+      "expected": {
+        "nil_verdict_in": [
+          "neutral",
+          "mildly_biased"
+        ],
+        "EPS_gt": 0.45,
+        "BIS_lt": 0.3,
+        "note": "Good hedging (suggest, may, approximately, could vary), cites variability"
+      },
+      "passed": true,
+      "failures": [],
+      "input_hash": "e8fa8df099bd",
+      "EPS": 0.8881,
+      "BIS": 0.1565,
+      "PCS": 0.625,
+      "framing_score": 0.0,
+      "nil_confidence": 0.1578,
+      "nil_verdict": "neutral",
+      "nil_summary": "NIL verdict: neutral (score=0.16). BIS=0.16 (dominant: gender_stereotyping). EPS=0.89. PCS=0.62. Framing: neutral (0.00). Missing perspectives: 0.",
+      "total_latency_ms": 109.15,
+      "parallel_budget_ms": 109.11,
+      "sub_agents": {
+        "sentiment": {
+          "name": "sentiment",
+          "ok": true,
+          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "latency_ms": 16.07,
+          "error": null,
+          "data": {
+            "polarity": -0.2732,
+            "classification": "mildly_negative",
+            "loaded_words": [
+              "may",
+              "could"
+            ],
+            "hedge_words": [
+              "may",
+              "could"
+            ],
+            "hedge_ratio": 0.069,
+            "EPS": 0.9337,
+            "vader_scores": {
+              "pos": 0.0,
+              "neg": 0.07,
+              "neu": 0.93
+            },
+            "llm_enhanced": false
+          }
+        },
+        "bias": {
+          "name": "bias",
+          "ok": true,
+          "model": "heuristic",
+          "latency_ms": 0.06,
+          "error": null,
+          "data": {
+            "bias_axes": {
+              "political_left": 0.05,
+              "political_right": 0.05,
+              "corporate": 0.05,
+              "nationalist": 0.05,
+              "gender_stereotyping": 0.3,
+              "racial": 0.05,
+              "cultural_western": 0.05,
+              "academic_elitism": 0.05,
+              "confirmation_bias": 0.05,
+              "sensationalism": 0.05
+            },
+            "dominant_bias": "gender_stereotyping",
+            "BIS": 0.225,
+            "evidence": [
+              "he"
+            ],
+            "reasoning": "keyword-heuristic fallback",
+            "method": "heuristic"
+          }
+        },
+        "perspective": {
+          "name": "perspective",
+          "ok": true,
+          "model": "offline",
+          "latency_ms": 0.0,
+          "error": null,
+          "data": {
+            "opposing": {
+              "stakeholder": "skeptic",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_arguments": []
+            },
+            "neutral": {
+              "stakeholder": "researcher",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_considerations": []
+            },
+            "missing_stakeholders": [],
+            "PCS": 0.5,
+            "perspective_note": "offline fallback \u2014 set GROQ_API_KEY for full perspective generation",
+            "method": "offline"
+          }
+        },
+        "framing": {
+          "name": "framing",
+          "ok": true,
+          "model": "all-MiniLM-L6-v2",
+          "latency_ms": 92.22,
+          "error": null,
+          "data": {
+            "framing_score": 0.0,
+            "lexical_score": 0.0,
+            "cosine_vs_neutral": {
+              "factual": 0.1005,
+              "scientific": 0.2469,
+              "economic": 0.0982,
+              "political": 0.0977,
+              "social": 0.0276,
+              "historical": -0.0027
+            },
+            "closest_neutral_frame": "scientific",
+            "max_neutrality_cosine": 0.2469,
+            "reference_similarity": null,
+            "dominant_frame": "neutral",
+            "loaded_phrases": {},
+            "presuppositions": [],
+            "agenda_indicators": [],
+            "passive_ratio": 0.0,
+            "embed_available": true
+          }
+        },
+        "synthesizer": {
+          "name": "synthesizer",
+          "ok": true,
+          "model": "deterministic",
+          "latency_ms": 0.03,
+          "error": null,
+          "data": {
+            "BIS": 0.1565,
+            "EPS": 0.8881,
+            "PCS": 0.625,
+            "framing_score": 0.0,
+            "nil_confidence": 0.1578,
+            "nil_verdict": "neutral",
+            "nil_summary": "NIL verdict: neutral (score=0.16). BIS=0.16 (dominant: gender_stereotyping). EPS=0.89. PCS=0.62. Framing: neutral (0.00). Missing perspectives: 0.",
+            "components": {
+              "bis_raw": 0.225,
+              "eps_raw": 0.9337,
+              "pcs_llm": 0.5,
+              "framing_sc": 0.0,
+              "polarity": 0.2732,
+              "hedge_ratio": 0.069,
+              "missing_n": 0
+            },
+            "weight_matrix": {
+              "BIS": [
+                [
+                  "bias_score",
+                  0.6
+                ],
+                [
+                  "framing_score",
+                  0.25
+                ],
+                [
+                  "polarity_abs",
+                  0.15
+                ]
+              ],
+              "EPS": [
+                [
+                  "eps_raw",
+                  0.7
+                ],
+                [
+                  "framing_inv",
+                  0.2
+                ],
+                [
+                  "hedge_ratio",
+                  0.1
+                ]
+              ],
+              "PCS": [
+                [
+                  "pcs_llm",
+                  0.75
+                ],
+                [
+                  "missing_count",
+                  0.25
+                ]
+              ]
+            }
+          }
+        }
+      },
+      "test_latency_ms": 109.17
+    },
+    {
+      "id": 6,
+      "label": "conspiracy_theory",
+      "text": "Obviously the mainstream media is covering up the truth that vaccines are dangerous. Everyone knows the government is lying and the pharmaceutical companies are corrupt criminals destroying our children.",
+      "expected": {
+        "nil_verdict_in": [
+          "misleading",
+          "propaganda"
+        ],
+        "BIS_gt": 0.25,
+        "framing_score_gt": 0.15,
+        "note": "Presuppositions (obviously, everyone knows), conspiracy framing, delegitimizing"
+      },
+      "passed": true,
+      "failures": [],
+      "input_hash": "c87fea0c4ce2",
+      "EPS": 0.1698,
+      "BIS": 0.4994,
+      "PCS": 0.625,
+      "framing_score": 0.4659,
+      "nil_confidence": 0.5738,
+      "nil_verdict": "misleading",
+      "nil_summary": "NIL verdict: misleading (score=0.57). BIS=0.50 (dominant: gender_stereotyping). EPS=0.17. PCS=0.62. Framing: delegitimize (0.47). Missing perspectives: 0.",
+      "total_latency_ms": 117.5,
+      "parallel_budget_ms": 117.44,
+      "sub_agents": {
+        "sentiment": {
+          "name": "sentiment",
+          "ok": true,
+          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "latency_ms": 19.57,
+          "error": null,
+          "data": {
+            "polarity": -0.91,
+            "classification": "strongly_negative",
+            "loaded_words": [
+              "corrupt"
+            ],
+            "hedge_words": [],
+            "hedge_ratio": 0.0,
+            "EPS": 0.09,
+            "vader_scores": {
+              "pos": 0.057,
+              "neg": 0.344,
+              "neu": 0.599
+            },
+            "llm_enhanced": false
+          }
+        },
+        "bias": {
+          "name": "bias",
+          "ok": true,
+          "model": "heuristic",
+          "latency_ms": 0.05,
+          "error": null,
+          "data": {
+            "bias_axes": {
+              "political_left": 0.05,
+              "political_right": 0.05,
+              "corporate": 0.05,
+              "nationalist": 0.05,
+              "gender_stereotyping": 0.3,
+              "racial": 0.05,
+              "cultural_western": 0.05,
+              "academic_elitism": 0.05,
+              "confirmation_bias": 0.05,
+              "sensationalism": 0.05
+            },
+            "dominant_bias": "gender_stereotyping",
+            "BIS": 0.225,
+            "evidence": [
+              "he"
+            ],
+            "reasoning": "keyword-heuristic fallback",
+            "method": "heuristic"
+          }
+        },
+        "perspective": {
+          "name": "perspective",
+          "ok": true,
+          "model": "offline",
+          "latency_ms": 0.0,
+          "error": null,
+          "data": {
+            "opposing": {
+              "stakeholder": "skeptic",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_arguments": []
+            },
+            "neutral": {
+              "stakeholder": "researcher",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_considerations": []
+            },
+            "missing_stakeholders": [],
+            "PCS": 0.5,
+            "perspective_note": "offline fallback \u2014 set GROQ_API_KEY for full perspective generation",
+            "method": "offline"
+          }
+        },
+        "framing": {
+          "name": "framing",
+          "ok": true,
+          "model": "all-MiniLM-L6-v2",
+          "latency_ms": 97.21,
+          "error": null,
+          "data": {
+            "framing_score": 0.4659,
+            "lexical_score": 0.52,
+            "cosine_vs_neutral": {
+              "factual": 0.1804,
+              "scientific": 0.1785,
+              "economic": 0.0842,
+              "political": 0.1098,
+              "social": 0.0599,
+              "historical": 0.0454
+            },
+            "closest_neutral_frame": "factual",
+            "max_neutrality_cosine": 0.1804,
+            "reference_similarity": null,
+            "dominant_frame": "delegitimize",
+            "loaded_phrases": {
+              "alarm": [
+                "destroying"
+              ],
+              "delegitimize": [
+                "criminal",
+                "corrupt",
+                "lying",
+                "covering up",
+                "mainstream media"
+              ]
+            },
+            "presuppositions": [
+              "obviously",
+              "everyone knows"
+            ],
+            "agenda_indicators": [],
+            "passive_ratio": 0.0,
+            "embed_available": true
+          }
+        },
+        "synthesizer": {
+          "name": "synthesizer",
+          "ok": true,
+          "model": "deterministic",
+          "latency_ms": 0.05,
+          "error": null,
+          "data": {
+            "BIS": 0.4994,
+            "EPS": 0.1698,
+            "PCS": 0.625,
+            "framing_score": 0.4659,
+            "nil_confidence": 0.5738,
+            "nil_verdict": "misleading",
+            "nil_summary": "NIL verdict: misleading (score=0.57). BIS=0.50 (dominant: gender_stereotyping). EPS=0.17. PCS=0.62. Framing: delegitimize (0.47). Missing perspectives: 0.",
+            "components": {
+              "bis_raw": 0.225,
+              "eps_raw": 0.09,
+              "pcs_llm": 0.5,
+              "framing_sc": 0.4659,
+              "polarity": 0.91,
+              "hedge_ratio": 0.0,
+              "missing_n": 0
+            },
+            "weight_matrix": {
+              "BIS": [
+                [
+                  "bias_score",
+                  0.6
+                ],
+                [
+                  "framing_score",
+                  0.25
+                ],
+                [
+                  "polarity_abs",
+                  0.15
+                ]
+              ],
+              "EPS": [
+                [
+                  "eps_raw",
+                  0.7
+                ],
+                [
+                  "framing_inv",
+                  0.2
+                ],
+                [
+                  "hedge_ratio",
+                  0.1
+                ]
+              ],
+              "PCS": [
+                [
+                  "pcs_llm",
+                  0.75
+                ],
+                [
+                  "missing_count",
+                  0.25
+                ]
+              ]
+            }
+          }
+        }
+      },
+      "test_latency_ms": 117.54
+    },
+    {
+      "id": 7,
+      "label": "factual_neutral",
+      "text": "The unemployment rate in the United States was 3.9% in January 2024, according to the Bureau of Labor Statistics.",
+      "expected": {
+        "nil_verdict_in": [
+          "neutral",
+          "mildly_biased"
+        ],
+        "BIS_lt": 0.3,
+        "framing_score_lt": 0.25,
+        "note": "Pure factual statement with cited source \u2014 should score neutral"
+      },
+      "passed": true,
+      "failures": [],
+      "input_hash": "ae2ad0b1d788",
+      "EPS": 0.8819,
+      "BIS": 0.1268,
+      "PCS": 0.625,
+      "framing_score": 0.0,
+      "nil_confidence": 0.1489,
+      "nil_verdict": "neutral",
+      "nil_summary": "NIL verdict: neutral (score=0.15). BIS=0.13 (dominant: gender_stereotyping). EPS=0.88. PCS=0.62. Framing: neutral (0.00). Missing perspectives: 0.",
+      "total_latency_ms": 112.25,
+      "parallel_budget_ms": 112.2,
+      "sub_agents": {
+        "sentiment": {
+          "name": "sentiment",
+          "ok": true,
+          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "latency_ms": 21.34,
+          "error": null,
+          "data": {
+            "polarity": -0.0258,
+            "classification": "neutral",
+            "loaded_words": [],
+            "hedge_words": [],
+            "hedge_ratio": 0.0,
+            "EPS": 0.9742,
+            "vader_scores": {
+              "pos": 0.123,
+              "neg": 0.128,
+              "neu": 0.749
+            },
+            "llm_enhanced": false
+          }
+        },
+        "bias": {
+          "name": "bias",
+          "ok": true,
+          "model": "heuristic",
+          "latency_ms": 0.05,
+          "error": null,
+          "data": {
+            "bias_axes": {
+              "political_left": 0.05,
+              "political_right": 0.05,
+              "corporate": 0.05,
+              "nationalist": 0.05,
+              "gender_stereotyping": 0.3,
+              "racial": 0.05,
+              "cultural_western": 0.05,
+              "academic_elitism": 0.05,
+              "confirmation_bias": 0.05,
+              "sensationalism": 0.05
+            },
+            "dominant_bias": "gender_stereotyping",
+            "BIS": 0.225,
+            "evidence": [
+              "he"
+            ],
+            "reasoning": "keyword-heuristic fallback",
+            "method": "heuristic"
+          }
+        },
+        "perspective": {
+          "name": "perspective",
+          "ok": true,
+          "model": "offline",
+          "latency_ms": 0.0,
+          "error": null,
+          "data": {
+            "opposing": {
+              "stakeholder": "skeptic",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_arguments": []
+            },
+            "neutral": {
+              "stakeholder": "researcher",
+              "viewpoint": "[Needs GROQ_API_KEY]",
+              "key_considerations": []
+            },
+            "missing_stakeholders": [],
+            "PCS": 0.5,
+            "perspective_note": "offline fallback \u2014 set GROQ_API_KEY for full perspective generation",
+            "method": "offline"
+          }
+        },
+        "framing": {
+          "name": "framing",
+          "ok": true,
+          "model": "all-MiniLM-L6-v2",
+          "latency_ms": 90.14,
+          "error": null,
+          "data": {
+            "framing_score": 0.0,
+            "lexical_score": 0.0,
+            "cosine_vs_neutral": {
+              "factual": 0.1766,
+              "scientific": 0.0265,
+              "economic": 0.2048,
+              "political": -0.0065,
+              "social": -0.1053,
+              "historical": 0.0296
+            },
+            "closest_neutral_frame": "economic",
+            "max_neutrality_cosine": 0.2048,
+            "reference_similarity": null,
+            "dominant_frame": "neutral",
+            "loaded_phrases": {},
+            "presuppositions": [],
+            "agenda_indicators": [],
+            "passive_ratio": 0.0,
+            "embed_available": true
+          }
+        },
+        "synthesizer": {
+          "name": "synthesizer",
+          "ok": true,
+          "model": "deterministic",
+          "latency_ms": 0.04,
+          "error": null,
+          "data": {
+            "BIS": 0.1268,
+            "EPS": 0.8819,
+            "PCS": 0.625,
+            "framing_score": 0.0,
+            "nil_confidence": 0.1489,
+            "nil_verdict": "neutral",
+            "nil_summary": "NIL verdict: neutral (score=0.15). BIS=0.13 (dominant: gender_stereotyping). EPS=0.88. PCS=0.62. Framing: neutral (0.00). Missing perspectives: 0.",
+            "components": {
+              "bis_raw": 0.225,
+              "eps_raw": 0.9742,
+              "pcs_llm": 0.5,
+              "framing_sc": 0.0,
+              "polarity": 0.0258,
+              "hedge_ratio": 0.0,
+              "missing_n": 0
+            },
+            "weight_matrix": {
+              "BIS": [
+                [
+                  "bias_score",
+                  0.6
+                ],
+                [
+                  "framing_score",
+                  0.25
+                ],
+                [
+                  "polarity_abs",
+                  0.15
+                ]
+              ],
+              "EPS": [
+                [
+                  "eps_raw",
+                  0.7
+                ],
+                [
+                  "framing_inv",
+                  0.2
+                ],
+                [
+                  "hedge_ratio",
+                  0.1
+                ]
+              ],
+              "PCS": [
+                [
+                  "pcs_llm",
+                  0.75
+                ],
+                [
+                  "missing_count",
+                  0.25
+                ]
+              ]
+            }
+          }
+        }
+      },
+      "test_latency_ms": 112.29
+    }
+  ]
+}

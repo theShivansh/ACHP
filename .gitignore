@@ -1,0 +1,42 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+.turbo/
+out/
+
+# Env
+.env
+.env.local
+.env.production
+
+# Logs
+logs/*.log
+*.log
+
+# Redis dump
+dump.rdb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ACHP runtime data (SQLite + FAISS indexes) - do NOT commit
+apps/api/data/kb/
+apps/api/data/*.db
+
+# Zip artifacts
+*.zip
+apps/api/*.png
+apps/api/*.txt
+apps/api/*.json

@@ -1,0 +1,54 @@
+app:
+  name: ACHP
+  version: "0.2.0"
+  log_level: INFO
+
+models:
+  proposer:
+    name: meta-llama/llama-4-scout
+    provider: groq
+    context_window: 128000
+  adversary_a:
+    name: deepseek/deepseek-r1
+    provider: openrouter
+  adversary_b:
+    name: qwen/qwen-32b-instruct
+    provider: openrouter
+  judge:
+    name: deepseek/deepseek-chat
+    provider: openrouter
+    fallback: mistralai/mixtral-8x7b-instruct
+  perspective:
+    name: mistralai/mixtral-8x7b-instruct
+    provider: openrouter
+
+cache:
+  backend: redis
+  host: localhost
+  port: 6379
+  db: 0
+  similarity_threshold: 0.85
+  ttl_seconds: 3600
+  use_fakeredis: true
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
+  reranker_model: cross-encoder/ms-marco-MiniLM-L-6-v2
+
+pipeline:
+  max_debate_rounds: 2
+  nil_execution: parallel_async
+  timeouts:
+    retriever: 10
+    proposer: 30
+    adversary_a: 45
+    adversary_b: 45
+    nil_supervisor: 60
+    judge: 45
+    security_validator: 5
+
+metrics:
+  weights:
+    bis: 0.20
+    pcs: 0.20
+    eps: 0.20
+    nss: 0.20
+    cts: 0.20

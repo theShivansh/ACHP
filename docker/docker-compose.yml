@@ -1,0 +1,94 @@
+version: "3.9"
+
+services:
+  # ── Backend API ──────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    image: achp-api:latest
+    container_name: achp-api
+    ports:
+      - "8000:8000"
+    environment:
+      # API Keys — supply via .env or Railway/Render secrets
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+
+      # Models
+      PROPOSER_MODEL: ${PROPOSER_MODEL:-meta-llama/llama-4-scout-17b-16e-instruct}
+      ADVERSARY_A_MODEL: ${ADVERSARY_A_MODEL:-openai/gpt-oss-120b}
+      ADVERSARY_B_MODEL: ${ADVERSARY_B_MODEL:-qwen/qwen3-32b}
+      JUDGE_MODEL: ${JUDGE_MODEL:-llama-3.3-70b-versatile}
+      PERSPECTIVE_MODEL: ${PERSPECTIVE_MODEL:-qwen/qwen3-32b}
+      JUDGE_FALLBACK_MODEL: ${JUDGE_FALLBACK_MODEL:-llama-3.3-70b-versatile}
+
+      # Redis — points to service below
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      USE_FAKEREDIS: "false"
+
+      # Cache
+      CACHE_COSINE_THRESHOLD: ${CACHE_COSINE_THRESHOLD:-0.85}
+      CACHE_CROSS_ENCODER_THRESHOLD: ${CACHE_CROSS_ENCODER_THRESHOLD:-0.65}
+      CACHE_LLM_VALIDATION: ${CACHE_LLM_VALIDATION:-true}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-3600}
+
+      # App
+      ACHP_LOG_LEVEL: ${ACHP_LOG_LEVEL:-INFO}
+    volumes:
+      # Persist KB data across restarts
+      - achp_data:/app/data
+      - achp_logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── Redis Cache ───────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: achp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - achp_redis:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Frontend UI ───────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+    image: achp-web:latest
+    container_name: achp-web
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NODE_ENV: production
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  achp_data:
+    driver: local
+  achp_logs:
+    driver: local
+  achp_redis:
+    driver: local

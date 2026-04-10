@@ -1,0 +1,421 @@
+{
+  "suite": "ACHP Core Pipeline \u2014 End-to-End Tests",
+  "version": "1.0.0",
+  "timestamp": "2026-04-06T17:38:09Z",
+  "mode": "offline (VADER + all-MiniLM-L6-v2, mock LLM agents)",
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "pass_rate": 1.0,
+    "target_met": true,
+    "suite_latency_ms": 17429.43,
+    "avg_latency_ms": 5809.74
+  },
+  "metric_formulas": {
+    "CTS": "0.40\u00b7factual_A + 0.35\u00b7judge_CTS + 0.15\u00b7(1\u2212BIS) + 0.10\u00b7EPS",
+    "PCS": "0.50\u00b7pcs_B + 0.30\u00b7nil_pcs + 0.20\u00b7(1\u2212min(missing/10,1))",
+    "BIS": "0.55\u00b7nil_bis + 0.25\u00b7framing + 0.12\u00b7polarity_abs + frame_boost",
+    "NSS": "0.40\u00b7(1\u2212framing) + 0.35\u00b7narrative_alignment + 0.25\u00b7judge_NSS",
+    "EPS": "0.70\u00b7vader_eps + 0.20\u00b7(1\u2212framing) + 0.10\u00b7min(hedge\u00d73,1)",
+    "composite": "(CTS + PCS + (1\u2212BIS) + NSS + EPS) / 5"
+  },
+  "pipeline_architecture": [
+    "1. SecurityValidator.validate_input()       [sync ~1ms]",
+    "2. RetrieverAgent.retrieve()                [async, cache-first]",
+    "3. ProposerAgent.analyze()                  [async, Llama-4-Scout]",
+    "4. AdversaryA.challenge()  \u2500\u2510 parallel     [async, DeepSeek R1]",
+    "5. AdversaryB.audit()       \u2524 asyncio       [async, Qwen 32B]",
+    "6. NILLayer.run()          \u2500\u2518 .gather()    [async, 5 sub-agents]",
+    "7. JudgeAgent.judge()                       [async, DeepSeek Chat]",
+    "8. SecurityValidator.validate_output()      [sync ~1ms]"
+  ],
+  "cases": [
+    {
+      "id": 1,
+      "label": "climate_hoax",
+      "query": "Climate change is a hoax created by the Chinese government to make U.S. manufacturing non-competitive.",
+      "expected": {
+        "verdict_in": [
+          "FALSE",
+          "MOSTLY_FALSE"
+        ],
+        "nil_in": [
+          "misleading",
+          "propaganda",
+          "biased"
+        ],
+        "note": "Demonstrably false scientific claim with conspiracy framing and political motivation"
+      },
+      "passed": true,
+      "failures": [],
+      "test_latency_ms": 17308.59,
+      "output": {
+        "run_id": "972cd3fd",
+        "timestamp": "2026-04-06T17:38:09Z",
+        "input": "Climate change is a hoax created by the Chinese government to make U.S. manufacturing non-competitive.",
+        "verdict": "FALSE",
+        "verdict_confidence": 0.6381,
+        "composite_score": 0.6381,
+        "metrics": {
+          "CTS": 0.2344,
+          "PCS": 0.6725,
+          "BIS": 0.2556,
+          "NSS": 0.6875,
+          "EPS": 0.8519
+        },
+        "nil": {
+          "verdict": "misleading",
+          "confidence": 0.46,
+          "summary": "NIL verdict: neutral (score=0.15). BIS=0.13 (dominant: gender_stereotyping). EPS=0.88. PCS=0.62. Framing: neutral (0.00). Missing perspectives: 0.",
+          "BIS": 0.3,
+          "EPS": 0.8819,
+          "PCS": 0.625
+        },
+        "atomic_claims": [
+          {
+            "id": "C1",
+            "text": "Climate change is a hoax",
+            "verifiable": true,
+            "confidence": 0.1,
+            "epistemic_marker": "claims",
+            "citations": []
+          },
+          {
+            "id": "C2",
+            "text": "Climate change was created by China",
+            "verifiable": true,
+            "confidence": 0.05,
+            "epistemic_marker": "claims",
+            "citations": []
+          }
+        ],
+        "adversary_a": {
+          "factual_score": 0.05,
+          "critical_flaws": [
+            "Contradicted by 97% scientific consensus (NASA, NOAA, IPCC)",
+            "China is one of the largest investors in renewable energy",
+            "Temperature records pre-date Chinese involvement in climate policy"
+          ],
+          "verdict": "refuted"
+        },
+        "adversary_b": {
+          "perspective_score": 0.65,
+          "missing_perspectives": [
+            {
+              "stakeholder": "Climate scientists",
+              "viewpoint": "99.9% reject hoax claim",
+              "significance": 0.95
+            },
+            {
+              "stakeholder": "Affected coastal communities",
+              "viewpoint": "Experiencing measurable sea rise",
+              "significance": 0.9
+            }
+          ],
+          "narrative_stance": "partial"
+        },
+        "consensus_reasoning": "Scientific consensus overwhelmingly refutes climate change denial. The claim that climate change is a Chinese hoax is contradicted by decades of independent atmospheric measurements, ice core data, and satellite records from agencies worldwide including NASA, ESA, and NOAA.",
+        "key_evidence": {
+          "supporting": [
+            "IPCC AR6 report confirms 1.1\u00b0C warming above pre-industrial levels"
+          ],
+          "contradicting": [
+            "97.1% of peer-reviewed climate papers confirm anthropogenic warming (Cook et al.)",
+            "Temperature records show consistent rise from 1880, pre-dating any alleged Chinese influence",
+            "China has committed $750B to clean energy \u2014 opposite of suppressing climate awareness"
+          ]
+        },
+        "caveats": [
+          "The precise attribution of climate events to human activity carries inherent uncertainty ranges"
+        ],
+        "debate_rounds": 1,
+        "pipeline": {
+          "mode": "full",
+          "latency_ms": {
+            "security_pre": 861.89,
+            "retriever": 0.0,
+            "proposer": 0.0,
+            "debate_nil_parallel": 16446.46,
+            "judge": 0.0,
+            "security_post": 0.07
+          },
+          "total_ms": 17308.46,
+          "models": {
+            "retriever": "mock",
+            "proposer": "mock",
+            "adversary_a": "mock",
+            "adversary_b": "mock",
+            "nil": "vader+all-MiniLM-L6-v2",
+            "judge": "mock"
+          },
+          "cache_hit": false
+        },
+        "security": {
+          "pre_safe": true,
+          "post_safe": true,
+          "warnings": []
+        }
+      }
+    },
+    {
+      "id": 2,
+      "label": "exercise_heart",
+      "query": "Regular exercise reduces the risk of cardiovascular disease by approximately 30 to 40 percent.",
+      "expected": {
+        "verdict_in": [
+          "TRUE",
+          "MOSTLY_TRUE"
+        ],
+        "nil_in": [
+          "neutral",
+          "mildly_biased"
+        ],
+        "note": "Well-evidenced scientific claim with appropriate hedging"
+      },
+      "passed": true,
+      "failures": [],
+      "test_latency_ms": 47.74,
+      "output": {
+        "run_id": "5c73c88a",
+        "timestamp": "2026-04-06T17:38:09Z",
+        "input": "Regular exercise reduces the risk of cardiovascular disease by approximately 30 to 40 percent.",
+        "verdict": "MOSTLY_TRUE",
+        "verdict_confidence": 0.911,
+        "composite_score": 0.831,
+        "metrics": {
+          "CTS": 0.8525,
+          "PCS": 0.7575,
+          "BIS": 0.1189,
+          "NSS": 0.955,
+          "EPS": 0.7088
+        },
+        "nil": {
+          "verdict": "mildly_biased",
+          "confidence": 0.2026,
+          "summary": "NIL verdict: mildly_biased (score=0.20). BIS=0.16 (dominant: gender_stereotyping). EPS=0.71. PCS=0.62. Framing: neutral (0.00). Missing perspectives: 0.",
+          "BIS": 0.1565,
+          "EPS": 0.7088,
+          "PCS": 0.625
+        },
+        "atomic_claims": [
+          {
+            "id": "C1",
+            "text": "Regular exercise reduces heart disease risk",
+            "verifiable": true,
+            "confidence": 0.9,
+            "epistemic_marker": "suggests",
+            "citations": [
+              "AHA Guidelines 2021"
+            ]
+          },
+          {
+            "id": "C2",
+            "text": "Risk reduction is 30-40%",
+            "verifiable": true,
+            "confidence": 0.8,
+            "epistemic_marker": "suggests",
+            "citations": []
+          }
+        ],
+        "adversary_a": {
+          "factual_score": 0.88,
+          "critical_flaws": [
+            "Some studies suggest benefits may be up to 35%, not exactly 30-40%"
+          ],
+          "verdict": "contested"
+        },
+        "adversary_b": {
+          "perspective_score": 0.78,
+          "missing_perspectives": [
+            {
+              "stakeholder": "Cardiologists",
+              "viewpoint": "Benefits depend on exercise type and intensity",
+              "significance": 0.75
+            }
+          ],
+          "narrative_stance": "partial"
+        },
+        "consensus_reasoning": "Multiple meta-analyses confirm that regular moderate exercise reduces cardiovascular disease risk by approximately 30-35%. The 30-40% range cited is consistent with most major studies, though exact figures vary by population and exercise type.",
+        "key_evidence": {
+          "supporting": [
+            "AHA recommends 150 min/week moderate exercise; adherents show 30-35% CVD reduction",
+            "Framingham Heart Study: active individuals 28-35% lower heart disease risk"
+          ],
+          "contradicting": [
+            "Effect size varies significantly by age, genetics, and baseline fitness"
+          ]
+        },
+        "caveats": [
+          "The 30-40% reduction applies to moderate intensity exercise; high-intensity may carry different risk profiles for some populations"
+        ],
+        "debate_rounds": 1,
+        "pipeline": {
+          "mode": "full",
+          "latency_ms": {
+            "security_pre": 0.05,
+            "retriever": 0.0,
+            "proposer": 0.0,
+            "debate_nil_parallel": 47.49,
+            "judge": 0.0,
+            "security_post": 0.06
+          },
+          "total_ms": 47.65,
+          "models": {
+            "retriever": "mock",
+            "proposer": "mock",
+            "adversary_a": "mock",
+            "adversary_b": "mock",
+            "nil": "vader+all-MiniLM-L6-v2",
+            "judge": "mock"
+          },
+          "cache_hit": false
+        },
+        "security": {
+          "pre_safe": true,
+          "post_safe": true,
+          "warnings": []
+        }
+      }
+    },
+    {
+      "id": 3,
+      "label": "immigration_economy",
+      "query": "Immigrants are destroying our economy and taking all the jobs from hard-working citizens.",
+      "expected": {
+        "verdict_in": [
+          "FALSE",
+          "MOSTLY_FALSE",
+          "MIXED"
+        ],
+        "nil_in": [
+          "misleading",
+          "biased",
+          "propaganda"
+        ],
+        "note": "Economically contested claim with strong delegitimizing framing"
+      },
+      "passed": true,
+      "failures": [],
+      "test_latency_ms": 72.9,
+      "output": {
+        "run_id": "fb3333ad",
+        "timestamp": "2026-04-06T17:38:09Z",
+        "input": "Immigrants are destroying our economy and taking all the jobs from hard-working citizens.",
+        "verdict": "MOSTLY_FALSE",
+        "verdict_confidence": 0.5196,
+        "composite_score": 0.5196,
+        "metrics": {
+          "CTS": 0.2801,
+          "PCS": 0.4575,
+          "BIS": 0.3194,
+          "NSS": 0.7,
+          "EPS": 0.4798
+        },
+        "nil": {
+          "verdict": "misleading",
+          "confidence": 0.46,
+          "summary": "NIL verdict: biased (score=0.33). BIS=0.27 (dominant: gender_stereotyping). EPS=0.48. PCS=0.62. Framing: alarm (0.13). Missing perspectives: 0.",
+          "BIS": 0.3,
+          "EPS": 0.4831,
+          "PCS": 0.625
+        },
+        "atomic_claims": [
+          {
+            "id": "C1",
+            "text": "Immigrants are harming the economy",
+            "verifiable": true,
+            "confidence": 0.15,
+            "epistemic_marker": "claims",
+            "citations": []
+          },
+          {
+            "id": "C2",
+            "text": "Immigrants are taking all the jobs",
+            "verifiable": true,
+            "confidence": 0.1,
+            "epistemic_marker": "claims",
+            "citations": []
+          }
+        ],
+        "adversary_a": {
+          "factual_score": 0.15,
+          "critical_flaws": [
+            "Economic research shows net positive fiscal contribution from immigrants",
+            "Lump-of-labour fallacy: new workers also create new jobs as consumers",
+            "Uses emotionally loaded language (destroying) without evidence"
+          ],
+          "verdict": "refuted"
+        },
+        "adversary_b": {
+          "perspective_score": 0.3,
+          "missing_perspectives": [
+            {
+              "stakeholder": "Immigrants",
+              "viewpoint": "Research shows positive fiscal contribution",
+              "significance": 0.95
+            },
+            {
+              "stakeholder": "Economists",
+              "viewpoint": "Net positive GDP impact in most OECD countries",
+              "significance": 0.9
+            },
+            {
+              "stakeholder": "Small business owners",
+              "viewpoint": "Immigrant entrepreneurs create jobs",
+              "significance": 0.8
+            },
+            {
+              "stakeholder": "Native workers in non-competing sectors",
+              "viewpoint": "Complementary labour dynamic",
+              "significance": 0.7
+            }
+          ],
+          "narrative_stance": "skewed"
+        },
+        "consensus_reasoning": "Economic consensus contradicts the claim's framing. IMF, World Bank, and national studies consistently show immigrants contribute net positive fiscal value over time. The 'taking jobs' claim ignores the demand-side effect where immigrants also create new economic demand.",
+        "key_evidence": {
+          "supporting": [
+            "Some studies show wage suppression in specific low-skill sectors during high immigration periods"
+          ],
+          "contradicting": [
+            "CBO reports immigrants add $1.7T to US GDP over 10 years",
+            "NAS study: immigrants pay more in taxes than they receive in benefits over lifetime",
+            "Immigrant entrepreneurship rate is 80% higher than native-born in the US"
+          ]
+        },
+        "caveats": [
+          "Short-term localized wage effects in specific sectors are documented but are distinct from the claim",
+          "The word 'all' in the claim is demonstrably false \u2014 job creation and destruction is distributed"
+        ],
+        "debate_rounds": 1,
+        "pipeline": {
+          "mode": "full",
+          "latency_ms": {
+            "security_pre": 0.06,
+            "retriever": 0.0,
+            "proposer": 0.0,
+            "debate_nil_parallel": 72.64,
+            "judge": 0.0,
+            "security_post": 0.07
+          },
+          "total_ms": 72.8,
+          "models": {
+            "retriever": "mock",
+            "proposer": "mock",
+            "adversary_a": "mock",
+            "adversary_b": "mock",
+            "nil": "vader+all-MiniLM-L6-v2",
+            "judge": "mock"
+          },
+          "cache_hit": false
+        },
+        "security": {
+          "pre_safe": true,
+          "post_safe": true,
+          "warnings": []
+        }
+      }
+    }
+  ]
+}

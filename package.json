@@ -1,0 +1,16 @@
+{
+  "name": "achp",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "api": "uvicorn apps.api.main:app --reload --port 8000",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}
