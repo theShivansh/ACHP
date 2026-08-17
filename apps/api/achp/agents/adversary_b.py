@@ -1,8 +1,8 @@
 """
 ACHP — Adversary B Agent (Narrative Fairness Auditor)
 =====================================================
-Primary: Groq (qwen/qwen3-32b or env: ADVERSARY_B_MODEL).
-Fallback: Groq llama-3.3-70b-versatile on any model failure.
+Primary: Groq (openai/gpt-oss-120b or env: ADVERSARY_B_MODEL).
+Fallback: Groq qwen/qwen3.6-27b on any model failure.
 
 Switched from OpenRouter to Groq since OR requires paid credits.
 Tenacity retries only on 5xx / transient errors, NOT on 4xx.
@@ -108,8 +108,8 @@ Audit this narrative for missing perspectives. Output ONLY JSON."""
 
 class AdversaryBAgent:
     AGENT_ID = "adversary_b"
-    DEFAULT_MODEL = "qwen/qwen3-32b"          # Groq primary
-    FALLBACK_MODEL = "llama-3.3-70b-versatile" # Groq fallback
+    DEFAULT_MODEL = "openai/gpt-oss-120b"          # Groq primary
+    FALLBACK_MODEL = "qwen/qwen3.6-27b" # Groq fallback
 
     def __init__(self, model: Optional[str] = None, temperature: float = 0.3):
         self.model = model or os.getenv("ADVERSARY_B_MODEL", self.DEFAULT_MODEL)

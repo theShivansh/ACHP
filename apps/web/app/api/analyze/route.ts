@@ -22,8 +22,8 @@ const OPENROUTER_BASE    = process.env.OPENROUTER_BASE_URL ?? 'https://openroute
 
 // ── Model IDs — read exactly from .env.local ─────────────────────────────────
 // Groq-hosted (fast, always available — used as fallback for all OR failures)
-const M_PROPOSER       = process.env.PROPOSER_MODEL ?? 'meta-llama/llama-4-scout-17b-16e-instruct';
-const M_GROQ_WORKHORSE = 'llama-3.3-70b-versatile';
+const M_PROPOSER       = process.env.PROPOSER_MODEL ?? 'qwen/qwen3.6-27b';
+const M_GROQ_WORKHORSE = 'qwen/qwen3.6-27b';
 
 // OpenRouter-hosted (exact models from .env.local)
 // If these return 404 / 402 / 429, openRouterChat() falls back to M_GROQ_WORKHORSE
@@ -54,7 +54,7 @@ async function groqChat(
 
 // ── OpenRouter LLM call — auto-falls back to Groq on any 4xx ────────────────
 // 404 = model removed/not found, 402 = no credits, 429 = rate-limited
-// All these → silently fall back to Groq llama-3.3-70b-versatile
+// All these → silently fall back to Groq qwen/qwen3.6-27b
 async function openRouterChat(
   messages: { role: string; content: string }[],
   orModel: string,

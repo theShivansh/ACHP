@@ -107,7 +107,7 @@ Claim ──► [Security] ──► [Retriever] ──► [Proposer] ──► 
 | 1 | RetrieverAgent | BM25 + FAISS hybrid RAG + web fallback | all-MiniLM-L6-v2 | DuckDuckGo | ~12 s |
 | 2 | ProposerAgent | Atomic claim decomposition, SFT-CoT, provenance | llama-4-scout-17b | llama-3.3-70b | ~2 s |
 | 3 | AdversaryA | Factual attacker — counter-evidence, logical fallacies | openai/gpt-oss-120b | llama-3.3-70b | ~9 s |
-| 4 | AdversaryB | Narrative auditor — missing voices, framing asymmetry | qwen/qwen3-32b | llama-3.3-70b | ~8 s |
+| 4 | AdversaryB | Narrative auditor — missing voices, framing asymmetry | openai/gpt-oss-120b | llama-3.3-70b | ~8 s |
 | 5 | NILLayer | 5 sub-agents: sentiment · bias · perspective · framing · synthesis | Multiple | Heuristics | ~9 s |
 | 6 | JudgeAgent | Debate synthesis → verdict + 5 ACHP metrics | llama-3.3-70b | llama-3.3-70b | ~2 s |
 | 7 | SecurityValidator | Post-filter: harmful content, PII redaction | Rule-based | — | ~1 ms |
@@ -465,12 +465,12 @@ Copy `.env.example` to `apps/api/.env` and fill in the required values:
 GROQ_API_KEY=gsk_...                  # Get free key at console.groq.com/keys
 
 # ── Models (defaults shown — all available on Groq free tier) ────────────────
-PROPOSER_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
+PROPOSER_MODEL=qwen/qwen3.6-27b
 ADVERSARY_A_MODEL=openai/gpt-oss-120b
-ADVERSARY_B_MODEL=qwen/qwen3-32b
-JUDGE_MODEL=llama-3.3-70b-versatile
-PERSPECTIVE_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
-JUDGE_FALLBACK_MODEL=llama-3.3-70b-versatile
+ADVERSARY_B_MODEL=openai/gpt-oss-120b
+JUDGE_MODEL=qwen/qwen3.6-27b
+PERSPECTIVE_MODEL=qwen/qwen3.6-27b
+JUDGE_FALLBACK_MODEL=qwen/qwen3.6-27b
 
 # ── Cache ────────────────────────────────────────────────────────────────────
 USE_FAKEREDIS=true                    # Use in-memory Redis for dev

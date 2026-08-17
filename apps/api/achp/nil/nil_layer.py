@@ -104,7 +104,7 @@ class SentimentEPS:
               (uses extra_body tool_choice=none, json mode)
     """
     NAME  = "sentiment"
-    MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+    MODEL = "qwen/qwen3.6-27b"
 
     LOADED_WORDS = {
         # negative loading
@@ -244,8 +244,8 @@ Output ONLY valid JSON:
 
 class BiasGroq:
     NAME    = "bias"
-    MODEL   = "llama-3.3-70b-versatile"   # Groq primary
-    FALLBACK= "llama-3.3-70b-versatile"   # same — very reliable
+    MODEL   = "qwen/qwen3.6-27b"   # Groq primary
+    FALLBACK= "qwen/qwen3.6-27b"   # same — very reliable
 
     _KEYWORD_MAP = {
         "political_left":    ["progressive","liberal","socialist","left-wing","democrat","marxist"],
@@ -356,8 +356,8 @@ Output ONLY JSON:
 
 class PerspectiveLlama:
     NAME    = "perspective"
-    MODEL   = "meta-llama/llama-4-scout-17b-16e-instruct"
-    FALLBACK= "llama-3.3-70b-versatile"
+    MODEL   = "qwen/qwen3.6-27b"
+    FALLBACK= "qwen/qwen3.6-27b"
 
     def __init__(self, use_llm: bool = True):
         self.use_llm = use_llm and bool(os.getenv("GROQ_API_KEY"))

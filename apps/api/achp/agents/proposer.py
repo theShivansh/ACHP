@@ -116,8 +116,8 @@ Apply chain-of-thought reasoning, then output ONLY the JSON object."""
 
 class ProposerAgent:
     AGENT_ID = "proposer"
-    DEFAULT_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
-    FALLBACK_MODEL = "llama-3.3-70b-versatile"
+    DEFAULT_MODEL = "qwen/qwen3.6-27b"
+    FALLBACK_MODEL = "qwen/qwen3.6-27b"
 
     def __init__(
         self,

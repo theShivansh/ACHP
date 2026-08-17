@@ -884,7 +884,7 @@ async def kb_qa(request: QARequest):
                              "Content-Type": "application/json"},
                     json={
                         "model": os.getenv("PROPOSER_MODEL",
-                                           "meta-llama/llama-4-scout-17b-16e-instruct"),
+                                           "qwen/qwen3.6-27b"),
                         "messages": [
                             {"role": "system", "content": system_prompt},
                             {"role": "user",   "content": user_prompt},

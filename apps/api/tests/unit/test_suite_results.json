@@ -57,7 +57,7 @@
         "sentiment": {
           "name": "sentiment",
           "ok": true,
-          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "model": "qwen/qwen3.6-27b",
           "latency_ms": 23.55,
           "error": null,
           "data": {
@@ -264,7 +264,7 @@
         "sentiment": {
           "name": "sentiment",
           "ok": true,
-          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "model": "qwen/qwen3.6-27b",
           "latency_ms": 13.47,
           "error": null,
           "data": {
@@ -456,7 +456,7 @@
         "sentiment": {
           "name": "sentiment",
           "ok": true,
-          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "model": "qwen/qwen3.6-27b",
           "latency_ms": 13.65,
           "error": null,
           "data": {
@@ -671,7 +671,7 @@
         "sentiment": {
           "name": "sentiment",
           "ok": true,
-          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "model": "qwen/qwen3.6-27b",
           "latency_ms": 13.85,
           "error": null,
           "data": {
@@ -876,7 +876,7 @@
         "sentiment": {
           "name": "sentiment",
           "ok": true,
-          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "model": "qwen/qwen3.6-27b",
           "latency_ms": 16.07,
           "error": null,
           "data": {
@@ -1076,7 +1076,7 @@
         "sentiment": {
           "name": "sentiment",
           "ok": true,
-          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "model": "qwen/qwen3.6-27b",
           "latency_ms": 19.57,
           "error": null,
           "data": {
@@ -1286,7 +1286,7 @@
         "sentiment": {
           "name": "sentiment",
           "ok": true,
-          "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+          "model": "qwen/qwen3.6-27b",
           "latency_ms": 21.34,
           "error": null,
           "data": {

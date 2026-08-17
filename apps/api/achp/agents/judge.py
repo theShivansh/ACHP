@@ -1,8 +1,8 @@
 """
 ACHP — Judge Agent (LLM Council Consensus)
 ==========================================
-Primary: Groq (llama-3.3-70b-versatile or env: JUDGE_MODEL).
-Fallback: Groq llama-3.3-70b-versatile (JUDGE_FALLBACK_MODEL).
+Primary: Groq (qwen/qwen3.6-27b or env: JUDGE_MODEL).
+Fallback: Groq qwen/qwen3.6-27b (JUDGE_FALLBACK_MODEL).
 
 Switched from OpenRouter to Groq since OR requires paid credits.
 Tenacity retries only on 5xx / transient errors, NOT on 4xx.
@@ -156,8 +156,8 @@ NIL summary: {nil_report.nil_summary}"""
 
 class JudgeAgent:
     AGENT_ID = "judge"
-    DEFAULT_MODEL  = "llama-3.3-70b-versatile"   # Groq primary
-    FALLBACK_MODEL = "llama-3.3-70b-versatile"   # Groq fallback (same — very reliable)
+    DEFAULT_MODEL  = "qwen/qwen3.6-27b"   # Groq primary
+    FALLBACK_MODEL = "qwen/qwen3.6-27b"   # Groq fallback (same — very reliable)
 
     def __init__(self, model: Optional[str] = None, temperature: float = 0.1):
         self.model         = model or os.getenv("JUDGE_MODEL", self.DEFAULT_MODEL)

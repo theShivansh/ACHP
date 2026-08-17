@@ -190,13 +190,13 @@ class MasterOrchestrator:
 
         if is_complex:
             return {
-                "proposer":    "meta-llama/llama-4-scout-17b-16e-instruct",
+                "proposer":    "qwen/qwen3.6-27b",
                 "adversary_a": "deepseek/deepseek-r1",
                 "adversary_b": "qwen/qwen-32b",
                 "judge":       "deepseek/deepseek-chat",
             }
         return {
-            "proposer":    os.getenv("PROPOSER_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct"),
+            "proposer":    os.getenv("PROPOSER_MODEL", "qwen/qwen3.6-27b"),
             "adversary_a": os.getenv("ADVERSARY_A_MODEL", "deepseek/deepseek-r1"),
             "adversary_b": os.getenv("ADVERSARY_B_MODEL", "qwen/qwen-32b"),
             "judge":       os.getenv("JUDGE_MODEL", "deepseek/deepseek-chat"),
