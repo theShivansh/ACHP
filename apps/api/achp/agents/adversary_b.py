@@ -127,6 +127,9 @@ class AdversaryBAgent:
 
     @staticmethod
     def _parse_raw(text: str) -> dict:
+        """Strip <think> tags and markdown fences, then parse JSON."""
+        if "<think>" in text:
+            text = text.split("</think>")[-1].strip()
         if "```" in text:
             parts = text.split("```")
             text = parts[1] if len(parts) > 1 else parts[0]
@@ -146,8 +149,7 @@ class AdversaryBAgent:
             model=model,
             messages=messages,
             temperature=self.temperature,
-            max_tokens=2048,
-            reasoning_effort="medium",
+            max_tokens=1024,
         )
         return self._parse_raw(response.choices[0].message.content)
 
