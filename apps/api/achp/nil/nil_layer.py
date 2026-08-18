@@ -100,11 +100,11 @@ class SentimentEPS:
     the claim's certainty level is vs its actual verifiability.
 
     Primary:  VADER for fast offline polarity
-    Enhanced: Groq Llama-4-Scout for epistemic hedge detection
+    Enhanced: Groq openai/gpt-oss-120b for epistemic hedge detection
               (uses extra_body tool_choice=none, json mode)
     """
     NAME  = "sentiment"
-    MODEL = "qwen/qwen3.6-27b"
+    MODEL = "openai/gpt-oss-120b"
 
     LOADED_WORDS = {
         # negative loading
@@ -244,8 +244,8 @@ Output ONLY valid JSON:
 
 class BiasGroq:
     NAME    = "bias"
-    MODEL   = "qwen/qwen3.6-27b"   # Groq primary
-    FALLBACK= "qwen/qwen3.6-27b"   # same — very reliable
+    MODEL   = "openai/gpt-oss-120b"   # Groq primary
+    FALLBACK= "openai/gpt-oss-120b"   # same — very reliable
 
     _KEYWORD_MAP = {
         "political_left":    ["progressive","liberal","socialist","left-wing","democrat","marxist"],
@@ -324,7 +324,7 @@ BiasDeepSeek = BiasGroq
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Sub-Agent 3 — Perspective Generator → PCS  (Groq Llama-4-Scout)
+# Sub-Agent 3 — Perspective Generator → PCS  (Groq openai/gpt-oss-120b)
 # ─────────────────────────────────────────────────────────────────────────────
 
 PERSPECTIVE_SYSTEM = """\
@@ -356,8 +356,8 @@ Output ONLY JSON:
 
 class PerspectiveLlama:
     NAME    = "perspective"
-    MODEL   = "qwen/qwen3.6-27b"
-    FALLBACK= "qwen/qwen3.6-27b"
+    MODEL   = "openai/gpt-oss-120b"
+    FALLBACK= "openai/gpt-oss-120b"
 
     def __init__(self, use_llm: bool = True):
         self.use_llm = use_llm and bool(os.getenv("GROQ_API_KEY"))

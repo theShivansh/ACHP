@@ -1,7 +1,7 @@
 """
 ACHP — Proposer Agent
 =====================
-Llama 4 Scout via Groq (long-context, fast).
+openai/gpt-oss-120b via Groq (long-context, fast).
 Decomposes a claim into atomic sub-claims with citations.
 Output is a structured ClaimAnalysis Pydantic model consumed by the debate layer.
 
@@ -116,8 +116,8 @@ Apply chain-of-thought reasoning, then output ONLY the JSON object."""
 
 class ProposerAgent:
     AGENT_ID = "proposer"
-    DEFAULT_MODEL = "qwen/qwen3.6-27b"
-    FALLBACK_MODEL = "qwen/qwen3.6-27b"
+    DEFAULT_MODEL = "openai/gpt-oss-120b"
+    FALLBACK_MODEL = "openai/gpt-oss-120b"
 
     def __init__(
         self,

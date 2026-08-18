@@ -2,7 +2,7 @@
 ACHP — Adversary A Agent (Factual Attacker)
 ===========================================
 Primary: DeepSeek R1 via OpenRouter (if OR credits available).
-Fallback: Groq qwen/qwen3.6-27b — triggered on ANY 4xx from OpenRouter
+Fallback: Groq openai/gpt-oss-120b — triggered on ANY 4xx from OpenRouter
           (404=model gone, 402=no credits, 429=rate-limited).
 
 Tenacity is configured to NOT retry on 4xx client errors (they are
@@ -115,7 +115,7 @@ class AdversaryAAgent:
     # Primary: OpenRouter DeepSeek R1
     DEFAULT_MODEL = "deepseek/deepseek-r1"
     # Groq fallback — used when OpenRouter returns any 4xx
-    GROQ_FALLBACK_MODEL = "qwen/qwen3.6-27b"
+    GROQ_FALLBACK_MODEL = "openai/gpt-oss-120b"
 
     def __init__(self, model: Optional[str] = None, temperature: float = 0.2):
         self.model = model or os.getenv("ADVERSARY_A_MODEL", self.DEFAULT_MODEL)
@@ -196,7 +196,7 @@ class AdversaryAAgent:
         except Exception as e:
             logger.warning(f"AdversaryA primary error ({e}), falling back to Groq/{self.GROQ_FALLBACK_MODEL}")
 
-        # ── Fallback: Groq qwen/qwen3.6-27b ────────────────────────
+        # ── Fallback: Groq openai/gpt-oss-120b ────────────────────────
         if raw is None:
             try:
                 raw = await self._call_groq_model(messages, self.GROQ_FALLBACK_MODEL)
