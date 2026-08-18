@@ -176,8 +176,9 @@ class JudgeAgent:
 
     @staticmethod
     def _parse_raw(text: str) -> dict:
-        if text.startswith("```"):
-            text = text.split("```")[1]
+        if "```" in text:
+            parts = text.split("```")
+            text = parts[1] if len(parts) > 1 else parts[0]
             if text.startswith("json"):
                 text = text[4:]
         return json.loads(text.strip())

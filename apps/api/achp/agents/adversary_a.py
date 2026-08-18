@@ -1,13 +1,10 @@
 """
 ACHP — Adversary A Agent (Factual Attacker)
 ===========================================
-Primary: DeepSeek R1 via OpenRouter (if OR credits available).
-Fallback: Groq openai/gpt-oss-120b — triggered on ANY 4xx from OpenRouter
-          (404=model gone, 402=no credits, 429=rate-limited).
+Primary: Groq openai/gpt-oss-120b (env: ADVERSARY_A_MODEL).
+Fallback: Groq openai/gpt-oss-120b — same model, retry on transient errors.
 
-Tenacity is configured to NOT retry on 4xx client errors (they are
-deterministic — retrying wastes quota and time). It only retries on
-5xx / transient network failures.
+Tenacity retries only on 5xx / transient network failures, NOT on 4xx.
 """
 from __future__ import annotations
 
@@ -112,15 +109,14 @@ Apply rigorous factual scrutiny. Output ONLY JSON."""
 
 class AdversaryAAgent:
     AGENT_ID = "adversary_a"
-    # Primary: OpenRouter DeepSeek R1
-    DEFAULT_MODEL = "deepseek/deepseek-r1"
-    # Groq fallback — used when OpenRouter returns any 4xx
+    # Primary: Groq openai/gpt-oss-120b
+    DEFAULT_MODEL = "openai/gpt-oss-120b"
+    # Groq fallback — same model, handles transient errors
     GROQ_FALLBACK_MODEL = "openai/gpt-oss-120b"
 
     def __init__(self, model: Optional[str] = None, temperature: float = 0.2):
         self.model = model or os.getenv("ADVERSARY_A_MODEL", self.DEFAULT_MODEL)
         self.temperature = temperature
-        self._or_client: Optional[AsyncOpenAI] = None
         self._groq_client: Optional[AsyncOpenAI] = None
         logger.info(f"AdversaryAAgent initialized | model={self.model}")
 
@@ -147,12 +143,14 @@ class AdversaryAAgent:
 
     @staticmethod
     def _parse_raw(text: str) -> dict:
-        """Strip <think> tags (DeepSeek R1) then parse JSON."""
+        """Strip <think> tags then parse JSON safely."""
         if "<think>" in text:
             text = text.split("</think>")[-1].strip()
         # Strip markdown code fences if present
-        if text.startswith("```"):
-            text = text.split("```")[1]
+        if "```" in text:
+            parts = text.split("```")
+            # Take the part after the first fence
+            text = parts[1] if len(parts) > 1 else parts[0]
             if text.startswith("json"):
                 text = text[4:]
         return json.loads(text.strip())

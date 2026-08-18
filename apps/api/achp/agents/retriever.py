@@ -106,7 +106,7 @@ class BM25Retriever:
 
 async def _web_search(query: str, max_results: int = 5) -> List[RetrievedDoc]:
     try:
-        from ddgs import DDGS
+        from duckduckgo_search import DDGS
         results = []
         with DDGS() as ddgs:
             for r in ddgs.text(query, max_results=max_results):
@@ -218,11 +218,11 @@ class RetrieverAgent:
         self, query: str, docs: List[RetrievedDoc]
     ) -> List[RetrievedDoc]:
         """Re-rank BM25 results by bi-encoder cosine similarity."""
-        query_vec = await asyncio.get_event_loop().run_in_executor(
+        query_vec = await asyncio.get_running_loop().run_in_executor(
             None, encode, query, self.bi_encoder
         )
         for doc in docs:
-            doc_vec = await asyncio.get_event_loop().run_in_executor(
+            doc_vec = await asyncio.get_running_loop().run_in_executor(
                 None, encode, doc.content[:512], self.bi_encoder
             )
             doc.score = cosine_similarity(query_vec, doc_vec)

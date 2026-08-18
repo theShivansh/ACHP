@@ -125,6 +125,12 @@ class SecurityValidatorAgent:
             failed.append(f"input_too_long ({len(text)} > {self.MAX_INPUT_LENGTH})")
             result.safe = False
             result.block_reason = "Input exceeds maximum length"
+            # Return early — do NOT run expensive regexes on oversized input (ReDoS risk)
+            result.passed_checks = passed
+            result.failed_checks = failed
+            result.warnings = warnings
+            result.latency_ms = (time.perf_counter() - t0) * 1000
+            return result
         else:
             passed.append("length_check")
 

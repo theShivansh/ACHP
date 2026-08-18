@@ -163,7 +163,7 @@ class CacheConfig:
     # Models
     bi_encoder: str = "sentence-transformers/all-MiniLM-L6-v2"
     cross_encoder: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-    llm_validator_model: str = "meta-llama/llama-4-scout"
+    llm_validator_model: str = "openai/gpt-oss-120b"
     llm_validator_provider: str = "groq"
 
     # Near-miss band: activate cross-encoder only in [cosine_near_miss_low, cosine_threshold)
@@ -310,7 +310,7 @@ class RedisBackend:
 async def _llm_validate_hit(
     query: str,
     cached_query: str,
-    model: str = "meta-llama/llama-4-scout",
+    model: str = "openai/gpt-oss-120b",
     provider: str = "groq",
 ) -> Tuple[bool, float, str]:
     """
@@ -329,31 +329,17 @@ Answer format (JSON only):
 Be strict: answer "valid: false" if the queries differ in scope, entity, or intent even slightly."""
 
     try:
-        if provider == "groq":
-            from groq import AsyncGroq
-            client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
-            response = await client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.0,
-                max_tokens=150,
-                response_format={"type": "json_object"},
-            )
-            result = json.loads(response.choices[0].message.content)
-        else:
-            from openai import AsyncOpenAI
-            client = AsyncOpenAI(
-                api_key=os.getenv("OPENROUTER_API_KEY"),
-                base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
-            )
-            response = await client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.0,
-                max_tokens=150,
-            )
-            result = json.loads(response.choices[0].message.content)
-
+        # Always use Groq (provider param kept for API compat but always "groq")
+        from groq import AsyncGroq
+        client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+            max_tokens=150,
+            response_format={"type": "json_object"},
+        )
+        result = json.loads(response.choices[0].message.content)
         return result.get("valid", False), float(result.get("confidence", 0.0)), result.get("reason", "")
 
     except Exception as e:

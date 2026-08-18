@@ -5,13 +5,13 @@ Narrative Integrity Layer: 5 async sub-agents launched in parallel via
 asyncio.gather().  Each sub-agent is self-contained and writes exactly
 one key into the shared NILResult.
 
-Sub-agents                 Model          Metric          Mode
-──────────────────────────────────────────────────────────────
-1. SentimentEPS            VADER+Groq     EPS             offline→LLM
-2. BiasDeepSeek            DeepSeek-chat  BIS             OpenRouter
-3. PerspectiveLlama        Llama-4-Scout  PCS+opposites   Groq
-4. FramingCosine           all-MiniLM     framing_score   local embed
-5. ConfidenceSynthesizer   deterministic  final NIL score math
+Sub-agents                 Model                  Metric          Mode
+──────────────────────────────────────────────────────────────────────
+1. SentimentEPS            VADER+openai/gpt-oss    EPS             offline→LLM
+2. BiasGroq                openai/gpt-oss-120b     BIS             Groq
+3. PerspectiveLlama        openai/gpt-oss-120b     PCS+opposites   Groq
+4. FramingCosine           all-MiniLM              framing_score   local embed
+5. ConfidenceSynthesizer   deterministic           final NIL score math
 
 Parallel budget: each sub-agent runs independently.
 The slowest sub-agent (Perspective ~5s) determines wall-clock time.
@@ -212,7 +212,7 @@ class SentimentEPS:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Sub-Agent 2 — Bias → BIS  (DeepSeek via OpenRouter)
+# Sub-Agent 2 — Bias → BIS  (Groq openai/gpt-oss-120b)
 # ─────────────────────────────────────────────────────────────────────────────
 
 BIAS_AXES = [

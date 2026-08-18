@@ -13,6 +13,7 @@ to finetune smaller models for cheaper inference.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -32,8 +33,8 @@ DATA_DIR = Path(__file__).resolve().parents[3] / "data" / "synthetic"
 class SyntheticDataGenerator:
     """Generates training pairs from ACHP pipeline outputs."""
 
-    NEUTRALIZER_MODEL  = "mistralai/mixtral-8x7b-instruct"
-    BIASED_GEN_MODEL   = "mistralai/mixtral-8x7b-instruct"
+    NEUTRALIZER_MODEL  = "openai/gpt-oss-120b"
+    BIASED_GEN_MODEL   = "openai/gpt-oss-120b"
 
     SFT_PROMPT = """You are a neutral fact-checking analyst.
 Given the claim below, write a balanced, well-evidenced analysis.
@@ -53,9 +54,12 @@ Claim: {claim}"""
 
     def _get_client(self) -> AsyncOpenAI:
         if self._client is None:
+            api_key = os.getenv("GROQ_API_KEY")
+            if not api_key:
+                raise RuntimeError("GROQ_API_KEY not set — SyntheticDataGenerator unavailable")
             self._client = AsyncOpenAI(
-                api_key=os.getenv("OPENROUTER_API_KEY"),
-                base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+                api_key=api_key,
+                base_url="https://api.groq.com/openai/v1",
             )
         return self._client
 
@@ -103,7 +107,6 @@ Claim: {claim}"""
                     ),
                 }],
                 temperature=0.3, max_tokens=512,
-                extra_headers={"HTTP-Referer": "https://achp.research", "X-Title": "ACHP-SFT"},
             )
             chosen = resp.choices[0].message.content
         except Exception as e:
@@ -128,7 +131,6 @@ Claim: {claim}"""
                     "content": self.REJECTED_PROMPT.format(claim=claim),
                 }],
                 temperature=0.8, max_tokens=256,
-                extra_headers={"HTTP-Referer": "https://achp.research", "X-Title": "ACHP-DPO"},
             )
             rejected = resp.choices[0].message.content
         except Exception as e:

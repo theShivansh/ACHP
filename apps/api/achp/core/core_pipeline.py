@@ -9,13 +9,13 @@ Single source of truth connecting all 7 agents in the exact sequence:
       │
   [2] RetrieverAgent.retrieve()                   async ~15s / <1ms cache
       │
-  [3] ProposerAgent.analyze()                     async ~5s   Llama-4-Scout
+  [3] ProposerAgent.analyze()                     async ~5s   openai/gpt-oss-120b
       │
-  [4] AdversaryAAgent.challenge()  ─┐             async ~10s  DeepSeek R1
-  [5] AdversaryBAgent.audit()       ┤ parallel    async ~10s  Qwen 32B
-  [6] NILLayer.run()               ─┘             async ~0.1s VADER+cosine
+  [4] AdversaryAAgent.challenge()  ─┐             async ~10s  openai/gpt-oss-120b
+  [5] AdversaryBAgent.audit()       ┤ parallel    async ~10s  openai/gpt-oss-120b
+  [6] NILLayer.run()               ─┘             async ~0.1s VADER+Groq
       │
-  [7] JudgeAgent.judge()                          async ~8s   DeepSeek Chat
+  [7] JudgeAgent.judge()                          async ~8s   openai/gpt-oss-120b
       │
   [8] SecurityValidator.validate_output()          sync  ~1ms
       │
@@ -568,8 +568,8 @@ class CorePipeline:
             adv_a_coro, adv_b_coro, nil_coro
         )
         latencies["debate_nil_parallel"] = (time.perf_counter() - t0) * 1000
-        models["adversary_a"] = "mock" if self.offline else "deepseek/deepseek-r1"
-        models["adversary_b"] = "mock" if self.offline else "qwen/qwen-32b"
+        models["adversary_a"] = "mock" if self.offline else "openai/gpt-oss-120b"
+        models["adversary_b"] = "mock" if self.offline else "openai/gpt-oss-120b"
         models["nil"]         = "vader+all-MiniLM-L6-v2"
 
         await emit("agent_status", {"agent":"adversary_a","status":"done",
@@ -610,7 +610,7 @@ class CorePipeline:
         judge_out = await self._run_judge(
             text, prop_out, adv_a_out, adv_b_out, nil_result, mock
         )
-        models["judge"] = "mock" if self.offline else "deepseek/deepseek-chat"
+        models["judge"] = "mock" if self.offline else "openai/gpt-oss-120b"
 
         # Conditional re-debate if judge confidence low
         while (judge_out["verdict_confidence"] < self.JUDGE_CONFIDENCE_THRESHOLD

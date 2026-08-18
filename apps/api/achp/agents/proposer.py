@@ -153,6 +153,7 @@ class ProposerAgent:
         prompt = USER_PROMPT_TEMPLATE.format(claim=claim, context=context_str[:4000])
         client = self._get_client()
 
+        response = None
         try:
             response = await client.chat.completions.create(
                 model=self.model,
@@ -166,19 +167,40 @@ class ProposerAgent:
             )
         except Exception as e:
             logger.warning(f"ProposerAgent: primary model failed ({e}), trying fallback")
-            response = await client.chat.completions.create(
-                model=self.FALLBACK_MODEL,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user",   "content": prompt},
-                ],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                response_format={"type": "json_object"},
+            try:
+                response = await client.chat.completions.create(
+                    model=self.FALLBACK_MODEL,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user",   "content": prompt},
+                    ],
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    response_format={"type": "json_object"},
+                )
+            except Exception as e2:
+                logger.error(f"ProposerAgent: fallback also failed ({e2}), returning safe default")
+
+        latency = (time.perf_counter() - t0) * 1000
+
+        if response is None:
+            # Safe default — pipeline continues with a single unverifiable claim
+            return ClaimAnalysis(
+                original_input=claim,
+                atomic_claims=[AtomicClaim(
+                    id="C1", text=claim, verifiable=False, confidence=0.3,
+                    epistemic_marker="claims",
+                )],
+                overall_confidence=0.3,
+                claim_type="mixed",
+                context_summary="Proposer LLM unavailable — analysis incomplete.",
+                retrieved_context=retrieved_context or [],
+                latency_ms=latency,
+                model_used="unavailable",
+                token_usage={},
             )
 
         raw = json.loads(response.choices[0].message.content)
-        latency = (time.perf_counter() - t0) * 1000
 
         atomic_claims = [
             AtomicClaim(**c) for c in raw.get("atomic_claims", [])
@@ -194,8 +216,8 @@ class ProposerAgent:
             latency_ms=latency,
             model_used=self.model,
             token_usage={
-                "prompt_tokens": response.usage.prompt_tokens,
-                "completion_tokens": response.usage.completion_tokens,
+                "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
+                "completion_tokens": response.usage.completion_tokens if response.usage else 0,
             },
         )
 

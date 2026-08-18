@@ -86,9 +86,7 @@ def get_pipeline():
     global _pipeline
     if _pipeline is None:
         from achp.core.core_pipeline import CorePipeline
-        offline = not (
-            os.getenv("GROQ_API_KEY") and os.getenv("OPENROUTER_API_KEY")
-        )
+        offline = not bool(os.getenv("GROQ_API_KEY"))
         logger.info(f"Initialising CorePipeline | offline={offline}")
         _pipeline = CorePipeline(offline=offline)
     return _pipeline
@@ -884,7 +882,7 @@ async def kb_qa(request: QARequest):
                              "Content-Type": "application/json"},
                     json={
                         "model": os.getenv("PROPOSER_MODEL",
-                                           "qwen/qwen3.6-27b"),
+                                           "openai/gpt-oss-120b"),
                         "messages": [
                             {"role": "system", "content": system_prompt},
                             {"role": "user",   "content": user_prompt},

@@ -190,16 +190,16 @@ class MasterOrchestrator:
 
         if is_complex:
             return {
-                "proposer":    "qwen/qwen3.6-27b",
-                "adversary_a": "deepseek/deepseek-r1",
-                "adversary_b": "qwen/qwen-32b",
-                "judge":       "deepseek/deepseek-chat",
+                "proposer":    "openai/gpt-oss-120b",
+                "adversary_a": "openai/gpt-oss-120b",
+                "adversary_b": "openai/gpt-oss-120b",
+                "judge":       "openai/gpt-oss-120b",
             }
         return {
-            "proposer":    os.getenv("PROPOSER_MODEL", "qwen/qwen3.6-27b"),
-            "adversary_a": os.getenv("ADVERSARY_A_MODEL", "deepseek/deepseek-r1"),
-            "adversary_b": os.getenv("ADVERSARY_B_MODEL", "qwen/qwen-32b"),
-            "judge":       os.getenv("JUDGE_MODEL", "deepseek/deepseek-chat"),
+            "proposer":    os.getenv("PROPOSER_MODEL",    "openai/gpt-oss-120b"),
+            "adversary_a": os.getenv("ADVERSARY_A_MODEL", "openai/gpt-oss-120b"),
+            "adversary_b": os.getenv("ADVERSARY_B_MODEL", "openai/gpt-oss-120b"),
+            "judge":       os.getenv("JUDGE_MODEL",       "openai/gpt-oss-120b"),
         }
 
     # ── Main Pipeline ─────────────────────────────────────────────────────

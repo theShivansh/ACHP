@@ -85,7 +85,7 @@ class NILSupervisorAgent:
             self._run_safe("bias",         self._bias.classify(text)),
             self._run_safe("perspective",  self._perspective.generate(text)),
             self._run_safe("framing",      self._framing.compare(text, context or "")),
-            return_exceptions=False,
+            return_exceptions=True,
         )
 
         results: Dict[str, Any] = {}
