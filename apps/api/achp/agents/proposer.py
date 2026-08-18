@@ -164,6 +164,7 @@ class ProposerAgent:
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
                 response_format={"type": "json_object"},
+                reasoning_effort="medium",
             )
         except Exception as e:
             logger.warning(f"ProposerAgent: primary model failed ({e}), trying fallback")
@@ -177,6 +178,7 @@ class ProposerAgent:
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
                     response_format={"type": "json_object"},
+                    reasoning_effort="medium",
                 )
             except Exception as e2:
                 logger.error(f"ProposerAgent: fallback also failed ({e2}), returning safe default")

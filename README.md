@@ -104,7 +104,7 @@ Claim ──► [Security] ──► [Retriever] ──► [Proposer] ──► 
 | # | Agent | Role | Primary Model | Fallback | Latency |
 |---|---|---|---|---|---|
 | 0 | SecurityValidator | Pre-filter: injection, PII, jailbreak | Rule-based (no LLM) | — | ~1 ms |
-| 1 | RetrieverAgent | BM25 + FAISS hybrid RAG + web fallback | all-MiniLM-L6-v2 | DuckDuckGo | ~12 s |
+| 1 | RetrieverAgent | BM25 + FAISS hybrid RAG + web fallback | all-MiniLM-L6-v2 | DDGS | ~12 s |
 | 2 | ProposerAgent | Atomic claim decomposition, SFT-CoT, provenance | llama-4-scout-17b | llama-3.3-70b | ~2 s |
 | 3 | AdversaryA | Factual attacker — counter-evidence, logical fallacies | openai/gpt-oss-120b | llama-3.3-70b | ~9 s |
 | 4 | AdversaryB | Narrative auditor — missing voices, framing asymmetry | openai/gpt-oss-120b | llama-3.3-70b | ~8 s |
@@ -765,7 +765,7 @@ docker compose -f docker/docker-compose.yml up -d
 | Vector Store | FAISS (disk-persisted) + SQLite metadata |
 | Lexical Retrieval | rank-bm25 |
 | Semantic Embeddings | sentence-transformers/all-MiniLM-L6-v2 |
-| Web Search Fallback | ddgs (DuckDuckGo) |
+| Web Search Fallback | ddgs>=9.0.0 (DDGS) |
 | Sentiment Analysis | VADER (vaderSentiment) |
 | Cache | Redis / FakeRedis |
 | API Framework | FastAPI + Uvicorn (Python 3.12) |

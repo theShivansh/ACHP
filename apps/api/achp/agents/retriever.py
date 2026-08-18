@@ -8,7 +8,7 @@ Pipeline per query:
   1. Check SemanticCache → return immediately on hit
   2. BM25 lexical search over local corpus (if available)
   3. Semantic (bi-encoder) re-rank top BM25 results
-  4. Web fallback (DuckDuckGo) if local corpus empty
+  4. Web fallback (DDGS) if local corpus empty
   5. Cache the assembled context → return
 
 The retriever exposes `.retrieve(query)` as an async method
@@ -23,7 +23,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from achp.cache.embeddings import encode, cosine_similarity
+from achp.cache.embeddings import encode, batch_cosine_similarity
 from achp.cache.semantic_cache import SemanticCache, CacheConfig, get_cache
 
 logger = logging.getLogger(__name__)
@@ -101,22 +101,61 @@ class BM25Retriever:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Web Fallback (DuckDuckGo)
+# Web Fallback (DDGS)
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _normalize_web_result(r: dict) -> Optional[RetrievedDoc]:
+    """Normalize a raw ddgs result dict into a RetrievedDoc.
+
+    Handles field-name variations across ddgs versions:
+    - content: body / snippet / text
+    - source:  href / url / link
+    Returns None if no usable content is found.
+    """
+    content = (
+        r.get("body")
+        or r.get("snippet")
+        or r.get("text")
+        or ""
+    ).strip()
+
+    source = (
+        r.get("href")
+        or r.get("url")
+        or r.get("link")
+        or "web"
+    )
+
+    if not content:
+        return None
+
+    return RetrievedDoc(
+        content=content,
+        source=source,
+        score=1.0,
+        retrieval_method="web",
+        metadata={"title": r.get("title", "")},
+    )
+
+
+def _ddgs_text_sync(query: str, max_results: int) -> List[dict]:
+    """Blocking DDGS call — intended to run via asyncio.to_thread()."""
+    from ddgs import DDGS  # noqa: PLC0415
+    with DDGS() as client:
+        return list(client.text(query, max_results=max_results))
+
+
 async def _web_search(query: str, max_results: int = 5) -> List[RetrievedDoc]:
+    """Async web search via DDGS, offloaded to a thread pool."""
     try:
-        from duckduckgo_search import DDGS
-        results = []
-        with DDGS() as ddgs:
-            for r in ddgs.text(query, max_results=max_results):
-                results.append(RetrievedDoc(
-                    content=r.get("body", ""),
-                    source=r.get("href", "web"),
-                    score=1.0,
-                    retrieval_method="web",
-                    metadata={"title": r.get("title", "")},
-                ))
+        raw_results = await asyncio.to_thread(_ddgs_text_sync, query, max_results)
+        logger.debug(f"DDGS returned {len(raw_results)} raw results for '{query[:60]}'")
+        results: List[RetrievedDoc] = []
+        for r in raw_results:
+            doc = _normalize_web_result(r)
+            if doc:
+                results.append(doc)
+        logger.info(f"_web_search | {len(results)} usable docs (from {len(raw_results)} raw) | '{query[:60]}'")
         return results
     except Exception as e:
         logger.warning(f"Web search failed: {e}")
@@ -134,7 +173,7 @@ class RetrieverAgent:
     1. SemanticCache check (three-tier)
     2. BM25 lexical search
     3. Semantic re-ranking (bi-encoder cosine)
-    4. Web fallback (DuckDuckGo)
+    4. Web fallback (DDGS)
     5. Cache write-back
     """
 
@@ -217,15 +256,24 @@ class RetrieverAgent:
     async def _semantic_rerank(
         self, query: str, docs: List[RetrievedDoc]
     ) -> List[RetrievedDoc]:
-        """Re-rank BM25 results by bi-encoder cosine similarity."""
-        query_vec = await asyncio.get_running_loop().run_in_executor(
-            None, encode, query, self.bi_encoder
-        )
-        for doc in docs:
-            doc_vec = await asyncio.get_running_loop().run_in_executor(
-                None, encode, doc.content[:512], self.bi_encoder
-            )
-            doc.score = cosine_similarity(query_vec, doc_vec)
+        """Re-rank BM25 results by bi-encoder cosine similarity.
+
+        Encodes all documents in a single batch call (much faster than
+        individual encode() calls) and uses batch_cosine_similarity() for
+        vectorised scoring instead of a per-doc loop.
+        """
+        # ── Encode query (single vector) ──────────────────────────────────
+        query_vec = await asyncio.to_thread(encode, query, self.bi_encoder)
+
+        # ── Batch-encode all documents in one model call ──────────────────
+        texts = [doc.content[:512] for doc in docs]
+        doc_vecs = await asyncio.to_thread(encode, texts, self.bi_encoder)
+
+        # ── Vectorised cosine similarity (query · doc_vecs.T) ─────────────
+        scores = batch_cosine_similarity(query_vec, doc_vecs)  # shape: (n,)
+
+        for doc, score in zip(docs, scores):
+            doc.score = float(score)
             doc.retrieval_method = "semantic"
 
         return sorted(docs, key=lambda d: d.score, reverse=True)

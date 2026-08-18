@@ -32,7 +32,7 @@ transformers>=4.40.0
 # --- Retrieval ---
 rank-bm25>=0.2.2
 faiss-cpu>=1.8.0
-duckduckgo-search>=6.0.0
+ddgs>=9.0.0
 
 # --- NLP / NIL Sub-agents ---
 vaderSentiment>=3.3.2

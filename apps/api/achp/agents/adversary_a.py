@@ -170,6 +170,7 @@ class AdversaryAAgent:
             messages=messages,
             temperature=self.temperature,
             max_tokens=2048,
+            reasoning_effort="high",
         )
         return self._parse_raw(response.choices[0].message.content)
 
