@@ -133,13 +133,11 @@ async def _warmup():
         except ImportError:
             pass
 
-        groq_key       = os.getenv("GROQ_API_KEY", "").strip()
-        openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
-        if not groq_key or not openrouter_key:
+        groq_key = os.getenv("GROQ_API_KEY", "").strip()
+        if not groq_key:
             logger.warning(
-                f"Pipeline warmup skipped — "
-                f"GROQ={'SET' if groq_key else 'MISSING'}, "
-                f"OPENROUTER={'SET' if openrouter_key else 'MISSING'}."
+                "Pipeline warmup skipped — GROQ_API_KEY is MISSING. "
+                "Set it as a HuggingFace Space Secret."
             )
             return
         logger.info("Warming up pipeline in online mode …")
@@ -461,7 +459,7 @@ def _pipeline_to_response(output, kb_used: Optional[str]) -> AnalyzeResponse:
     tags=["System"],
 )
 async def health():
-    has_keys = bool(os.getenv("GROQ_API_KEY")) and bool(os.getenv("OPENROUTER_API_KEY"))
+    has_keys = bool(os.getenv("GROQ_API_KEY"))
     mode     = "online" if has_keys else "offline (mock)"
     kbs      = await kb_manager.list_kbs()
     return HealthResponse(

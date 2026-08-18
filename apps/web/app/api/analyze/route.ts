@@ -6,31 +6,26 @@ import { DEMO_QUERIES } from '@/lib/types';
 // ACHP Analyze API Route — POST /api/analyze { query: string }
 //
 // Priority chain:
-//   1. Real Python FastAPI backend (ACHP_API_URL)
-//   2. Direct LLM calls via Groq + OpenRouter (GROQ_API_KEY set)
+//   1. Real Python FastAPI backend on HuggingFace (ACHP_API_URL or NEXT_PUBLIC_API_URL)
+//   2. Direct LLM calls via Groq (GROQ_API_KEY set in Vercel)
 //   3. Offline mock for demo/dev
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Use ACHP_API_URL if set, otherwise fall back to NEXT_PUBLIC_API_URL (the var
+// that IS set in Vercel pointing at the HuggingFace Space)
 const BACKEND_URL =
   process.env.ACHP_API_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
   'http://localhost:8000';
 
 const GROQ_API_KEY       = process.env.GROQ_API_KEY;
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_BASE    = process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1';
 
-// ── Model IDs — read exactly from .env.local ─────────────────────────────────
-// Groq-hosted (fast, always available — used as fallback for all OR failures)
-const M_PROPOSER       = process.env.PROPOSER_MODEL ?? 'qwen/qwen3.6-27b';
-const M_GROQ_WORKHORSE = 'qwen/qwen3.6-27b';
-
-// OpenRouter-hosted (exact models from .env.local)
-// If these return 404 / 402 / 429, openRouterChat() falls back to M_GROQ_WORKHORSE
-const M_ADV_A_OR = process.env.ADVERSARY_A_MODEL  ?? 'deepseek/deepseek-r1';          // deepseek/deepseek-r1
-const M_ADV_B_OR = process.env.ADVERSARY_B_MODEL  ?? 'qwen/qwen-32b-instruct';        // qwen/qwen-32b-instruct
-const M_JUDGE_OR = process.env.JUDGE_MODEL         ?? 'deepseek/deepseek-chat';       // deepseek/deepseek-chat
-const M_PERSP_OR = process.env.PERSPECTIVE_MODEL  ?? 'mistralai/mixtral-8x7b-instruct';
+// ── Model IDs — all Groq-hosted (openai/gpt-oss-120b for all text calls) ─────
+const M_PROPOSER       = process.env.PROPOSER_MODEL    ?? 'openai/gpt-oss-120b';
+const M_ADV_A          = process.env.ADVERSARY_A_MODEL ?? 'openai/gpt-oss-120b';
+const M_ADV_B          = process.env.ADVERSARY_B_MODEL ?? 'openai/gpt-oss-120b';
+const M_JUDGE          = process.env.JUDGE_MODEL        ?? 'openai/gpt-oss-120b';
+const M_GROQ_WORKHORSE = 'openai/gpt-oss-120b'; // NIL + fallback
 
 // ── Groq LLM call ─────────────────────────────────────────────────────────────
 async function groqChat(
@@ -52,57 +47,19 @@ async function groqChat(
   return d.choices?.[0]?.message?.content ?? '';
 }
 
-// ── OpenRouter LLM call — auto-falls back to Groq on any 4xx ────────────────
-// 404 = model removed/not found, 402 = no credits, 429 = rate-limited
-// All these → silently fall back to Groq qwen/qwen3.6-27b
-async function openRouterChat(
+// ── All agents use Groq directly (no OpenRouter dependency) ──────────────────
+// Falls back to M_GROQ_WORKHORSE on any API error
+async function groqChatSafe(
   messages: { role: string; content: string }[],
-  orModel: string,
-  label = 'OR',
+  model: string,
+  label = 'agent',
 ): Promise<string> {
-  if (!OPENROUTER_API_KEY) {
-    console.warn(`[ACHP] ${label}: no OPENROUTER_API_KEY, using Groq fallback`);
-    return groqChat(messages, M_GROQ_WORKHORSE);
-  }
-
   try {
-    const r = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://achp.localhost',
-        'X-Title': 'ACHP Narrative Analysis',
-      },
-      body: JSON.stringify({ model: orModel, messages, max_tokens: 1024, temperature: 0.3 }),
-      signal: AbortSignal.timeout(60_000),
-    });
-
-    if (!r.ok) {
-      const errBody = await r.text().catch(() => '');
-      if (r.status >= 400 && r.status < 500) {
-        // Client error (model 404, no credits 402, rate limit 429) → Groq fallback
-        console.warn(`[ACHP] ${label}: OpenRouter "${orModel}" → ${r.status}, using Groq/${M_GROQ_WORKHORSE}`);
-        return groqChat(messages, M_GROQ_WORKHORSE);
-      }
-      throw new Error(`OpenRouter ${r.status} — ${errBody.slice(0, 200)}`);
-    }
-
-    const d = await r.json();
-    const content = d.choices?.[0]?.message?.content ?? '';
-    if (!content) {
-      console.warn(`[ACHP] ${label}: empty response from "${orModel}", using Groq fallback`);
-      return groqChat(messages, M_GROQ_WORKHORSE);
-    }
-    return content;
-
+    return await groqChat(messages, model);
   } catch (e) {
     const msg = (e as Error).message ?? '';
-    if (e instanceof TypeError || msg.includes('timeout')) {
-      console.warn(`[ACHP] ${label}: network/timeout → Groq fallback`);
-      return groqChat(messages, M_GROQ_WORKHORSE);
-    }
-    throw e;
+    console.warn(`[ACHP] ${label}: "${model}" failed (${msg}), retrying with ${M_GROQ_WORKHORSE}`);
+    return groqChat(messages, M_GROQ_WORKHORSE);
   }
 }
 
@@ -140,7 +97,7 @@ Respond ONLY with JSON:
     atomic_claims = [{ id: 'C1', text: query, verifiable: true, confidence: 0.5, epistemic_marker: 'claims', citations: [] }];
   }
 
-  // ── 2. ADVERSARY A — OpenRouter deepseek/deepseek-r1 (→ Groq fallback) ───
+  // ── 2. ADVERSARY A — Groq openai/gpt-oss-120b ────────────────────────────
   const adversaryAPrompt = `You are a rigorous fact-checker. Evaluate factual accuracy of this claim.
 
 CLAIM: "${query}"
@@ -155,14 +112,14 @@ Respond ONLY with JSON:
 
   let adversary_a: ACHPOutput['adversary_a'] = { factual_score: 0.5, verdict: 'contested', critical_flaws: [] };
   try {
-    const advAText = await openRouterChat([{ role: 'user', content: adversaryAPrompt }], M_ADV_A_OR, 'AdvA');
+    const advAText = await groqChatSafe([{ role: 'user', content: adversaryAPrompt }], M_ADV_A, 'AdvA');
     const parsed = parseJSON(advAText, adversary_a);
     if (parsed && typeof parsed.factual_score === 'number') adversary_a = parsed;
   } catch (e) {
     console.warn('[ACHP] AdvA fully failed:', (e as Error).message);
   }
 
-  // ── 3. ADVERSARY B — OpenRouter qwen/qwen-32b-instruct (→ Groq fallback) ─
+  // ── 3. ADVERSARY B — Groq openai/gpt-oss-120b ────────────────────────────
   const adversaryBPrompt = `You are a narrative analyst. Assess perspective balance and framing of this claim.
 
 CLAIM: "${query}"
@@ -178,14 +135,14 @@ Respond ONLY with JSON:
 
   let adversary_b: ACHPOutput['adversary_b'] = { perspective_score: 0.5, narrative_stance: 'partial', missing_perspectives: [] };
   try {
-    const advBText = await openRouterChat([{ role: 'user', content: adversaryBPrompt }], M_ADV_B_OR, 'AdvB');
+    const advBText = await groqChatSafe([{ role: 'user', content: adversaryBPrompt }], M_ADV_B, 'AdvB');
     const parsed = parseJSON(advBText, adversary_b);
     if (parsed && typeof parsed.perspective_score === 'number') adversary_b = parsed;
   } catch (e) {
     console.warn('[ACHP] AdvB fully failed:', (e as Error).message);
   }
 
-  // ── 4. JUDGE — OpenRouter deepseek/deepseek-chat (→ Groq fallback) ────────
+  // ── 4. JUDGE — Groq openai/gpt-oss-120b ─────────────────────────────────
   const judgePrompt = `You are a senior fact-checking judge. Synthesize all evidence and deliver a final verdict.
 
 CLAIM: "${query}"
@@ -216,13 +173,12 @@ Respond ONLY with JSON:
 
   let judgeResult: Partial<ACHPOutput> = {};
   try {
-    const judgeText = await openRouterChat([{ role: 'user', content: judgePrompt }], M_JUDGE_OR, 'Judge');
+    const judgeText = await groqChatSafe([{ role: 'user', content: judgePrompt }], M_JUDGE, 'Judge');
     const parsed = parseJSON(judgeText, {} as Partial<ACHPOutput>);
     if (parsed?.verdict) {
       judgeResult = parsed;
     } else {
-      // Empty verdict field → use Groq directly
-      console.warn('[ACHP] Judge: no verdict in OR response, Groq fallback');
+      console.warn('[ACHP] Judge: no verdict in response, retrying');
       const judgeText2 = await groqChat([{ role: 'user', content: judgePrompt }], M_GROQ_WORKHORSE);
       judgeResult = parseJSON(judgeText2, {});
     }
@@ -292,10 +248,10 @@ Respond ONLY with JSON:
       },
       models: {
         proposer:    `groq/${M_PROPOSER}`,
-        adversary_a: `openrouter/${M_ADV_A_OR}`,
-        adversary_b: `openrouter/${M_ADV_B_OR}`,
+        adversary_a: `groq/${M_ADV_A}`,
+        adversary_b: `groq/${M_ADV_B}`,
         nil:         `groq/${M_GROQ_WORKHORSE}`,
-        judge:       `openrouter/${M_JUDGE_OR}`,
+        judge:       `groq/${M_JUDGE}`,
       },
     },
     security: { pre_safe: true, post_safe: true, warnings: [] },
@@ -372,7 +328,7 @@ function buildOfflineMock(query: string): ACHPOutput {
     adversary_b: { perspective_score: 0.55, narrative_stance: 'partial', missing_perspectives: [{ stakeholder: 'Subject matter experts', viewpoint: 'Additional expert consensus needed', significance: 0.80 }] },
     consensus_reasoning: 'The claim could not be fully verified or refuted with available evidence.',
     key_evidence: { supporting: [], contradicting: [] },
-    caveats: ['Live LLM mode provides deeper research; configure GROQ_API_KEY and OPENROUTER_API_KEY for real analysis'],
+    caveats: ['Real-time LLM analysis provides deeper research; configure GROQ_API_KEY in Vercel and ACHP_API_URL pointing to the HuggingFace backend for full pipeline analysis'],
     debate_rounds: 1,
     pipeline: { mode: 'mock', total_ms: 38, cache_hit: false, latency_ms: {}, models: { nil: 'vader+all-MiniLM-L6-v2' } },
     security: { pre_safe: true, post_safe: true, warnings: [] },
@@ -390,8 +346,15 @@ export async function POST(request: Request) {
     if (query.length > 4000)
       return NextResponse.json({ error: 'Query exceeds 4000 character limit' }, { status: 400 });
 
-    // ── Priority 1: Real Python FastAPI backend ───────────────────────────────
-    const backendConfigured = !!(process.env.ACHP_API_URL && process.env.ACHP_API_URL !== 'http://localhost:8000');
+    // ── Priority 1: Real Python FastAPI backend (HuggingFace Space) ─────────
+    // BACKEND_URL resolves to ACHP_API_URL ?? NEXT_PUBLIC_API_URL ?? localhost
+    // Vercel sets NEXT_PUBLIC_API_URL pointing to the HF Space — this is what triggers real mode
+    const backendConfigured = !!(
+      BACKEND_URL &&
+      BACKEND_URL !== 'http://localhost:8000' &&
+      !BACKEND_URL.includes('localhost')
+    );
+    console.log(`[ACHP] BACKEND_URL=${BACKEND_URL} backendConfigured=${backendConfigured}`);
     if (backendConfigured) {
       try {
         const res = await fetch(`${BACKEND_URL}/analyze`, {
@@ -409,7 +372,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── Priority 2: Direct LLM calls (Groq key present) ──────────────────────
+    // ── Priority 2: Direct Groq LLM calls (key present in Vercel env) ────────
     if (GROQ_API_KEY && GROQ_API_KEY !== 'your_groq_api_key_here') {
       try {
         console.log('[ACHP] Using real LLM pipeline (Groq + OpenRouter w/ Groq fallback)');
@@ -431,5 +394,4 @@ export async function POST(request: Request) {
   }
 }
 
-// Suppress unused var warning for M_PERSP_OR (reserved for future retriever)
-void M_PERSP_OR;
+

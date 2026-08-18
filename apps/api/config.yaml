@@ -5,22 +5,22 @@ app:
 
 models:
   proposer:
-    name: meta-llama/llama-4-scout
+    name: openai/gpt-oss-120b
     provider: groq
     context_window: 128000
   adversary_a:
-    name: deepseek/deepseek-r1
-    provider: openrouter
+    name: openai/gpt-oss-120b
+    provider: groq
   adversary_b:
-    name: qwen/qwen-32b-instruct
-    provider: openrouter
+    name: openai/gpt-oss-120b
+    provider: groq
   judge:
-    name: deepseek/deepseek-chat
-    provider: openrouter
-    fallback: mistralai/mixtral-8x7b-instruct
+    name: openai/gpt-oss-120b
+    provider: groq
+    fallback: openai/gpt-oss-120b
   perspective:
-    name: mistralai/mixtral-8x7b-instruct
-    provider: openrouter
+    name: openai/gpt-oss-120b
+    provider: groq
 
 cache:
   backend: redis
