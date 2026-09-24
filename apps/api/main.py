@@ -12,8 +12,12 @@ GET  /redoc                        → ReDoc UI
 POST /kb/upload                    → ingest files / URLs / raw text → kb_id
 GET  /kb/list                      → list all knowledge bases
 
-POST /analyze                      → run full orchestrator pipeline
-GET  /analyze/{run_id}/stream      → SSE real-time pipeline events
+POST /runs                         → start a run, 202 {run_id, events_url, case_url}
+GET  /runs/{id}/events             → SSE event log v2 (Last-Event-ID / ?since= resume)
+GET  /runs/{id}                    → run snapshot
+GET  /runs/{id}/events.json        → the full event log
+POST /analyze                      → compatibility wrapper: a run, awaited, same response shape
+GET  /analyze/{run_id}/stream      → alias of /runs/{id}/events
 
 CORS is fully enabled for Next.js frontend (http://localhost:3000 + http://localhost:3001).
 """
@@ -108,8 +112,16 @@ from achp.kb.store import kb_manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("ACHP API starting up …")
+    from achp.events import get_bus
+    try:
+        store = get_bus().store
+        removed = store.cleanup()
+        closed = store.mark_interrupted()
+        logger.info(f"Event store ready | expired runs removed={removed} | interrupted runs closed={closed}")
+    except Exception as e:
+        logger.warning(f"Event store housekeeping failed: {e}")
     # Warm up pipeline at startup (loads agents in background)
-    asyncio.create_task(_warmup())
+    app.state.warmup = asyncio.create_task(_warmup())
     yield
     logger.info("ACHP API shutting down.")
 
@@ -188,10 +200,12 @@ ALLOWED_ORIGINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o for o in ALLOWED_ORIGINS if o],
+    # Vercel production + preview deployments of the web app (06 §2)
+    allow_origin_regex=os.getenv("CORS_ORIGIN_REGEX", r"https://achp(-[a-z0-9-]+)?\.vercel\.app"),
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["X-Run-Id", "X-Pipeline-Ms"],
+    allow_headers=["*", "Last-Event-ID"],
+    expose_headers=["X-Run-Id", "X-Pipeline-Ms", "Location"],
 )
 
 
@@ -316,11 +330,33 @@ class AnalyzeResponse(BaseModel):
     kb_used: Optional[str]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# In-memory SSE event store (for /analyze/{run_id}/stream)
-# ─────────────────────────────────────────────────────────────────────────────
+class RunInputBody(BaseModel):
+    type: str = Field("text", pattern="^text$")
+    text: str = Field(..., min_length=5, max_length=10_000)
 
-_sse_queues: Dict[str, asyncio.Queue] = {}
+    @field_validator("text")
+    @classmethod
+    def strip_text(cls, v: str) -> str:
+        return v.strip()
+
+
+class RunOptions(BaseModel):
+    fail_at: Optional[str] = Field(
+        None, pattern="^(retriever|proposer|analysis|judge)$",
+        description="Fixture recorder only: fail this stage on purpose (needs ACHP_ALLOW_FAULT_INJECTION=1)",
+    )
+
+
+class RunCreate(BaseModel):
+    input: RunInputBody
+    kb_id: Optional[str] = None
+    options: Optional[RunOptions] = None
+
+
+class RunCreated(BaseModel):
+    run_id: str
+    events_url: str
+    case_url: str
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -665,8 +701,168 @@ async def kb_get_chunks(kb_id: str):
     )
 
 
-# ── POST /analyze ─────────────────────────────────────────────────────────────
+# ── Runs (event protocol v2, 06_AGENT_STATE_SPEC) ─────────────────────────────
 
+SSE_PING_S = float(os.getenv("ACHP_SSE_PING_S", 15))
+SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"}
+
+
+def _iso(ts: float) -> str:
+    from datetime import datetime, timezone
+    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+async def _resolve_kb(kb_id: Optional[str]) -> str:
+    """The library's name; 404 / 409 before a run is created, so a bad id never starts one."""
+    if not kb_id:
+        return ""
+    kb_meta = await kb_manager.get_kb(kb_id)
+    if not kb_meta:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Knowledge base '{kb_id}' not found. Use /kb/list to see available KBs.",
+        )
+    if kb_meta["status"] != "ready":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Knowledge base '{kb_id}' is not ready (status: {kb_meta['status']}).",
+        )
+    return kb_meta.get("name", kb_id)
+
+
+async def _execute_run(run_id: str, text: str, kb_id: Optional[str], kb_name: str,
+                       fail_at: Optional[str] = None) -> None:
+    """The background body of a run: pipeline → stored result → run.completed, or run.failed.
+    Every event goes through RunEventBus.emit; nothing here invents a result."""
+    from achp.core.core_pipeline import PipelineError
+    from achp.events import RunEvents, get_bus
+
+    bus = get_bus()
+    ev = RunEvents(bus, run_id)
+    t0 = time.perf_counter()
+
+    kb_search = None
+    if kb_id:
+        async def kb_search() -> List[Dict]:
+            chunks = await kb_manager.search(kb_id, text, top_k=6)
+            logger.info(f"[{run_id}] KB '{kb_id}' context: {len(chunks)} chunks")
+            return chunks[:5]
+
+    async def fail(stage: str, code: str, message: str, retryable: bool) -> None:
+        bus.store.set_status(run_id, "failed", error={"stage": stage, "error_code": code,
+                                                      "message": message, "retryable": retryable})
+        await ev.fail(stage, code, message, retryable)
+
+    try:
+        output = await get_pipeline().run(
+            text, ev, kb_search=kb_search, kb_id=kb_id, kb_name=kb_name or None,
+            run_id=run_id, fail_at=fail_at,
+        )
+    except PipelineError as e:
+        logger.error(f"[{run_id}] Pipeline stage failed: {e}")
+        await fail(e.stage, e.code,
+                   f"The {e.stage} step couldn't finish, so no verdict was produced. {e.message}", e.retryable)
+        return
+    except Exception as e:
+        logger.exception(f"[{run_id}] Pipeline error: {e}")
+        await fail("internal", "internal_error",
+                   "Something went wrong on the server, so no verdict was produced.", True)
+        return
+
+    response = _pipeline_to_response(output, kb_used=kb_id)
+    response.run_id = run_id
+    bus.store.set_status(run_id, "completed", result=response.model_dump())
+    await ev.emit("run.completed", None, {
+        "total_ms": int((time.perf_counter() - t0) * 1000),
+        "cache_hit": bool((output.pipeline or {}).get("cache_hit", False)),
+    })
+
+
+def _start_run(text: str, kb_id: Optional[str], kb_name: str, *, run_id: Optional[str] = None,
+               fail_at: Optional[str] = None):
+    from achp.events import get_bus
+    bus = get_bus()
+    rid = bus.create_run({"type": "text", "text": text, **({"kb_id": kb_id} if kb_id else {})}, run_id=run_id)
+    task = bus.start(rid, lambda: _execute_run(rid, text, kb_id, kb_name, fail_at))
+    return rid, task
+
+
+@app.post(
+    "/runs",
+    status_code=202,
+    response_model=RunCreated,
+    summary="Start a run; progress streams from /runs/{id}/events",
+    tags=["Runs"],
+)
+async def create_run(body: RunCreate):
+    fail_at = body.options.fail_at if body.options else None
+    if fail_at and os.getenv("ACHP_ALLOW_FAULT_INJECTION", "").strip() != "1":
+        raise HTTPException(status_code=400, detail="options.fail_at is only accepted by a recorder backend.")
+    kb_name = await _resolve_kb(body.kb_id)
+    run_id, _task = _start_run(body.input.text, body.kb_id, kb_name, fail_at=fail_at)
+    return JSONResponse(
+        status_code=202,
+        content=RunCreated(run_id=run_id, events_url=f"/runs/{run_id}/events",
+                           case_url=f"/case/{run_id}").model_dump(),
+        headers={"X-Run-Id": run_id, "Location": f"/runs/{run_id}"},
+    )
+
+
+def _after_seq(request: Request, since: Optional[int]) -> int:
+    if since is not None:
+        return since
+    raw = (request.headers.get("last-event-id") or "").strip()
+    return int(raw) if raw.isdigit() else 0
+
+
+@app.get("/runs/{run_id}/events", summary="The run's event log as SSE (resumable)", tags=["Runs"])
+async def run_events(run_id: str, request: Request, since: Optional[int] = Query(None, ge=0)):
+    """Replays the backlog after `Last-Event-ID` (or `?since=`), then streams live events.
+    `id:` is the seq; a `: ping` comment every 15s; closes after run.completed / run.failed."""
+    from achp.events import get_bus
+    bus = get_bus()
+    if bus.get_run(run_id) is None:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
+    after = _after_seq(request, since)
+
+    async def stream() -> AsyncGenerator[str, None]:
+        async for event in bus.subscribe(run_id, after, ping_s=SSE_PING_S):
+            if await request.is_disconnected():
+                break
+            yield ": ping\n\n" if event is None else event.sse()
+
+    return StreamingResponse(stream(), media_type="text/event-stream; charset=utf-8", headers=SSE_HEADERS)
+
+
+@app.get("/runs/{run_id}", summary="Run snapshot (SSR and polling fallback)", tags=["Runs"])
+async def run_snapshot(run_id: str):
+    from achp.events import get_bus
+    record = get_bus().get_run(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
+    body: Dict[str, Any] = {
+        "run_id": record.run_id, "status": record.status, "created_at": _iso(record.created_at),
+        "input": record.input, "last_seq": record.last_seq,
+    }
+    if record.result is not None:
+        body["result"] = record.result
+    if record.error is not None:
+        body["error"] = record.error
+    return body
+
+
+@app.get("/runs/{run_id}/events.json", summary="The full event log (Trace export, replay, gap repair)",
+         tags=["Runs"])
+async def run_events_json(run_id: str, since: int = Query(0, ge=0)):
+    from achp.events import RunNotFound, get_bus
+    try:
+        events = get_bus().events(run_id, since)
+    except RunNotFound:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found.")
+    return {"run_id": run_id, "events": [e.model_dump() for e in events]}
+
+
+# ── POST /analyze (compatibility wrapper) ─────────────────────────────────────
 
 @app.post(
     "/analyze",
@@ -679,7 +875,8 @@ async def analyze(
     req: Request,
 ):
     """
-    Run the complete ACHP pipeline on a claim:
+    Compatibility wrapper over `/runs`: creates a run, waits for it, and returns the same response
+    shape as before. The run's event log is available at `/runs/{run_id}/events.json`.
 
     1. **SecurityValidator** — input safety check
     2. **Retriever** — fetch evidence (KB or web)
@@ -689,32 +886,8 @@ async def analyze(
     6. **NIL** — 5-sub-agent narrative integrity layer (parallel)
     7. **Judge** — synthesise verdict
     8. **SecurityValidator** — output safety check
-
-    Returns full JSON with verdict, transparency report, radar chart data,
-    alternative perspectives, and raw artifacts.
     """
-    run_id = req.headers.get("x-run-id") or uuid.uuid4().hex[:8]
-    t_api  = time.perf_counter()
-
-    # Validate KB if specified
-    kb_context_chunks: List[Dict] = []   # [{chunk_index, text, score}]
-    kb_name: str = ""
-    if request.kb_id:
-        kb_meta = await kb_manager.get_kb(request.kb_id)
-        if not kb_meta:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Knowledge base '{request.kb_id}' not found. Use /kb/list to see available KBs.",
-            )
-        if kb_meta["status"] != "ready":
-            raise HTTPException(
-                status_code=409,
-                detail=f"Knowledge base '{request.kb_id}' is not ready (status: {kb_meta['status']}).",
-            )
-        kb_name = kb_meta.get("name", request.kb_id)
-        # Search returns [{chunk_index, text, score}]
-        kb_context_chunks = await kb_manager.search(request.kb_id, request.claim, top_k=6)
-        logger.info(f"[{run_id}] KB '{request.kb_id}' context: {len(kb_context_chunks)} chunks")
+    t_api = time.perf_counter()
 
     # `offline: true` used to return a mock verdict. A verdict without a real run is never
     # returned now; demo data lives only in the web app's ?demo=1 mode.
@@ -724,95 +897,43 @@ async def analyze(
             detail="Offline mode was removed: ACHP never returns a verdict without a real run. "
                    "Use the web app's demo mode (?demo=1) for sample data.",
         )
+    kb_name = await _resolve_kb(request.kb_id)
 
-    pipeline = get_pipeline()
+    from achp.events import get_bus
+    run_id, task = _start_run(request.claim, request.kb_id, kb_name, run_id=req.headers.get("x-run-id"))
+    # Shielded: a client that disconnects doesn't cancel the run; its log stays complete.
+    await asyncio.shield(task)
 
-    # Library chunks travel as evidence, separate from the claim, so security checks, web search
-    # and the language analysis all see only what the user actually wrote.
-    q: asyncio.Queue = asyncio.Queue()
-    _sse_queues[run_id] = q
-
-    from achp.core.core_pipeline import PipelineError
-    try:
-        output = await pipeline.run(
-            request.claim,
-            sse_queue=q,
-            kb_chunks=kb_context_chunks[:5] or None,
-            kb_id=request.kb_id,
-            kb_name=kb_name or None,
-            run_id=run_id,
-        )
-    except PipelineError as e:
-        logger.error(f"[{run_id}] Pipeline stage failed: {e}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "detail": f"The {e.stage} step couldn't finish, so no verdict was produced. {e.message}",
-                "stage": e.stage,
-                "error_code": e.code,
-                "retryable": e.retryable,
-                "run_id": run_id,
-            },
-            headers={"X-Run-Id": run_id},
-        )
-    except Exception as e:
-        logger.exception(f"[{run_id}] Pipeline error: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Pipeline execution failed: {str(e)[:200]}",
-        )
-    finally:
-        _sse_queues.pop(run_id, None)
-
+    record = get_bus().get_run(run_id)
     total_api_ms = (time.perf_counter() - t_api) * 1000
-    response     = _pipeline_to_response(output, kb_used=request.kb_id)
-    # Patch run_id to match our API run_id (pipeline generates its own)
-    response.run_id = run_id
-
+    if record is not None and record.status == "completed" and record.result is not None:
+        return JSONResponse(
+            content=record.result,
+            headers={"X-Run-Id": run_id, "X-Pipeline-Ms": f"{total_api_ms:.0f}"},
+        )
+    err = (record.error if record else None) or {}
+    if err.get("error_code") == "internal_error":
+        raise HTTPException(status_code=500, detail=f"Pipeline execution failed (run {run_id}).")
     return JSONResponse(
-        content=response.model_dump(),
-        headers={
-            "X-Run-Id":     run_id,
-            "X-Pipeline-Ms": f"{total_api_ms:.0f}",
+        status_code=503,
+        content={
+            "detail": err.get("message") or "The run couldn't finish, so no verdict was produced.",
+            "stage": err.get("stage", "unknown"),
+            "error_code": err.get("error_code", "unknown"),
+            "retryable": bool(err.get("retryable", True)),
+            "run_id": run_id,
         },
+        headers={"X-Run-Id": run_id},
     )
 
-
-# ── GET /analyze/{run_id}/stream — SSE real-time events ──────────────────────
 
 @app.get(
     "/analyze/{run_id}/stream",
-    summary="Stream pipeline events via SSE",
+    summary="Alias of /runs/{run_id}/events (event protocol v2)",
     tags=["Analysis"],
 )
-async def analyze_stream(run_id: str):
-    """
-    Server-Sent Events endpoint for real-time pipeline progress.
-    Connect **before** calling POST /analyze for the same run_id.
-    """
-    async def _event_gen() -> AsyncGenerator[str, None]:
-        q = _sse_queues.get(run_id)
-        if q is None:
-            yield f"data: {json.dumps({'error': 'run_id not found or already completed'})}\n\n"
-            return
-        while True:
-            try:
-                event = await asyncio.wait_for(q.get(), timeout=120)
-                yield f"data: {json.dumps(event)}\n\n"
-                if event.get("event") == "pipeline_complete":
-                    break
-            except asyncio.TimeoutError:
-                yield "data: {\"event\": \"timeout\"}\n\n"
-                break
-
-    return StreamingResponse(
-        _event_gen(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control":      "no-cache",
-            "X-Accel-Buffering": "no",
-        },
-    )
+async def analyze_stream(run_id: str, request: Request, since: Optional[int] = Query(None, ge=0)):
+    return await run_events(run_id, request, since)
 
 
 # ── POST /qa — NotebookLM-style grounded Q&A ─────────────────────────────────
