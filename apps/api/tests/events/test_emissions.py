@@ -8,7 +8,7 @@ import jsonschema
 import pytest
 
 from achp.core.core_pipeline import PipelineError
-from achp.events import RunEventBus, RunEvents, SQLiteEventStore
+from achp.events import RunEventBus, RunEvents, SQLiteEventStore, notes
 from achp.events.models import SCHEMA_PATH, json_schema
 from achp.llm.runtime import TransportError
 from tests.fakes import CLAIM, FakeRetriever, RoleTransport, judge_out, pipeline_with
@@ -25,7 +25,7 @@ async def run_logged(transport=None, retriever=None, text=CLAIM, **kw):
     try:
         out = await p.run(text, ev, run_id=rid, **kw)
     except PipelineError as e:
-        await ev.fail(e.stage, e.code, e.message, e.retryable)
+        await ev.fail(e.stage, e.code, notes.failure_message(e.stage, e.code), e.retryable)
         out = None
     return out, [e.model_dump() for e in bus.events(rid)]
 
@@ -147,6 +147,10 @@ async def test_failed_stage_marks_the_lane_and_the_run_and_emits_no_verdict():
     assert "verdict.final" not in types(log)
     assert types(log)[-2:] == ["agent.failed", "run.failed"]
     assert log[-2]["agent"] == "judge" and log[-1]["data"]["stage"] == "judge"
+    # What a reader sees is plain: no provider error text, status codes or model ids
+    for e in log[-2:]:
+        assert not re.search(r"gpt-oss|500|upstream|server_error", e["data"]["message"])
+        assert "no verdict was produced" in e["data"]["message"]
 
 
 async def test_recorder_fault_injection_fails_a_real_run_at_that_stage():

@@ -705,6 +705,9 @@ async def kb_get_chunks(kb_id: str):
 
 SSE_PING_S = float(os.getenv("ACHP_SSE_PING_S", 15))
 SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"}
+# A comment keeps proxies open; the named `ping` event (no id, so Last-Event-ID is untouched) reaches
+# EventSource listeners, which never see comments, so the client watchdog can reset on it (06 §3.3).
+SSE_PING = ": ping\nevent: ping\ndata: {}\n\n"
 
 
 def _iso(ts: float) -> str:
@@ -735,7 +738,7 @@ async def _execute_run(run_id: str, text: str, kb_id: Optional[str], kb_name: st
     """The background body of a run: pipeline → stored result → run.completed, or run.failed.
     Every event goes through RunEventBus.emit; nothing here invents a result."""
     from achp.core.core_pipeline import PipelineError
-    from achp.events import RunEvents, get_bus
+    from achp.events import RunEvents, get_bus, notes
 
     bus = get_bus()
     ev = RunEvents(bus, run_id)
@@ -760,13 +763,11 @@ async def _execute_run(run_id: str, text: str, kb_id: Optional[str], kb_name: st
         )
     except PipelineError as e:
         logger.error(f"[{run_id}] Pipeline stage failed: {e}")
-        await fail(e.stage, e.code,
-                   f"The {e.stage} step couldn't finish, so no verdict was produced. {e.message}", e.retryable)
+        await fail(e.stage, e.code, notes.failure_message(e.stage, e.code), e.retryable)
         return
     except Exception as e:
         logger.exception(f"[{run_id}] Pipeline error: {e}")
-        await fail("internal", "internal_error",
-                   "Something went wrong on the server, so no verdict was produced.", True)
+        await fail("internal", "internal_error", notes.failure_message("internal", "internal_error"), True)
         return
 
     response = _pipeline_to_response(output, kb_used=kb_id)
@@ -829,7 +830,7 @@ async def run_events(run_id: str, request: Request, since: Optional[int] = Query
         async for event in bus.subscribe(run_id, after, ping_s=SSE_PING_S):
             if await request.is_disconnected():
                 break
-            yield ": ping\n\n" if event is None else event.sse()
+            yield SSE_PING if event is None else event.sse()
 
     return StreamingResponse(stream(), media_type="text/event-stream; charset=utf-8", headers=SSE_HEADERS)
 

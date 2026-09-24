@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol
 
+from achp.events.notes import failure_message
+
 RUN_TTL_S = 72 * 3600
 
 
@@ -190,7 +192,7 @@ class SQLiteEventStore:
         for rid in ids:
             self.append(rid, "run.failed", None, {
                 "stage": "server", "error_code": "server_restarted",
-                "message": "The server restarted before this run finished.", "retryable": True,
+                "message": failure_message("server", "server_restarted"), "retryable": True,
             })
             self.set_status(rid, "failed", error={"stage": "server", "error_code": "server_restarted"})
         return len(ids)

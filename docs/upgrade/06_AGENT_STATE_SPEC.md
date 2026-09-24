@@ -115,6 +115,7 @@ Other decisions:
 - A blocked run emits `agent.skipped` (`reason: "blocked"`) for every lane after the Gatekeeper, then `verdict.final` with `agent: null`, `overall.label: "blocked"`, `claims: []` and **no `metrics`**.
 - A run left `queued`/`running` by a server restart gets `run.failed` (`stage: "server"`, `error_code: "server_restarted"`) at the next startup.
 - `GET /analyze/{id}/stream` is an alias of `/runs/{id}/events`.
+- The 15s keep-alive frame is `: ping` **plus** a named event with no `id:` (`event: ping`, `data: {}`). EventSource never dispatches comments, so the named event is what resets the client's 20s watchdog; having no `id:` leaves `Last-Event-ID` unchanged.
 - **Confidence band** (`achp/events/confidence.py`, to be shown on `/method`). Per part: unverifiable/blocked → weak; sources pointing both ways → weak; ≥2 sources for the label and the Fact Challenger reached the same finding → strong; ≥2 sources, or 1 source with the challenger agreeing → moderate; otherwise weak. Overall: the weakest band among the rated parts, one step lower when the Judge's own confidence is below 0.5; unverifiable and blocked runs are weak.
 
 ---

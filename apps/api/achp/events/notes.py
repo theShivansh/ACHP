@@ -124,6 +124,30 @@ def framing_note(loaded: list[str], absolute: list[str]) -> str:
     return clip("Wording check: " + "; ".join(bits) + ".")
 
 
+_STAGE_WORDS = {
+    "retriever": "source search", "proposer": "claim splitting", "analysis": "challenge",
+    "judge": "judging", "config": "setup", "internal": "server", "server": "server",
+}
+_FAILURE_REASONS = {
+    "overloaded": "too many checks are running right now",
+    "auth": "the checker can't reach its language model service",
+    "no_api_key": "the checker can't reach its language model service",
+    "exhausted": "the language model service didn't answer in time",
+    "injected_failure": "the fixture recorder stopped it on purpose",
+    "internal_error": "something went wrong on the server",
+    "server_restarted": "the server restarted",
+    "cancelled": "the run was cancelled",
+}
+
+
+def failure_message(stage: str, code: str) -> str:
+    """The user-facing sentence for run.failed / agent.failed. Provider errors, model ids and
+    status codes stay in the server log; the log a reader sees says what failed, plainly."""
+    step = _STAGE_WORDS.get(stage, stage.replace("_", " "))
+    reason = _FAILURE_REASONS.get(code, "a service it depends on didn't answer")
+    return f"The {step} step couldn't finish: {reason}, so no verdict was produced."
+
+
 _LABEL_WORDS = {
     "supported": "supported", "contradicted": "contradicted", "mixed": "mixed",
     "missing_context": "missing context", "unverifiable": "not settled",

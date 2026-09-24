@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List, Optional, Set
 
 from achp.events.models import TERMINAL_TYPES, Event, validate_payload
+from achp.events.notes import failure_message
 from achp.events.store import EventStore, SQLiteEventStore, StoredEvent
 
 logger = logging.getLogger(__name__)
@@ -149,12 +150,12 @@ class RunEventBus:
                 try:
                     return await work()
                 except asyncio.CancelledError:
-                    await self._fail(run_id, "server", "cancelled", "The run was cancelled.", True)
+                    await self._fail(run_id, "server", "cancelled", failure_message("server", "cancelled"), True)
                     raise
                 except Exception as e:  # the pipeline wrapper emits run.failed itself; this is the backstop
                     logger.exception("[%s] run crashed: %s", run_id, e)
                     await self._fail(run_id, "internal", "internal_error",
-                                     "Something went wrong on the server, so no verdict was produced.", True)
+                                     failure_message("internal", "internal_error"), True)
                     return None
         finally:
             if run_id in self._waiting:
