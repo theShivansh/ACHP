@@ -34,4 +34,4 @@ P3 (polish, can defer):
 - …
 Genericness: <the 1–3 most generic-looking elements and how to make each ownable>
 ```
-Be specific and terse. Don't praise. Don't suggest patterns that 04 §2 bans. If a screenshot is missing a state that the phase should have produced, list it as P1.
+Be specific and terse, and report findings only. Don't suggest patterns that 04 §2 bans. If a screenshot is missing a state that the phase should have produced, list it as P1.

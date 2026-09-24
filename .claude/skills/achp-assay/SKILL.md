@@ -30,4 +30,4 @@ Consensus Truth Score (CTS) · Perspective Completeness Score (PCS) · Bias Impa
 - Numbers update without easing (achp-motion §6).
 
 ## Verify
-`pytest reference/assay` (with `ACHP_REPO` set so parity runs) · the node test for `assay.ts` · `python scripts/leverage_lint.py` · then ask the `assay-auditor` subagent.
+`pytest reference/assay` (with `ACHP_REPO` set so parity runs) · the node test for `assay.ts` · `python reference/assay/leverage_lint.py` · then ask the `assay-auditor` subagent.
