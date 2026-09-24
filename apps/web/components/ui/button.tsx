@@ -15,14 +15,15 @@ const buttonVariants = cva(
           "border border-surface-line bg-transparent text-surface-fg hover:bg-surface-tint active:bg-surface-tint",
         ghost: "bg-transparent text-surface-fg-2 hover:bg-surface-tint hover:text-surface-fg",
         destructive:
-          "border border-pencil-red bg-transparent text-pencil-red hover:bg-pencil-red/10 active:bg-pencil-red/15",
-        link: "h-auto px-0 text-pencil-blue underline underline-offset-4 hover:decoration-2",
+          "border border-surface-red bg-transparent text-surface-red hover:bg-surface-red/10 active:bg-surface-red/15",
+        link: "h-auto px-0 text-surface-blue underline underline-offset-4 hover:decoration-2",
       },
       size: {
         sm: "h-8 px-3 has-[>svg]:px-2.5",
         default: "h-10 px-4 has-[>svg]:px-3",
         lg: "h-11 px-5 has-[>svg]:px-4",
-        icon: "size-10",
+        // 44px touch targets below md (07 §6); 40px with a pointer
+        icon: "size-11 md:size-10",
         "icon-sm": "size-8",
       },
     },

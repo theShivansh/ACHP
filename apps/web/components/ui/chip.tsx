@@ -3,16 +3,17 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
 
 // 04 §5: chips are 4px, never pills. A tone always travels with its text (never color alone).
+// Tones read the surface accents, so a chip passes AA on the desk and on paper alike.
 const chipVariants = cva(
   "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-chip border-(length:--rule) px-2 type-meta whitespace-nowrap [&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:stroke-[1.5]",
   {
     variants: {
       tone: {
         neutral: "border-surface-line text-surface-fg-2",
-        support: "border-support/40 text-support",
-        contradicted: "border-pencil-red/40 text-pencil-red",
-        ochre: "border-ochre/40 text-ochre",
-        graphite: "border-graphite/40 text-graphite",
+        support: "border-surface-support/40 text-surface-support",
+        contradicted: "border-surface-red/40 text-surface-red",
+        ochre: "border-surface-ochre/40 text-surface-ochre",
+        graphite: "border-surface-graphite/40 text-surface-graphite",
       },
     },
     defaultVariants: { tone: "neutral" },

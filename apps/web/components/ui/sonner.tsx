@@ -6,7 +6,6 @@ import {
   OctagonXIcon,
   TriangleAlertIcon,
 } from "lucide-react"
-import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
 // Sonner's own theming hooks, pointed at the desk tokens (CSS custom properties only).
@@ -17,14 +16,13 @@ const toastVars = {
   '--border-radius': 'var(--radius-chip)',
 } as React.CSSProperties
 
-// Toasts are desk chrome. Every toast is visible and announced (sonner uses a live region);
+// Toasts are desk chrome, and the desk is dark in both themes, so Sonner stays on its dark set.
+// Every toast is visible and announced (sonner uses a live region);
 // ACHP makes no sound. No loading spinner: progress comes only from server events.
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { resolvedTheme = "light" } = useTheme()
-
   return (
     <Sonner
-      theme={resolvedTheme as ToasterProps["theme"]}
+      theme="dark"
       className="toaster group"
       icons={{
         success: <CircleCheckIcon aria-hidden="true" className="size-4 stroke-[1.5]" />,

@@ -62,7 +62,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "paper fixed inset-0 z-50 m-auto grid h-fit w-full max-w-[calc(100%-2rem)] gap-4 p-6 shadow-lift-sheet outline-none sm:max-w-lg data-[state=open]:animate-[rise-in_var(--dur-base)_var(--ease-out)] data-[state=closed]:animate-[fade-out_var(--dur-quick)_var(--ease-exit)_forwards]",
+          "paper fixed inset-0 z-50 m-auto grid rounded-sheet h-fit w-full max-w-[calc(100%-2rem)] gap-4 p-6 shadow-lift-sheet outline-none sm:max-w-lg data-[state=open]:animate-[rise-in_var(--dur-base)_var(--ease-out)] data-[state=closed]:animate-[fade-out_var(--dur-quick)_var(--ease-exit)_forwards]",
           className
         )}
         {...props}
@@ -71,7 +71,7 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-3 right-3 inline-flex size-8 cursor-pointer items-center justify-center rounded-button text-ink-2 transition-colors duration-(--dur-quick) hover:bg-surface-tint hover:text-ink [&_svg]:size-4 [&_svg]:stroke-[1.5]"
+            className="absolute top-2 right-2 inline-flex size-11 cursor-pointer items-center justify-center rounded-button text-surface-fg-2 transition-colors duration-(--dur-quick) hover:bg-surface-tint hover:text-surface-fg [&_svg]:size-4 [&_svg]:stroke-[1.5]"
           >
             <XIcon aria-hidden="true" />
             <span className="sr-only">Close</span>
@@ -86,7 +86,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 pr-8", className)}
+      className={cn("flex flex-col gap-2 pr-10", className)}
       {...props}
     />
   )

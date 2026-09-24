@@ -7,3 +7,9 @@ export const deskNav = [
   { href: '/method', label: 'Method' },
   { href: '/developers', label: 'Developers' },
 ] as const;
+
+/** A nav item is current on its own path and below it ("/" only matches itself). */
+export function isCurrent(pathname: string, href: string): boolean {
+  if (href === '/') return pathname === '/';
+  return pathname === href || pathname.startsWith(`${href}/`);
+}

@@ -2,20 +2,22 @@
 
 import { MenuIcon } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { deskNav } from './nav';
+import { deskNav, isCurrent } from './nav';
 
-// Below md the nav moves into a sheet (07 §1).
-export function MobileMenu() {
+// The nav in a sheet (07 §1). Navigation is desk chrome, so the sheet is on the desk surface.
+export function MobileMenu({ className }: { className?: string }) {
+  const pathname = usePathname();
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Open menu" className="md:hidden">
+        <Button variant="ghost" size="icon" aria-label="Open menu" className={className}>
           <MenuIcon aria-hidden="true" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="right">
+      <SheetContent side="right" surface="desk">
         <SheetHeader>
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
@@ -26,7 +28,8 @@ export function MobileMenu() {
                 <SheetClose asChild>
                   <Link
                     href={item.href}
-                    className="flex min-h-11 items-center rounded-button px-3 type-body text-ink transition-colors duration-(--dur-quick) hover:bg-surface-tint"
+                    aria-current={isCurrent(pathname, item.href) ? 'page' : undefined}
+                    className="flex min-h-11 items-center rounded-button border-l-2 border-transparent px-3 type-body text-desk-ink-2 transition-colors duration-(--dur-quick) hover:bg-surface-tint hover:text-desk-ink aria-[current=page]:border-desk-ink aria-[current=page]:text-desk-ink"
                   >
                     {item.label}
                   </Link>

@@ -34,6 +34,15 @@
   --mark-neutral: #59636C;
   --mark-focus: #2952C2;
 
+  /* Accents for the desk. The desk is dark in both themes, so the sheet inks above (tuned for
+   * light paper) fail on it; these are the §3.2 "lamp off" inks, checked against --desk and
+   * --desk-raised in both themes (lib/__tests__/tokens.contrast.test.ts). */
+  --desk-red: #FF8A80;
+  --desk-blue: #94B4FF;
+  --desk-support: #74D39C;
+  --desk-ochre: #EBBE55;
+  --desk-graphite: #A3ADB7;
+
   /* Hairline weight; prefers-contrast: more raises it to 2px (05 §6) */
   --rule: 1px;
 
@@ -136,6 +145,16 @@
   --color-surface-fg-2: var(--surface-fg-2);
   --color-surface-line: var(--surface-line);
   --color-surface-tint: var(--surface-tint);
+  --color-surface-red: var(--surface-red);
+  --color-surface-blue: var(--surface-blue);
+  --color-surface-support: var(--surface-support);
+  --color-surface-ochre: var(--surface-ochre);
+  --color-surface-graphite: var(--surface-graphite);
+  --color-desk-red: var(--desk-red);
+  --color-desk-blue: var(--desk-blue);
+  --color-desk-support: var(--desk-support);
+  --color-desk-ochre: var(--desk-ochre);
+  --color-desk-graphite: var(--desk-graphite);
 
   /* Families come from next/font in app/layout.tsx */
   --font-display: var(--font-newsreader), Georgia, serif;
@@ -263,6 +282,11 @@
     --surface-fg-2: var(--desk-ink-2);
     --surface-line: var(--desk-line);
     --surface-tint: color-mix(in oklab, var(--desk-ink) 8%, transparent);
+    --surface-red: var(--desk-red);
+    --surface-blue: var(--desk-blue);
+    --surface-support: var(--desk-support);
+    --surface-ochre: var(--desk-ochre);
+    --surface-graphite: var(--desk-graphite);
     min-height: 100vh;
     background: var(--desk);
     color: var(--desk-ink);
@@ -285,11 +309,15 @@
   --surface-fg-2: var(--ink-2);
   --surface-line: var(--sheet-line);
   --surface-tint: color-mix(in oklab, var(--ink) 6%, transparent);
+  --surface-red: var(--pencil-red);
+  --surface-blue: var(--pencil-blue);
+  --surface-support: var(--support);
+  --surface-ochre: var(--ochre);
+  --surface-graphite: var(--graphite);
   background-color: var(--sheet);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23g)' opacity='0.03'/%3E%3C/svg%3E");
   background-size: 256px 256px;
   color: var(--ink);
-  border-radius: var(--radius-sheet);
 }
 
 /* ── Line boil — 05 §3.2. The stepped filter swap; removed at rest. ───────────────────────── */

@@ -1,41 +1,52 @@
+'use client';
+
+import { cn } from 'cn';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { BackendStatusChip } from './BackendStatusChip';
 import { MobileMenu } from './MobileMenu';
 import { ThemeToggle } from './ThemeToggle';
-import { deskNav } from './nav';
+import { deskNav, isCurrent } from './nav';
 
 // Global desk chrome (07 §1): wordmark · nav · backend status chip · theme toggle.
-// Mobile: wordmark + status chip + a menu sheet. No sound control: ACHP is silent.
+// Mobile, and the case pages at every width, put the nav in a menu sheet to give the sheet room.
+// No sound control: ACHP is silent.
 export function DeskHeader() {
+  const pathname = usePathname();
+  const compact = pathname.startsWith('/case/');
+
   return (
     <header className="sticky top-0 z-40 border-b-(length:--rule) border-desk-line bg-desk-raised">
       <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-6 px-4 md:px-6">
         <Link
           href="/"
-          className="font-display text-[1.375rem] leading-none font-medium text-desk-ink [font-variation-settings:'opsz'_36]"
+          className="translate-y-px font-display text-[1.375rem] leading-none font-medium text-desk-ink [font-variation-settings:'opsz'_36]"
         >
           ACHP
         </Link>
 
-        <nav aria-label="Main" className="hidden md:block">
-          <ul className="flex items-center gap-1">
-            {deskNav.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className="inline-flex h-9 items-center rounded-button px-3 type-ui text-desk-ink-2 transition-colors duration-(--dur-quick) hover:bg-surface-tint hover:text-desk-ink"
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        {!compact && (
+          <nav aria-label="Main" className="hidden md:block">
+            <ul className="flex items-center gap-4">
+              {deskNav.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    aria-current={isCurrent(pathname, item.href) ? 'page' : undefined}
+                    className="inline-flex h-14 items-center border-b-2 border-transparent px-1 type-ui text-desk-ink-2 transition-colors duration-(--dur-quick) hover:text-desk-ink aria-[current=page]:border-desk-ink aria-[current=page]:text-desk-ink"
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
 
         <div className="ml-auto flex items-center gap-2">
           <BackendStatusChip />
           <ThemeToggle />
-          <MobileMenu />
+          <MobileMenu className={cn(!compact && 'md:hidden')} />
         </div>
       </div>
     </header>

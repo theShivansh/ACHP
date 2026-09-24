@@ -13,9 +13,9 @@ export default async function CasePage({ params }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-[760px] px-4 py-8 md:py-12">
-      <article className="paper px-6 py-8 shadow-lift-sheet md:px-12 md:py-12">
-        <h1 className="type-claim text-ink">Case {id}</h1>
-        <p className="mt-4 max-w-[68ch] type-body text-ink-2">
+      <article className="paper rounded-sheet px-6 py-8 shadow-lift-sheet md:px-12 md:py-12">
+        <h1 className="type-h2 text-ink">Case {id}</h1>
+        <p className="mt-4 max-w-[60ch] type-body text-ink-2">
           Nothing has been checked on this sheet yet. The live investigation arrives with the event
           protocol.
         </p>

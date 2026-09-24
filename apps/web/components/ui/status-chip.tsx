@@ -9,10 +9,11 @@ const label: Record<BackendStatus, string> = {
   unreachable: "Unreachable",
 }
 
+// Desk inks. "Ready" is quiet graphite: the verdict colors belong to the sheet's stamps.
 const dot: Record<BackendStatus, string> = {
-  waking: "bg-ochre",
-  ready: "bg-support",
-  unreachable: "bg-pencil-red",
+  waking: "bg-desk-ochre",
+  ready: "bg-desk-graphite",
+  unreachable: "bg-desk-red",
 }
 
 // 04 §7 StatusPill: the backend's state as a chip on the desk (not a pill button).

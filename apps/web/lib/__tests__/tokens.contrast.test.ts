@@ -63,6 +63,10 @@ const pairs: Array<[string, string, number]> = [
   ['support', 'sheet', TEXT],
   ['ochre', 'sheet', TEXT],
   ['graphite', 'sheet', TEXT],
+  // Accents used on the desk chrome (chips, links, status dots)
+  ...(['desk-red', 'desk-blue', 'desk-support', 'desk-ochre', 'desk-graphite'] as const).flatMap(
+    (fg) => (['desk', 'desk-raised'] as const).map((bg): [string, string, number] => [fg, bg, TEXT]),
+  ),
   ['focus', 'desk', NON_TEXT],
   ['focus', 'desk-raised', NON_TEXT],
   ['pencil-blue', 'sheet', NON_TEXT], // the focus ring on paper
