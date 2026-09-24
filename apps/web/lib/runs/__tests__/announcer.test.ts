@@ -101,4 +101,14 @@ describe('announcer: throttle', () => {
     expect(said).toEqual(['Gatekeeper finished. Safe to check.', 'Clipper finished. Pinned 1 source: 1 from the web.']);
     a.dispose();
   });
+
+  it('learns agent names from run.started when no lookup is given', () => {
+    const events = log('mixed');
+    const { said, clock } = harness();
+    const a = createAnnouncer((t) => said.push(t), undefined, clock);
+    a.push(events[0]);
+    clock.advance(2000);
+    a.push(events.find((e) => e.type === 'agent.done')!);
+    expect(said.at(-1)).toBe('Gatekeeper finished. Safe to check.');
+  });
 });

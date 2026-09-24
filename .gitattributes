@@ -1,0 +1,2 @@
+*.jsonl text eol=lf
+*.snap text eol=lf

@@ -20,6 +20,16 @@ const SKIP_WORDS: Record<string, string> = {
   not_applicable: 'not needed for this message',
 };
 
+const STAGE_WORDS: Record<string, string> = {
+  retriever: 'source search',
+  proposer: 'claim splitting',
+  analysis: 'challenge',
+  judge: 'judging',
+  config: 'setup',
+  internal: 'server',
+  server: 'server',
+};
+
 export interface Announcement {
   text: string;
   priority: number;
@@ -66,7 +76,10 @@ export function describe(event: RunEvent, nameOf: NameOf): Announcement | null {
     case 'run.completed':
       return at('Check complete', 3);
     case 'run.failed':
-      return at(`The check stopped at the ${event.data.stage} step. No verdict was produced`, 4);
+      return at(
+        `The check stopped at the ${STAGE_WORDS[event.data.stage] ?? event.data.stage.replace(/_/g, ' ')} step. No verdict was produced`,
+        4,
+      );
     default:
       return null; // agent.action, evidence.*, claim.*, signal.computed, assay.computed
   }
@@ -81,9 +94,12 @@ export interface AnnouncerOptions {
 
 /**
  * A throttled announcer. `push(event)` queues its sentence; `say` is called at most once per
- * interval. `dispose()` cancels any pending flush.
+ * interval. `dispose()` cancels any pending flush. Agent names come from `nameOf`, or else from
+ * the run.started event the announcer has seen.
  */
-export function createAnnouncer(say: (text: string) => void, nameOf: NameOf, opts: AnnouncerOptions = {}) {
+export function createAnnouncer(say: (text: string) => void, nameOf?: NameOf, opts: AnnouncerOptions = {}) {
+  const learned = new Map<string, string>();
+  const names: NameOf = nameOf ?? ((id) => (id && learned.get(id)) || 'The desk');
   const interval = opts.intervalMs ?? 2000;
   const now = opts.now ?? (() => Date.now());
   const schedule = opts.schedule ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
@@ -109,7 +125,8 @@ export function createAnnouncer(say: (text: string) => void, nameOf: NameOf, opt
 
   return {
     push(event: RunEvent) {
-      const a = describe(event, nameOf);
+      if (event.type === 'run.started') for (const ag of event.data.agents) learned.set(ag.id, ag.name);
+      const a = describe(event, names);
       if (!a || a.text === lastText || pending.some((p) => p.text === a.text)) return;
       pending.push(a);
       if (timer !== null) return;
