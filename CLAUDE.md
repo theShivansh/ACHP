@@ -4,7 +4,7 @@ ACHP is an evidence-grounded, multi-agent claim-verification system. A FastAPI p
 
 ## Repo layout
 - `apps/web`: Next.js 16 App Router, React 19.2, Tailwind v4 (`app/`, `components/`, `lib/`)
-- `apps/api`: FastAPI (`main.py`), pipeline in `achp/core/core_pipeline.py`, agents in `achp/agents/`, NIL in `achp/nil/`, KB in `achp/kb/`, the Assay in `achp/assay/` (added in P5, a copy of `reference/assay/assay.py`)
+- `apps/api`: FastAPI (`main.py`), pipeline in `achp/core/core_pipeline.py`, agents in `achp/agents/`, NIL in `achp/nil/`, KB in `achp/kb/`, the Groq runtime + model registry in `achp/llm/` (every model call goes through it), prompt contracts in `achp/prompts/`, evidence pack + grounding in `achp/evidence/`, memory tiers in `achp/memory/` (see `docs/upgrade/12_GROQ_RUNTIME.md`), the Assay in `achp/assay/` (added in P5, a copy of `reference/assay/assay.py`)
 - `reference/assay/`: the metric instruments' reference implementation (Python source of truth + TS port + `vectors.json` + tests + `leverage_lint.py`)
 - `docs/upgrade/`: PRD, stories, DESIGN.md, motion spec, event protocol, IA, QA, phase prompts, `PROGRESS.md`
 - `scripts/ui/shoot.mjs`: Playwright screenshots + stillness check

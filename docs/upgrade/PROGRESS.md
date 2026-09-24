@@ -92,6 +92,26 @@ Decisions:
 - Decision: `apps/web` keeps its own lockfile/workspace for now because Vercel builds it with `pnpm install` from that folder; folding it into the root workspace moves to P10 (deploy hardening).
 - Decision: in headless captures the status chip reads "Unreachable" because the capture browser has no route through the sandbox proxy; a real browser reads "Ready" (checked in the browser pane).
 
+## Groq runtime refactor (user request, between P1 and P2)  ✅ 2026-09-24
+Write-up: `docs/upgrade/12_GROQ_RUNTIME.md` (13 audit findings, the new architecture, API compatibility).
+- [x] Shared Groq runtime: one client, FIFO concurrency + bounded queue, strict json_schema, `include_reasoning:false`, Retry-After routing 120b⇄20b, backoff, per-model circuit breaker, telemetry at `/health/llm` (5ec1ab2)
+- [x] Canonical registry: every logical agent → gpt-oss-120b primary / gpt-oss-20b fallback; primary==fallback rejected (5ec1ab2)
+- [x] Shared prompt contract + role prompts; chain-of-thought instructions removed; claim sent as JSON data (5ec1ab2)
+- [x] Evidence pack with server-assigned ids; grounding drops unknown ids, non-verbatim quotes, foreign URLs; UNVERIFIABLE when nothing is grounded (4e374ba)
+- [x] Hierarchical memory; evidence cache exact-keyed with TTL, never caches verdicts or empties (4e374ba)
+- [x] 3 Groq calls per run (proposer · analysis bundle A+B+NIL · judge), was 7; the Judge now sees the full debate; stage failure → 503, no fabricated verdicts; offline mocks removed; dead duplicate stack deleted (a0bf303)
+- [x] `/qa` and the cache validator via the runtime; library chunks travel as evidence, not in the claim (a0bf303)
+- [x] Next `/api/analyze` is a proxy (fixed its `{text}`→`{claim}` body); demo only with `?demo=1` (1c617e3)
+
+Gate evidence: `cd apps/api && pytest -q` → **62 passed** (was 5) · Assay parity **23/23**, formula functions AST-identical · leverage lint PASS · web typecheck ✓ lint ✓ (0 errors) · anti-slop clean on changed web files.
+Not verified live: no `GROQ_API_KEY` locally and the Space runs the old code. First post-deploy check: one claim, `/health/llm` shows ok calls and `pipeline.groq_calls == 3`.
+
+Decisions:
+- Decision: Adversary A, Adversary B and the NIL LLM signals share one structured call because they read the same inputs; each keeps its own schema section and lane, and the free tier (8K TPM, 30 RPM per model) can't carry 7 calls per run.
+- Decision: strict-schema length/range keywords are moved into descriptions and enforced server-side (trim/clamp), because Groq's documented strict keyword set doesn't list them and a rejected schema would fail every run.
+- Decision: `/analyze` returns 503 `{detail, stage, error_code, retryable}` on a failed stage and 400 for `offline:true`, because the old fabricated verdicts break non-negotiable 4; the success shape is unchanged.
+- Decision: a 429 on one model routes the rest of the run to the other model while it cools, because Groq quotas are per model.
+
 ## P2 — Event protocol v2
 - [ ] S1.1 `POST /runs` → 202 `{run_id}`
 - [ ] S1.2 `GET /runs/{id}/events` SSE resume via `Last-Event-ID`
