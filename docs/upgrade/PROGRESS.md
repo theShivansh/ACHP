@@ -62,14 +62,35 @@ No finding was refuted. Parity passes, so the formulas haven't changed since the
 
 ---
 
-## P1 — Foundation
-- [ ] Tokens incl. chart tokens (`--mark-*`) in `app/globals.css` `@theme`; token contrast test
-- [ ] Fonts via `next/font` (Newsreader, Public Sans, Kalam, IBM Plex Mono); remove the double `<link>`/`@import` and Material Symbols
-- [ ] shadcn/ui restyle base; `motion` (from `framer-motion`) + `cn` migration
-- [ ] BoilDefs (stepped feTurbulence filters), `lib/agents.config.ts`
-- [ ] Test tooling: `typecheck`, `lint`, `test`, `test:e2e` scripts (vitest + Playwright)
-- [ ] S1.4 (partial): the registry exists; nothing hard-codes models
-- Gate: token contrast test green · old UI still works · anti-slop clean on the new files
+## P1 — Foundation  ✅ 2026-09-24
+- [x] Test tooling: `typecheck`, `test` (vitest), `test:e2e` (Playwright, the 5 projects from 09 §6), `@axe-core/playwright` (f5b63e8)
+- [x] `motion` replaces `framer-motion` (no imports existed); `cn` replaces `clsx` + `tailwind-merge` via `shadcn migrate cn`; shadcn primitives added: button, dialog, sheet, tabs, tooltip, hover-card, command, sonner, collapsible, table, scroll-area (7aa417f)
+- [x] Fonts via `next/font` (Newsreader with opsz, Public Sans, Kalam and IBM Plex Mono not preloaded); both Google Fonts `<link>`/`@import`s and Material Symbols removed (f9103e4)
+- [x] Tokens incl. chart tokens (`--mark-*`) in `app/globals.css`, light + dark via `[data-theme]` and `prefers-color-scheme`, type roles, radii, elevation, breakpoints, motion tokens (mirrored in `lib/motion.ts`), `.paper` grain, boil keyframes/classes, reduced-motion / transparency / contrast rules; legacy classes moved to `app/legacy.css`; token contrast test (f9103e4, 9c66f75)
+- [x] shadcn primitives restyled to desk/paper tokens (6px buttons, global 2px focus outline, paper overlays, desk tooltips/toasts); `Chip` and `StatusChip` added (213ea8c, 9c66f75)
+- [x] `BoilDefs` in the root layout; `lib/agents.config.ts` (7 server agents + `evidence_verifier`, `media_integrity`) with placeholder glyphs in `components/glyphs/` (f9103e4, 8b3bdef)
+- [x] Flagged shell `app/(desk)/layout.tsx` (wordmark, nav, live `/health` status chip, theme toggle, menu sheet) + placeholder `app/(desk)/case/[id]/page.tsx` (8b3bdef, 9c66f75)
+- [x] S1.4 (partial): the registry holds look only; a unit test asserts no model names in it
+
+Gate evidence:
+- `pnpm -C apps/web typecheck` ✓ · `lint` ✓ (0 errors; 20 warnings, all in legacy files) · `test` **84/84** ✓ (token contrast in both themes incl. desk accents, primitives, registry)
+- e2e **15/15** ✓ in desktop-light, desktop-dark, mobile-reduced (shell + axe with 0 violations, status chip waking/ready/unreachable via mocked `/health`, case nav behind the menu). mobile-light (WebKit) and firefox-fallback: browsers not installed (see Deferred)
+- `pnpm -C apps/web build` ✓. Production server without the flag: `/` 200, `/case/x` 404
+- Old UI smoke test (flag irrelevant to `/`): KB manager → "Analyze without KB" → claim analyzed against the live backend, verdict "Mostly true". The Next server logged no `POST /api/analyze`, so the mock fallback (A4) wasn't involved
+- Screenshots: `docs/upgrade/screens/P1/` (case shell 390/1440 × light/dark + reduced; chip waking/ready; menu open)
+- Anti-slop: every new or changed file clean (`--strict`); full scan 1,103 → **1,094** (all remaining hits are legacy; `app/legacy.css` holds 43 of them, moved verbatim)
+- `design-critic`: 0 P0, 5 P1, all fixed (desk-context accents, status dots, nav hidden on case pages, 44px targets, state captures); P2s fixed: desk-surface menu, paper radius conflict, `aria-current`, graphite "Ready", toasts pinned dark. The P2 font concern checked out fine: Newsreader is loaded (`document.fonts`)
+
+Decisions:
+- Decision: raw tokens (`--desk`, `--ink`, …) live on `:root` and swap under `[data-theme="dark"]` / `prefers-color-scheme`; `@theme inline` maps them to Tailwind (`--color-desk: var(--desk)`) because 04 names the tokens `--desk` etc. and `@theme` alone can't be re-themed per selector.
+- Decision: new primitives never use shadcn's `--primary`/`--background` names because the legacy theme already owns `--color-primary`, `--color-background` etc. and the old UI must keep working until P9.
+- Decision: surface-context variables (`--surface-fg`, `--surface-line`, `--surface-red`, …) are set on `body` (desk) and reset by `.paper`, so one primitive reads correctly on both surfaces. Added `--desk-red/blue/support/ochre/graphite` (the 04 §3.2 inks) because the §3.1 sheet inks fail AA on the desk, which is dark in both themes (critic P1).
+- Decision: `.paper` no longer sets a radius; callers add `rounded-sheet` or `rounded-card`, because the utility's radius beat `rounded-card` in the cascade.
+- Decision: the legacy React-compiler lint errors (unescaped quotes, refs in render, setState in effect) are downgraded to warnings **only** for the listed legacy files in `eslint.config.mjs`, because they sit in components that P2/P9 delete.
+- Decision: the status chip reports the real `useHealth()` state (pending → "Waking the desk", ok → "Ready", error → "Unreachable") rather than a static placeholder, so the shell doesn't invent state (non-negotiable 1). Elapsed seconds and the lamp come in P9.
+- Decision: overlay enter/exit keyframes live in `globals.css` (no `tw-animate-css`), using the 05 §1 tokens, with exits ~30% shorter; reduced motion drops them.
+- Decision: `apps/web` keeps its own lockfile/workspace for now because Vercel builds it with `pnpm install` from that folder; folding it into the root workspace moves to P10 (deploy hardening).
+- Decision: in headless captures the status chip reads "Unreachable" because the capture browser has no route through the sandbox proxy; a real browser reads "Ready" (checked in the browser pane).
 
 ## P2 — Event protocol v2
 - [ ] S1.1 `POST /runs` → 202 `{run_id}`
@@ -134,4 +155,7 @@ No finding was refuted. Parity passes, so the formulas haven't changed since the
 - Lighthouse mobile baseline for `/` → P10 (no CLI available in P0).
 - Prototype layout bug to avoid in P4/P5: on the desktop case (`P0-target/achp-site-html-case-desktop-light-done.png`) the Hallmark overlaps the claim headline (the "of" collides with the CTS mark). Give the Hallmark its own row or reserve width for it.
 - Moodboard images: you fill these from godly.design (`moodboard/README.md`).
+- Playwright WebKit + Firefox browsers (~200 MB): not installed, so the `mobile-light` and `firefox-fallback` projects haven't run. Install with `pnpm -C apps/web exec playwright install webkit firefox` before P6 (the replay gate needs 3 engines).
+- Fold `apps/web` into the root pnpm workspace → P10 (Vercel install path must change with it).
+- P1 critic P3/genericness, deferred: wordmark optical centering is nudged 1px, fine-tune in P11; the case sheet's 120px margin column → P3 (CaseSheet); a hand-drawn lamp glyph in place of the status dot → P9 (cold-start lamp); a small seal mark beside the wordmark is a brand choice → P11 (G8).
 - G5: the paper's Table III mean (62.2%) needs the paper source to reconcile; `EVALUATION.md` generation goes in P9 (`/method`).
