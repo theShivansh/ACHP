@@ -6,10 +6,9 @@ ACHP — Core Pipeline End-to-End Tests
   Case 2: Exercise + heart health     → expected MOSTLY_TRUE
   Case 3: Immigration + economy       → expected MOSTLY_FALSE / MIXED
 
-All run in offline mode (no API keys needed), using:
-  - Real Security Validator
-  - Real NIL Layer (VADER + sentence-transformers)
-  - Mock Retriever / Proposer / Adversaries / Judge
+Live run: needs GROQ_API_KEY (there is no mock pipeline any more; a verdict always comes from a
+real run). Uses the real retriever, the 3 Groq calls and the NIL layer. Real results vary, so the
+expected ranges are a sanity check, not a contract.
 
 Full ACHPOutput format is validated on each case.
 Writes demo_output.json artifact.
@@ -118,7 +117,11 @@ def _assert(result: dict, case: dict) -> tuple[bool, list[str]]:
 
 
 async def run_e2e_tests():
-    pipeline = CorePipeline(offline=True)
+    import os
+    if not os.getenv("GROQ_API_KEY", "").strip():
+        print("GROQ_API_KEY is not set: this script runs the live pipeline. Skipping.")
+        return
+    pipeline = CorePipeline()
     results  = []
     passed   = 0
 
@@ -194,7 +197,7 @@ async def run_e2e_tests():
         "suite":   "ACHP Core Pipeline — End-to-End Tests",
         "version": "1.0.0",
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "mode":    "offline (VADER + all-MiniLM-L6-v2, mock LLM agents)",
+        "mode":    "live (retriever + 3 Groq calls + NIL)",
         "summary": {
             "total": len(TEST_CASES),
             "passed": passed,

@@ -81,12 +81,15 @@ logger = logging.getLogger("achp.main")
 # ─────────────────────────────────────────────────────────────────────────────
 
 _pipeline = None
+_STARTED = time.monotonic()
 
 def get_pipeline():
     global _pipeline
-    if _pipeline is None:
+    has_key = bool(os.getenv("GROQ_API_KEY", "").strip())
+    # Rebuild if the key appeared after an earlier request pinned the pipeline to "no key".
+    if _pipeline is None or (_pipeline.offline and has_key):
         from achp.core.core_pipeline import CorePipeline
-        offline = not bool(os.getenv("GROQ_API_KEY"))
+        offline = not has_key
         logger.info(f"Initialising CorePipeline | offline={offline}")
         _pipeline = CorePipeline(offline=offline)
     return _pipeline
@@ -203,6 +206,7 @@ class HealthResponse(BaseModel):
     timestamp: str
     pipeline_mode: str
     kb_count: int
+    uptime_s: float = 0.0
 
 
 class KBUploadResponse(BaseModel):
@@ -399,6 +403,8 @@ def _build_artifacts(output) -> Dict[str, Any]:
         "adversary_b":          getattr(output, "adversary_b", {}),
         "key_evidence":         getattr(output, "key_evidence", {}),
         "pipeline_metadata":    getattr(output, "pipeline", {}),
+        "evidence":             getattr(output, "evidence", []),
+        "claim_labels":         getattr(output, "claim_labels", []),
     }
 
 
@@ -460,7 +466,7 @@ def _pipeline_to_response(output, kb_used: Optional[str]) -> AnalyzeResponse:
 )
 async def health():
     has_keys = bool(os.getenv("GROQ_API_KEY"))
-    mode     = "online" if has_keys else "offline (mock)"
+    mode     = "online" if has_keys else "offline (no API key)"
     kbs      = await kb_manager.list_kbs()
     return HealthResponse(
         status="ok",
@@ -469,7 +475,22 @@ async def health():
         timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         pipeline_mode=mode,
         kb_count=len(kbs),
+        uptime_s=round(time.monotonic() - _STARTED, 1),
     )
+
+
+@app.get("/health/llm", summary="Groq runtime telemetry and model registry", tags=["System"])
+async def health_llm():
+    """Model registry, per-model circuit state, queue depth and call telemetry (no prompts,
+    no outputs, no keys)."""
+    from achp.llm import registry
+    from achp.llm.runtime import get_runtime
+    from achp.memory.evidence_cache import get_evidence_cache
+    return {
+        "logical_agents": registry.logical_models(),
+        "runtime": get_runtime().snapshot(),
+        "evidence_cache": get_evidence_cache().stats(),
+    }
 
 
 # ── POST /kb/upload ───────────────────────────────────────────────────────────
@@ -695,39 +716,44 @@ async def analyze(
         kb_context_chunks = await kb_manager.search(request.kb_id, request.claim, top_k=6)
         logger.info(f"[{run_id}] KB '{request.kb_id}' context: {len(kb_context_chunks)} chunks")
 
-    # Get pipeline
-    pipeline = get_pipeline()
-
-    # If forced offline override
-    if request.offline is not None:
-        from achp.core.core_pipeline import CorePipeline
-        pipeline = CorePipeline(offline=request.offline)
-
-    # Augment claim with KB context — embed [CHUNK N] markers for traceable citations
-    claim_text = request.claim
-    kb_retrieved_context: List[str] = []   # fed into Proposer's {context} slot
-    if kb_context_chunks:
-        ctx_parts = []
-        for ch in kb_context_chunks[:5]:
-            block = f"[CHUNK {ch['chunk_index']}]\n{ch['text'][:800]}"
-            ctx_parts.append(block)
-            kb_retrieved_context.append(block)   # Proposer sees these too
-        ctx_str = "\n\n".join(ctx_parts)
-        claim_text = (
-            f"{request.claim}\n\n"
-            f"--- KB: {kb_name} ---\n"
-            f"{ctx_str[:4000]}"
+    # `offline: true` used to return a mock verdict. A verdict without a real run is never
+    # returned now; demo data lives only in the web app's ?demo=1 mode.
+    if request.offline:
+        raise HTTPException(
+            status_code=400,
+            detail="Offline mode was removed: ACHP never returns a verdict without a real run. "
+                   "Use the web app's demo mode (?demo=1) for sample data.",
         )
 
-    # Register SSE queue for this run
+    pipeline = get_pipeline()
+
+    # Library chunks travel as evidence, separate from the claim, so security checks, web search
+    # and the language analysis all see only what the user actually wrote.
     q: asyncio.Queue = asyncio.Queue()
     _sse_queues[run_id] = q
 
+    from achp.core.core_pipeline import PipelineError
     try:
         output = await pipeline.run(
-            claim_text,
+            request.claim,
             sse_queue=q,
-            extra_context=kb_retrieved_context or None,   # passes [CHUNK N] to Proposer
+            kb_chunks=kb_context_chunks[:5] or None,
+            kb_id=request.kb_id,
+            kb_name=kb_name or None,
+            run_id=run_id,
+        )
+    except PipelineError as e:
+        logger.error(f"[{run_id}] Pipeline stage failed: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": f"The {e.stage} step couldn't finish, so no verdict was produced. {e.message}",
+                "stage": e.stage,
+                "error_code": e.code,
+                "retryable": e.retryable,
+                "run_id": run_id,
+            },
+            headers={"X-Run-Id": run_id},
         )
     except Exception as e:
         logger.exception(f"[{run_id}] Pipeline error: {e}")
@@ -850,64 +876,45 @@ async def kb_qa(request: QARequest):
         )
     context_str = "\n\n".join(context_blocks)
 
-    # ── 4. Call LLM for grounded answer ───────────────────────────────────────
-    groq_key = os.getenv("GROQ_API_KEY", "")
+    # ── 4. Grounded answer through the shared Groq runtime ────────────────────
+    # The model returns sentences with the CHUNK numbers they come from. Server-side, a sentence
+    # survives only if it cites at least one chunk that was actually retrieved; the answer text
+    # is assembled here with [N] markers, so a citation can't point at a chunk the user can't see.
+    from achp.llm.runtime import LLMUnavailable, get_runtime
+    from achp.prompts.contract import build_messages
+    from achp.prompts.schemas import QAOutput
+
+    retrieved = {ch["chunk_index"] for ch in chunks}
     answer_text = ""
-
-    if groq_key:
-        try:
-            import httpx, re as _re
-            system_prompt = (
-                "You are a grounded Q&A assistant for a personal knowledge base. "
-                "Rules:\n"
-                "1. Answer ONLY using the provided [CHUNK N] context blocks. "
-                "Never use outside knowledge.\n"
-                "2. After each sentence or fact, cite the chunk: write [N] inline.\n"
-                "3. If the answer cannot be found in the chunks, say: "
-                "\"The knowledge base does not contain information about this.\"\n"
-                "4. Be concise and direct. Do not speculate."
-            )
-            user_prompt = (
-                f"Context from knowledge base '{kb_name}':\n\n"
-                f"{context_str}\n\n"
-                f"---\nQuestion: {request.question}\n\n"
-                "Answer (with inline [CHUNK N] citations):"
-            )
-            async with httpx.AsyncClient(timeout=60) as client:
-                resp = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {groq_key}",
-                             "Content-Type": "application/json"},
-                    json={
-                        "model": os.getenv("PROPOSER_MODEL",
-                                           "openai/gpt-oss-120b"),
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user",   "content": user_prompt},
-                        ],
-                        "temperature": 0.0,
-                        "max_tokens": 1024,
-                    },
-                )
-            if resp.status_code == 200:
-                answer_text = (
-                    resp.json()
-                    .get("choices", [{}])[0]
-                    .get("message", {})
-                    .get("content", "")
-                    .strip()
-                )
-        except Exception as e:
-            logger.warning(f"[{run_id}] /qa LLM error: {e}")
-            answer_text = ""
-
-    # Offline fallback: synthesise answer from chunk texts
-    if not answer_text:
+    try:
+        result = await get_runtime().complete(
+            "qa",
+            build_messages("qa", {
+                "QUESTION": request.question,
+                "LIBRARY": kb_name,
+                "CHUNKS": [{"chunk": ch["chunk_index"], "text": ch["text"][:1200]} for ch in chunks],
+            }),
+            QAOutput,
+            run_id=run_id,
+        )
+        qa = result.value
         sentences = []
-        for ch in chunks[:3]:
-            snippet = ch["text"][:300].rstrip()
-            sentences.append(f"{snippet} [{ch['chunk_index']}]")
-        answer_text = " ".join(sentences) or "No answer could be generated."
+        for s in qa.sentences:
+            ids = [i for i in dict.fromkeys(s.chunk_ids) if i in retrieved]
+            if ids and s.text.strip():
+                sentences.append(s.text.strip() + " " + "".join(f"[{i}]" for i in ids))
+        if qa.found and sentences:
+            answer_text = " ".join(sentences)
+        else:
+            answer_text = "The knowledge base does not contain information about this."
+    except LLMUnavailable as e:
+        logger.warning(f"[{run_id}] /qa model unavailable: {e}")
+
+    # Without a model, don't write an answer: show the closest passages, labelled as such.
+    if not answer_text:
+        passages = " ".join(f"{ch['text'][:300].rstrip()} [{ch['chunk_index']}]" for ch in chunks[:3])
+        answer_text = ("The answer service is unavailable right now. Closest passages from your "
+                       f"library: {passages}") if passages else "No answer could be generated."
 
     # ── 5. Build citations: always include ALL retrieved chunks ──────────────────
     import re as _re

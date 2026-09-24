@@ -1,25 +1,30 @@
 """
 ACHP — Core Pipeline  (core_pipeline.py)
 ==========================================
-Single source of truth connecting all 7 agents in the exact sequence:
+Single source of truth connecting the logical agents. Seven logical agents, three Groq calls:
 
   User Query
       │
-  [1] SecurityValidator.validate_input()          sync  ~1ms
+  [1] SecurityValidator.validate_input()                 sync, no model
       │
-  [2] RetrieverAgent.retrieve()                   async ~15s / <1ms cache
+  [2] RetrieverAgent.retrieve() → EvidencePack           server-side tools (KB + web), ids e1…
       │
-  [3] ProposerAgent.analyze()                     async ~5s   openai/gpt-oss-120b
+  [3] ProposerAgent.run()                                Groq call 1  (proposer)
       │
-  [4] AdversaryAAgent.challenge()  ─┐             async ~10s  openai/gpt-oss-120b
-  [5] AdversaryBAgent.audit()       ┤ parallel    async ~10s  openai/gpt-oss-120b
-  [6] NILLayer.run()               ─┘             async ~0.1s VADER+Groq
+  [4] AnalysisBundleAgent.run()  ┐                       Groq call 2  (Adversary A + B + NIL signals)
+  [5] NILLayer.prepare()         ┘ parallel              local (VADER, framing embeddings)
+      │  NILLayer.finalize()                             deterministic synthesis
+  [6] JudgeAgent.run()                                   Groq call 3  (+ bundle/judge again if the
+      │                                                  Judge asks for a second round)
+  [7] grounding (inside each agent): unknown evidence ids, non-verbatim quotes and foreign URLs are
+      │  removed; ungrounded verdicts become UNVERIFIABLE
+  [8] metrics (formulas below) · SecurityValidator.validate_output()
       │
-  [7] JudgeAgent.judge()                          async ~8s   openai/gpt-oss-120b
-      │
-  [8] SecurityValidator.validate_output()          sync  ~1ms
-      │
-  ACHPOutput (exact format)
+  ACHPOutput (exact format; new fields additive)
+
+Every model call goes through achp.llm.runtime.GroqRuntime (one client, queue, retries,
+Retry-After, circuit breaker, primary→fallback per achp.llm.registry). A stage that can't get an
+answer raises PipelineError; the pipeline never substitutes a made-up result.
 
 ═══════════════════════════════════════════════════════════════════
 EXACT METRIC FORMULAS
@@ -217,160 +222,7 @@ def verdict_from_composite(composite: float, judge_verdict: str) -> tuple[str, f
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Offline Mocks (no API keys needed)
-# ─────────────────────────────────────────────────────────────────────────────
-
-_MOCK_EVIDENCE: Dict[str, Dict] = {
-    "climate_hoax": {
-        "factual_score": 0.05,
-        "critical_flaws": [
-            "Contradicted by 97% scientific consensus (NASA, NOAA, IPCC)",
-            "China is one of the largest investors in renewable energy",
-            "Temperature records pre-date Chinese involvement in climate policy",
-        ],
-        "verdict": "FALSE",
-        "judge_cts": 0.05,
-        "judge_nss": 0.20,
-        "pcs_b": 0.65,
-        "missing_perspectives": [
-            {"stakeholder": "Climate scientists", "viewpoint": "99.9% reject hoax claim", "significance": 0.95},
-            {"stakeholder": "Affected coastal communities", "viewpoint": "Experiencing measurable sea rise", "significance": 0.90},
-        ],
-        "consensus_reasoning": "Scientific consensus overwhelmingly refutes climate change denial. The claim that climate change is a Chinese hoax is contradicted by decades of independent atmospheric measurements, ice core data, and satellite records from agencies worldwide including NASA, ESA, and NOAA.",
-        "supporting": ["IPCC AR6 report confirms 1.1°C warming above pre-industrial levels"],
-        "contradicting": [
-            "97.1% of peer-reviewed climate papers confirm anthropogenic warming (Cook et al.)",
-            "Temperature records show consistent rise from 1880, pre-dating any alleged Chinese influence",
-            "China has committed $750B to clean energy — opposite of suppressing climate awareness",
-        ],
-        "caveats": ["The precise attribution of climate events to human activity carries inherent uncertainty ranges"],
-    },
-    "exercise_heart": {
-        "factual_score": 0.88,
-        "critical_flaws": ["Some studies suggest benefits may be up to 35%, not exactly 30-40%"],
-        "verdict": "MOSTLY_TRUE",
-        "judge_cts": 0.85,
-        "judge_nss": 0.82,
-        "pcs_b": 0.78,
-        "missing_perspectives": [
-            {"stakeholder": "Cardiologists", "viewpoint": "Benefits depend on exercise type and intensity", "significance": 0.75},
-        ],
-        "consensus_reasoning": "Multiple meta-analyses confirm that regular moderate exercise reduces cardiovascular disease risk by approximately 30-35%. The 30-40% range cited is consistent with most major studies, though exact figures vary by population and exercise type.",
-        "supporting": [
-            "AHA recommends 150 min/week moderate exercise; adherents show 30-35% CVD reduction",
-            "Framingham Heart Study: active individuals 28-35% lower heart disease risk",
-        ],
-        "contradicting": ["Effect size varies significantly by age, genetics, and baseline fitness"],
-        "caveats": ["The 30-40% reduction applies to moderate intensity exercise; high-intensity may carry different risk profiles for some populations"],
-    },
-    "immigration_economy": {
-        "factual_score": 0.15,
-        "critical_flaws": [
-            "Economic research shows net positive fiscal contribution from immigrants",
-            "Lump-of-labour fallacy: new workers also create new jobs as consumers",
-            "Uses emotionally loaded language (destroying) without evidence",
-        ],
-        "verdict": "MOSTLY_FALSE",
-        "judge_cts": 0.20,
-        "judge_nss": 0.25,
-        "pcs_b": 0.30,
-        "missing_perspectives": [
-            {"stakeholder": "Immigrants", "viewpoint": "Research shows positive fiscal contribution", "significance": 0.95},
-            {"stakeholder": "Economists", "viewpoint": "Net positive GDP impact in most OECD countries", "significance": 0.90},
-            {"stakeholder": "Small business owners", "viewpoint": "Immigrant entrepreneurs create jobs", "significance": 0.80},
-            {"stakeholder": "Native workers in non-competing sectors", "viewpoint": "Complementary labour dynamic", "significance": 0.70},
-        ],
-        "consensus_reasoning": "Economic consensus contradicts the claim's framing. IMF, World Bank, and national studies consistently show immigrants contribute net positive fiscal value over time. The 'taking jobs' claim ignores the demand-side effect where immigrants also create new economic demand.",
-        "supporting": ["Some studies show wage suppression in specific low-skill sectors during high immigration periods"],
-        "contradicting": [
-            "CBO reports immigrants add $1.7T to US GDP over 10 years",
-            "NAS study: immigrants pay more in taxes than they receive in benefits over lifetime",
-            "Immigrant entrepreneurship rate is 80% higher than native-born in the US",
-        ],
-        "caveats": [
-            "Short-term localized wage effects in specific sectors are documented but are distinct from the claim",
-            "The word 'all' in the claim is demonstrably false — job creation and destruction is distributed",
-        ],
-    },
-}
-
-
-async def _mock_retriever(query: str) -> List[str]:
-    """Offline context synthesis — no API needed."""
-    q = query.lower()
-    if "climate" in q and ("hoax" in q or "chinese" in q):
-        return [
-            "NASA: Global average temperatures have risen ~1.1°C since 1880.",
-            "IPCC AR6: Human influence is the dominant cause of observed warming since mid-20th century.",
-            "China's renewable energy investment: $750 billion committed (IEA 2023).",
-            "9,136 authors from 195 countries contributed to latest IPCC report.",
-        ]
-    elif "exercise" in q or "cardiovascular" in q or "heart" in q:
-        return [
-            "AHA Guidelines: 150 min/week moderate exercise reduces CVD risk ~30-35% (Circulation, 2021).",
-            "Framingham Heart Study: physically active participants had 28-35% lower cardiac event risk.",
-            "Meta-analysis (Lancet, 2020): 30,000 participants, 30% CVD risk reduction with regular exercise.",
-        ]
-    elif "immigr" in q:
-        return [
-            "CBO 2024: Immigrants projected to add $1.7 trillion to US GDP over a decade.",
-            "NAS Report (2016): Immigrants fiscal net positive over 75-year horizon.",
-            "NBER: 44% of Fortune 500 companies founded by immigrants or their children.",
-            "IMF Working Paper: Immigration has small positive effects on average wages in receiving economies.",
-        ]
-    return ["No specific context retrieved for this query. General knowledge will be applied."]
-
-
-def _mock_proposer(query: str, context: List[str]) -> Dict:
-    """Decompose query into atomic claims without LLM."""
-    q = query.strip()
-    if "hoax" in q.lower() or "chinese" in q.lower():
-        return {
-            "atomic_claims": [
-                {"id":"C1","text":"Climate change is a hoax","verifiable":True,"confidence":0.1,
-                 "epistemic_marker":"claims","citations":[]},
-                {"id":"C2","text":"Climate change was created by China","verifiable":True,"confidence":0.05,
-                 "epistemic_marker":"claims","citations":[]},
-            ],
-            "claim_type": "factual",
-            "overall_confidence": 0.08,
-        }
-    elif "exercise" in q.lower():
-        return {
-            "atomic_claims": [
-                {"id":"C1","text":"Regular exercise reduces heart disease risk","verifiable":True,"confidence":0.90,
-                 "epistemic_marker":"suggests","citations":["AHA Guidelines 2021"]},
-                {"id":"C2","text":"Risk reduction is 30-40%","verifiable":True,"confidence":0.80,
-                 "epistemic_marker":"suggests","citations":[]},
-            ],
-            "claim_type": "factual",
-            "overall_confidence": 0.85,
-        }
-    else:
-        return {
-            "atomic_claims": [
-                {"id":"C1","text":"Immigrants are harming the economy","verifiable":True,"confidence":0.15,
-                 "epistemic_marker":"claims","citations":[]},
-                {"id":"C2","text":"Immigrants are taking all the jobs","verifiable":True,"confidence":0.10,
-                 "epistemic_marker":"claims","citations":[]},
-            ],
-            "claim_type": "mixed",
-            "overall_confidence": 0.12,
-        }
-
-
-def _select_mock(query: str) -> Dict:
-    q = query.lower()
-    if "climate" in q or "hoax" in q or "chinese" in q:
-        return _MOCK_EVIDENCE["climate_hoax"]
-    elif "exercise" in q or "heart" in q or "cardiovascular" in q:
-        return _MOCK_EVIDENCE["exercise_heart"]
-    else:
-        return _MOCK_EVIDENCE["immigration_economy"]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# ACHP Output Schema (exact)
+# ACHP Output Schema (exact; new fields are additive)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ACHPOutput(BaseModel):
@@ -386,11 +238,24 @@ class ACHPOutput(BaseModel):
     adversary_a: Dict[str, Any]
     adversary_b: Dict[str, Any]
     consensus_reasoning: str
-    key_evidence: Dict[str, List[str]]  # supporting, contradicting
+    key_evidence: Dict[str, List[str]]  # supporting, contradicting (rendered from the evidence pack)
     caveats:      List[str]
     debate_rounds: int
-    pipeline: Dict[str, Any]    # mode, latency_ms, models, cache_hit
+    pipeline: Dict[str, Any]    # mode, latency_ms, models, cache_hit, llm_calls, grounding, prompt_version
     security: Dict[str, Any]    # pre_safe, post_safe, warnings
+    evidence: List[Dict[str, Any]] = []       # the run's evidence pack (ids referenced everywhere)
+    claim_labels: List[Dict[str, Any]] = []   # Judge's per-part labels with evidence ids
+
+
+class PipelineError(RuntimeError):
+    """A stage failed and the run can't honestly produce a verdict."""
+
+    def __init__(self, stage: str, code: str, message: str, retryable: bool = True):
+        super().__init__(f"{stage}: {code}: {message}")
+        self.stage = stage
+        self.code = code
+        self.message = message
+        self.retryable = retryable
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -399,81 +264,58 @@ class ACHPOutput(BaseModel):
 
 class CorePipeline:
     """
-    Wired end-to-end ACHP pipeline.
+    Wired end-to-end ACHP pipeline: 3 Groq calls per run (4-5 with a second round).
 
-    Modes:
-        offline=True   — uses fast mocks for all LLM agents (default, no API keys)
-        offline=False  — uses real agents (requires GROQ_API_KEY + OPENROUTER_API_KEY)
+    `offline=True` is kept as a constructor argument for compatibility, but there is no longer a
+    mock pipeline: without GROQ_API_KEY a run fails with PipelineError instead of inventing a
+    verdict (non-negotiable 4). Demo data lives only in the web app's `?demo=1` mode.
     """
 
     JUDGE_CONFIDENCE_THRESHOLD = 0.70
-    MAX_DEBATE_ROUNDS          = 2
+    MAX_DEBATE_ROUNDS          = int(os.getenv("ACHP_MAX_DEBATE_ROUNDS", 2))
+    RETRIEVER_TIMEOUT_S        = float(os.getenv("ACHP_RETRIEVER_TIMEOUT_S", 20))
 
-    def __init__(self, offline: bool = True):
+    def __init__(self, offline: bool = False, runtime: Any = None):
         self.offline = offline
-        self._agents_loaded = False
-
-        # Real agent instances (lazy-loaded when offline=False)
-        self._retriever   = None
-        self._proposer    = None
-        self._adversary_a = None
-        self._adversary_b = None
-        self._nil         = None
-        self._judge       = None
-        self._security    = None
-
+        self._runtime = runtime
+        self._security = None
+        self._retriever = None
+        self._proposer = None
+        self._bundle = None
+        self._nil = None
+        self._judge = None
         logger.info(f"CorePipeline init | offline={offline}")
 
     # ── Agent Loading ──────────────────────────────────────────────────────
 
-    def _load_real_agents(self):
-        if self._agents_loaded:
-            return
-        from achp.agents.security_validator import SecurityValidatorAgent
-        from achp.agents.retriever          import RetrieverAgent
-        from achp.agents.proposer           import ProposerAgent
-        from achp.agents.adversary_a        import AdversaryAAgent
-        from achp.agents.adversary_b        import AdversaryBAgent
-        from achp.nil.nil_layer             import NILLayer
-        from achp.agents.judge              import JudgeAgent
-
-        self._security    = SecurityValidatorAgent()
-        self._retriever   = RetrieverAgent()
-        self._proposer    = ProposerAgent()
-        self._adversary_a = AdversaryAAgent()
-        self._adversary_b = AdversaryBAgent()
-        self._nil         = NILLayer()
-        self._judge       = JudgeAgent()
-        self._agents_loaded = True
-        logger.info("All 7 real agents loaded")
-
     def _get_security(self):
-        """Security validator always available (no LLM dependency)."""
         if self._security is None:
             from achp.agents.security_validator import SecurityValidatorAgent
             self._security = SecurityValidatorAgent()
         return self._security
 
     def _get_nil(self):
-        """NIL layer always available (uses local embeddings)."""
         if self._nil is None:
             from achp.nil.nil_layer import NILLayer
-            self._nil = NILLayer(
-                use_groq_llm=not self.offline,
-                use_openrouter=not self.offline,
-            )
+            self._nil = NILLayer()
         return self._nil
 
-    # ── Planning Mode ─────────────────────────────────────────────────────
+    def _load_agents(self):
+        if self._proposer is not None:
+            return
+        from achp.agents.analysis_bundle import AnalysisBundleAgent
+        from achp.agents.judge import JudgeAgent
+        from achp.agents.proposer import ProposerAgent
+        from achp.agents.retriever import RetrieverAgent
+        self._retriever = RetrieverAgent()
+        self._proposer = ProposerAgent(self._runtime)
+        self._bundle = AnalysisBundleAgent(self._runtime)
+        self._judge = JudgeAgent(self._runtime)
+        logger.info("Agents loaded: retriever, proposer, analysis bundle (A+B+NIL), judge")
 
     def _plan(self, text: str) -> str:
-        """
-        Lightweight internal planning: decide pipeline mode.
-        Simple factual question → fast (skip full debate).
-        Default → full.
-        """
         words = text.lower().split()
-        if len(words) < 8 and any(w in text.lower() for w in ["what is","when did","who is","define"]):
+        if len(words) < 8 and any(w in text.lower() for w in ["what is", "when did", "who is", "define"]):
             return "fast"
         return "full"
 
@@ -484,13 +326,26 @@ class CorePipeline:
         text: str,
         sse_queue: Optional[asyncio.Queue] = None,
         extra_context: Optional[List[str]] = None,
+        *,
+        kb_chunks: Optional[List[Dict[str, Any]]] = None,
+        kb_id: Optional[str] = None,
+        kb_name: Optional[str] = None,
+        run_id: Optional[str] = None,
     ) -> ACHPOutput:
-        """Run the full ACHP pipeline. Returns ACHPOutput."""
-        run_id    = uuid.uuid4().hex[:8]
-        t_start   = time.perf_counter()
+        """Run the pipeline on the claim `text`. Library chunks travel separately in `kb_chunks`
+        (never pasted into the claim), so security, retrieval and NIL all see only the claim."""
+        from achp.llm.runtime import LLMUnavailable
+        from achp.memory.run_memory import RequestMemory, RunMemory
+        from achp.prompts.contract import PROMPT_VERSION
+
+        run_id = run_id or uuid.uuid4().hex[:8]
+        t_start = time.perf_counter()
         latencies: Dict[str, float] = {}
-        models:    Dict[str, str]   = {}
-        warnings:  List[str]        = []
+        warnings: List[str] = []
+        mem = RunMemory(run_id, RequestMemory(
+            text=text, kb_id=kb_id, kb_name=kb_name,
+            kb_chunks=tuple(kb_chunks or ()), extra_context=tuple(extra_context or ()),
+        ))
 
         async def emit(event: str, data: Dict):
             if sse_queue:
@@ -498,161 +353,167 @@ class CorePipeline:
 
         mode = self._plan(text)
 
-        # ── 1. Security Pre-check ────────────────────────────────────────
-        await emit("agent_status", {"agent":"security_validator","status":"running","step":1})
+        # ── 1. Security pre-check (no model call) ────────────────────────
+        await emit("agent_status", {"agent": "security_validator", "status": "running", "step": 1})
         t0 = time.perf_counter()
-        sv   = self._get_security()
-        pre  = sv.validate_input(text)
+        sv = self._get_security()
+        pre = sv.validate_input(text)
         latencies["security_pre"] = (time.perf_counter() - t0) * 1000
         warnings.extend(pre.warnings)
-
         if not pre.safe:
             logger.warning(f"[{run_id}] BLOCKED: {pre.block_reason}")
             return self._blocked(run_id, text, pre.block_reason or "Security pre-check failed")
-        await emit("agent_status", {"agent":"security_validator","status":"done"})
+        await emit("agent_status", {"agent": "security_validator", "status": "done"})
 
-        # ── 2. Retriever ─────────────────────────────────────────────────
-        await emit("agent_status", {"agent":"retriever","status":"running","step":2})
-        t0 = time.perf_counter()
-        cache_hit = False
-        if self.offline:
-            retrieved_docs = await _mock_retriever(text)
-            models["retriever"] = "mock"
-        else:
-            self._load_real_agents()
-            result = await self._retriever.retrieve(text)
-            retrieved_docs = [d.content if hasattr(d,"content") else d["content"]
-                              for d in (result.docs or [])]
-            cache_hit = result.from_cache
-            models["retriever"] = "onyx-rag+bm25"
-        latencies["retriever"] = (time.perf_counter() - t0) * 1000
-        await emit("agent_status", {"agent":"retriever","status":"done","from_cache":cache_hit})
+        if self.offline or not os.getenv("GROQ_API_KEY", "").strip() and self._runtime is None:
+            raise PipelineError("config", "no_api_key",
+                                "GROQ_API_KEY is not configured, so no claim can be checked.",
+                                retryable=False)
+        self._load_agents()
 
-        # ── 3. Proposer ──────────────────────────────────────────────────
-        await emit("agent_status", {"agent":"proposer","status":"running","step":3})
-        t0 = time.perf_counter()
-        if self.offline:
-            prop_out = _mock_proposer(text, retrieved_docs)
-            models["proposer"] = "mock"
-        else:
-            # Merge KB chunks (extra_context) BEFORE retriever docs so Proposer
-            # sees [CHUNK N] markers in its {context} slot for kb_page attribution
-            merged_context = list(extra_context or []) + list(retrieved_docs or [])
-            prop_result = await self._proposer.analyze(text, merged_context)
-            prop_out = {
-                "atomic_claims":      [c.model_dump() for c in prop_result.atomic_claims],
-                "claim_type":         prop_result.claim_type,
-                "overall_confidence": prop_result.overall_confidence,
-            }
-            models["proposer"] = prop_result.model_used
-        latencies["proposer"] = (time.perf_counter() - t0) * 1000
-        await emit("agent_status", {
-            "agent":"proposer","status":"done",
-            "claim_type": prop_out["claim_type"],
-            "num_claims": len(prop_out["atomic_claims"]),
-        })
+        stage = "retriever"
+        try:
+            # ── 2. Retriever → evidence pack (server-side tools) ────────────
+            await emit("agent_status", {"agent": "retriever", "status": "running", "step": 2})
+            t0 = time.perf_counter()
+            try:
+                retrieval = await asyncio.wait_for(
+                    self._retriever.retrieve(
+                        text, kb_chunks=list(kb_chunks or []), kb_name=kb_name,
+                        extra_context=list(extra_context or []),
+                    ),
+                    timeout=self.RETRIEVER_TIMEOUT_S,
+                )
+                mem.evidence = retrieval.pack
+                cache_hit = retrieval.from_cache
+            except asyncio.TimeoutError:
+                from achp.evidence.pack import EvidencePack
+                logger.warning(f"[{run_id}] Retriever timed out; continuing with library evidence only")
+                warnings.append("Web search timed out; only library sources were used.")
+                mem.evidence = EvidencePack.build(text, kb_chunks=kb_chunks or [], kb_name=kb_name,
+                                                  context=extra_context or [])
+                cache_hit = False
+            mem.models["retriever"] = "ddgs+bm25"
+            latencies["retriever"] = (time.perf_counter() - t0) * 1000
+            await emit("agent_status", {"agent": "retriever", "status": "done",
+                                        "from_cache": cache_hit, "evidence": len(mem.evidence)})
 
-        # ── 4+5+6. Adversary A + B + NIL in parallel ─────────────────────
-        await emit("agent_status", {"agent":"adversary_a","status":"running","step":4})
-        await emit("agent_status", {"agent":"adversary_b","status":"running","step":5})
-        await emit("agent_status", {"agent":"nil_supervisor","status":"running","step":6})
+            # ── 3. Proposer (Groq call 1) ─────────────────────────────────
+            await emit("agent_status", {"agent": "proposer", "status": "running", "step": 3})
+            t0 = time.perf_counter()
+            stage = "proposer"
+            mem.analysis, res = await self._proposer.run(text, mem.evidence, run_id=run_id)
+            mem.record_call("proposer", res)
+            mem.models["proposer"] = res.model
+            latencies["proposer"] = (time.perf_counter() - t0) * 1000
+            await emit("agent_status", {"agent": "proposer", "status": "done",
+                                        "claim_type": mem.analysis.claim_type,
+                                        "num_claims": len(mem.analysis.atomic_claims)})
 
-        t0 = time.perf_counter()
-        mock = _select_mock(text) if self.offline else None
+            # ── 4+5+6. Analysis bundle (Groq call 2) ∥ NIL local checks ───
+            for step, agent in ((4, "adversary_a"), (5, "adversary_b"), (6, "nil_supervisor")):
+                await emit("agent_status", {"agent": agent, "status": "running", "step": step})
+            t0 = time.perf_counter()
+            stage = "analysis"
+            nil = self._get_nil()
+            bundle, prepared = await asyncio.gather(
+                self._bundle.run(text, mem.analysis, mem.evidence, run_id=run_id),
+                nil.prepare(text),
+            )
+            mem.record_call("analysis", bundle.llm)
+            mem.add_grounding(bundle.grounding)
+            mem.adversary_a, mem.adversary_b, mem.signals = bundle.adversary_a, bundle.adversary_b, bundle.signals
+            nil_result = await nil.finalize(prepared, bundle.signals)
+            mem.nil = nil_result
+            latencies["debate_nil_parallel"] = (time.perf_counter() - t0) * 1000
+            for agent in ("adversary_a", "adversary_b"):
+                mem.models[agent] = bundle.llm.model
+            mem.models["nil"] = f"vader+{os.getenv('NIL_EMBED_MODEL', 'paraphrase-MiniLM-L3-v2')}+{bundle.llm.model}"
+            await emit("agent_status", {"agent": "adversary_a", "status": "done",
+                                        "factual_score": mem.adversary_a.overall_factual_score})
+            await emit("agent_status", {"agent": "adversary_b", "status": "done",
+                                        "pcs": mem.adversary_b.perspective_completeness_score})
+            await emit("agent_status", {"agent": "nil_supervisor", "status": "done",
+                                        "nil_verdict": nil_result.nil_verdict})
 
-        adv_a_coro = self._run_adversary_a(text, prop_out, mock)
-        adv_b_coro = self._run_adversary_b(text, prop_out, mock)
-        nil_coro   = self._get_nil().run(text)
+            # ── Signals for the formulas ──────────────────────────────────
+            nil_s = nil_result.sentiment.data
+            nil_f = nil_result.framing.data
+            framing_sc = nil_result.framing_score
+            dominant_frame = nil_f.get("dominant_frame", "neutral")
+            polarity_abs = abs(nil_s.get("polarity", 0.0))
+            hedge_ratio = nil_s.get("hedge_ratio", 0.0)
+            vader_eps = nil_s.get("EPS", 0.5)
 
-        adv_a_out, adv_b_out, nil_result = await asyncio.gather(
-            adv_a_coro, adv_b_coro, nil_coro
-        )
-        latencies["debate_nil_parallel"] = (time.perf_counter() - t0) * 1000
-        models["adversary_a"] = "mock" if self.offline else "openai/gpt-oss-120b"
-        models["adversary_b"] = "mock" if self.offline else "openai/gpt-oss-120b"
-        models["nil"]         = "vader+all-MiniLM-L6-v2"
+            # Adversary override: a strongly refuted claim (factual < 0.20, which grounding only
+            # allows with cited counter-evidence) can't be read as "neutral" wording.
+            if mem.adversary_a.overall_factual_score < 0.20:
+                nil_result.nil_verdict = "misleading"
+                nil_result.nil_confidence = max(nil_result.nil_confidence, 0.46)
+                nil_result.BIS = max(nil_result.BIS, 0.30)
+                framing_sc = max(framing_sc, 0.15)
+                dominant_frame = dominant_frame if dominant_frame != "neutral" else "alarm"
 
-        await emit("agent_status", {"agent":"adversary_a","status":"done",
-                                    "factual_score": adv_a_out["factual_score"]})
-        await emit("agent_status", {"agent":"adversary_b","status":"done",
-                                    "pcs": adv_b_out["perspective_score"]})
-        await emit("agent_status", {"agent":"nil_supervisor","status":"done",
-                                    "nil_verdict": nil_result.nil_verdict})
+            # ── 7. Judge (Groq call 3, a second round only when asked) ────
+            await emit("agent_status", {"agent": "judge", "status": "running", "step": 7})
+            t0 = time.perf_counter()
+            stage = "judge"
+            debate_round = 1
+            judge, dropped, res = await self._judge.run(
+                mem.analysis, mem.adversary_a, mem.adversary_b, nil_result, mem.evidence, run_id=run_id)
+            mem.record_call("judge", res)
+            mem.add_grounding(dropped)
+            while (judge.needs_second_round
+                   and judge.verdict_confidence < self.JUDGE_CONFIDENCE_THRESHOLD
+                   and debate_round < self.MAX_DEBATE_ROUNDS):
+                debate_round += 1
+                await emit("agent_status", {"agent": "judge", "status": "re_debating", "round": debate_round,
+                                            "reason": judge.second_round_reason or ""})
+                logger.info(f"[{run_id}] Judge asked for round {debate_round}: {judge.second_round_reason}")
+                stage = "analysis"
+                bundle2 = await self._bundle.run(text, mem.analysis, mem.evidence, debate_round=debate_round,
+                                                 judge_question=judge.second_round_reason, run_id=run_id)
+                mem.record_call("analysis", bundle2.llm)
+                mem.add_grounding(bundle2.grounding)
+                mem.adversary_a = bundle2.adversary_a
+                stage = "judge"
+                judge, dropped, res = await self._judge.run(
+                    mem.analysis, mem.adversary_a, mem.adversary_b, nil_result, mem.evidence, run_id=run_id)
+                mem.record_call("judge", res)
+                mem.add_grounding(dropped)
+            mem.judge = judge
+            mem.models["judge"] = res.model
+            latencies["judge"] = (time.perf_counter() - t0) * 1000
+            await emit("agent_status", {"agent": "judge", "status": "done", "verdict": judge.verdict})
+        except LLMUnavailable as e:
+            logger.error(f"[{run_id}] {stage} failed: {e}")
+            raise PipelineError(stage, e.code, e.message, e.retryable) from e
 
-        # ── Compute ACHP Metrics ─────────────────────────────────────────
-        nil_s    = nil_result.sentiment.data
-        nil_f    = nil_result.framing.data
-
-        framing_sc    = nil_result.framing_score
-        dominant_frame= nil_f.get("dominant_frame", "neutral")
-        polarity_abs  = abs(nil_s.get("polarity", 0.0))
-        hedge_ratio   = nil_s.get("hedge_ratio", 0.0)
-        vader_eps     = nil_s.get("EPS", 0.5)
-
-        # ── Adversary Override: when factual_score is very low (<0.20),
-        # the claim was strongly refuted. We cannot trust VADER-only NIL
-        # framing score — Adversary A's evidence is more authoritative.
-        # Boost BIS / override nil_verdict accordingly.
-        factual_score_a = adv_a_out["factual_score"]
-        if factual_score_a < 0.20:
-            # Strong refutation: treat as misleading regardless of VADER score
-            nil_result.nil_verdict   = "misleading"
-            nil_result.nil_confidence = max(nil_result.nil_confidence, 0.46)
-            nil_result.BIS           = max(nil_result.BIS, 0.30)
-            framing_sc               = max(framing_sc, 0.15)
-            dominant_frame           = dominant_frame if dominant_frame != "neutral" else "alarm"
-
-        # ── 7. Judge ─────────────────────────────────────────────────────
-        await emit("agent_status", {"agent":"judge","status":"running","step":7})
-        t0 = time.perf_counter()
-        debate_round = 1
-
-        judge_out = await self._run_judge(
-            text, prop_out, adv_a_out, adv_b_out, nil_result, mock
-        )
-        models["judge"] = "mock" if self.offline else "openai/gpt-oss-120b"
-
-        # Conditional re-debate if judge confidence low
-        while (judge_out["verdict_confidence"] < self.JUDGE_CONFIDENCE_THRESHOLD
-               and debate_round < self.MAX_DEBATE_ROUNDS):
-            debate_round += 1
-            await emit("agent_status", {"agent":"judge","status":"re_debating","round":debate_round})
-            logger.info(f"[{run_id}] Low Judge confidence ({judge_out['verdict_confidence']:.2f}), re-debating")
-            if not self.offline:
-                adv_a_out_new = await self._run_adversary_a(text, prop_out, None, debate_round)
-                judge_out = await self._run_judge(text, prop_out, adv_a_out_new, adv_b_out, nil_result, None)
-            else:
-                break   # can't improve in offline mode
-
-        latencies["judge"] = (time.perf_counter() - t0) * 1000
-        await emit("agent_status", {"agent":"judge","status":"done","verdict":judge_out["verdict"]})
-
-        # ── Compute final ACHP metrics ────────────────────────────────────
+        # ── Metrics (formulas above, pinned by the Assay parity tests) ───────
         BIS = compute_BIS(nil_result.BIS, framing_sc, polarity_abs, dominant_frame)
         EPS = compute_EPS(vader_eps, framing_sc, hedge_ratio)
-        CTS = compute_CTS(adv_a_out["factual_score"], judge_out.get("cts_raw", 0.5), BIS, EPS)
+        CTS = compute_CTS(mem.adversary_a.overall_factual_score, judge.metrics.CTS, BIS, EPS)
         PCS = compute_PCS(
-            adv_b_out["perspective_score"],
+            mem.adversary_b.perspective_completeness_score,
             nil_result.PCS,
-            len(adv_b_out.get("missing_perspectives", [])),
+            len(mem.adversary_b.missing_perspectives),
         )
         NSS = compute_NSS(
             framing_sc,
-            1.0 - framing_sc,             # simpler alignment proxy
-            judge_out.get("nss_raw", NSS_proxy(BIS, framing_sc)),
+            1.0 - framing_sc,
+            judge.metrics.NSS if judge.metrics else NSS_proxy(BIS, framing_sc),
         )
         composite = compute_composite(CTS, PCS, BIS, NSS, EPS)
-        verdict, confidence = verdict_from_composite(composite, judge_out["verdict"])
+        verdict, confidence = verdict_from_composite(composite, judge.verdict)
 
-        # ── 8. Security Post-check ────────────────────────────────────────
+        # ── 8. Security post-check ────────────────────────────────────────
         t0 = time.perf_counter()
-        post = sv.validate_output(judge_out.get("reasoning", ""))
+        post = sv.validate_output(judge.consensus_reasoning)
         latencies["security_post"] = (time.perf_counter() - t0) * 1000
         warnings.extend(post.warnings)
-
         total_latency = (time.perf_counter() - t_start) * 1000
 
-        # ── Assemble ACHPOutput ───────────────────────────────────────────
+        a, b = mem.adversary_a, mem.adversary_b
         output = ACHPOutput(
             run_id=run_id,
             timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -669,36 +530,49 @@ class CorePipeline:
                 "EPS":        nil_result.EPS,
                 "PCS":        nil_result.PCS,
             },
-            atomic_claims=prop_out["atomic_claims"],
+            atomic_claims=[c.model_dump() for c in mem.analysis.atomic_claims],
             adversary_a={
-                "factual_score":  adv_a_out["factual_score"],
-                "critical_flaws": adv_a_out.get("critical_flaws", []),
-                "verdict":        adv_a_out.get("verdict", "contested"),
+                "factual_score":  a.overall_factual_score,
+                "critical_flaws": a.critical_flaws,
+                "verdict":        "refuted" if a.overall_factual_score < 0.3 else "contested",
+                "challenges":     [c.model_dump() for c in a.challenges],
+                "flaws":          a.flaws,
+                "public_note":    a.public_note,
             },
             adversary_b={
-                "perspective_score":   adv_b_out["perspective_score"],
-                "missing_perspectives": adv_b_out.get("missing_perspectives", []),
-                "narrative_stance":    adv_b_out.get("narrative_stance","unknown"),
+                "perspective_score":    b.perspective_completeness_score,
+                "missing_perspectives": [p.model_dump() for p in b.missing_perspectives],
+                "narrative_stance":     b.narrative_stance,
+                "flaws":                b.flaws,
+                "public_note":          b.public_note,
             },
-            consensus_reasoning=judge_out.get("reasoning", ""),
+            consensus_reasoning=judge.consensus_reasoning,
             key_evidence={
-                "supporting":    judge_out.get("supporting", []),
-                "contradicting": judge_out.get("contradicting", []),
+                "supporting":    judge.key_supporting_evidence,
+                "contradicting": judge.key_contradicting_evidence,
             },
-            caveats=judge_out.get("caveats", []),
+            caveats=judge.important_caveats,
             debate_rounds=debate_round,
             pipeline={
-                "mode":       mode,
-                "latency_ms": {k: round(v, 2) for k, v in latencies.items()},
-                "total_ms":   round(total_latency, 2),
-                "models":     models,
-                "cache_hit":  cache_hit,
+                "mode":           mode,
+                "latency_ms":     {k: round(v, 2) for k, v in latencies.items()},
+                "total_ms":       round(total_latency, 2),
+                "models":         mem.models,
+                "cache_hit":      cache_hit,
+                "groq_calls":     len(mem.llm_calls),
+                "llm_calls":      mem.llm_calls,
+                "grounding":      dict(mem.grounding),
+                "prompt_version": PROMPT_VERSION,
+                "evidence_count": len(mem.evidence),
+                "evidence_oldest_retrieved_at": mem.evidence.oldest_retrieved_at(),
             },
             security={
                 "pre_safe":  pre.safe,
                 "post_safe": post.safe,
                 "warnings":  warnings,
             },
+            evidence=mem.evidence.to_dicts(),
+            claim_labels=judge.claims,
         )
 
         await emit("pipeline_complete", {
@@ -707,187 +581,52 @@ class CorePipeline:
             "composite": composite,
             "latency_ms": total_latency,
         })
-
         logger.info(
             f"[{run_id}] DONE | {verdict} ({confidence:.0%}) | "
             f"CTS={CTS:.2f} PCS={PCS:.2f} BIS={BIS:.2f} NSS={NSS:.2f} EPS={EPS:.2f} | "
-            f"{total_latency:.0f}ms | rounds={debate_round}"
+            f"{total_latency:.0f}ms | groq_calls={len(mem.llm_calls)} | rounds={debate_round}"
         )
         return output
 
-    # ── Private helpers ────────────────────────────────────────────────────
-
-    async def _run_adversary_a(self, text, prop_out, mock, round_n=1) -> Dict:
-        if self.offline and mock:
-            return {
-                "factual_score":  mock["factual_score"],
-                "critical_flaws": mock["critical_flaws"],
-                "verdict":        "refuted" if mock["factual_score"] < 0.3 else "contested",
-            }
-        # Real mode
-        from achp.agents.adversary_a import AdversaryAAgent
-        from achp.agents.proposer import ClaimAnalysis, AtomicClaim
-        if self._adversary_a is None:
-            self._adversary_a = AdversaryAAgent()
-        # Reconstruct ClaimAnalysis from prop_out dict
-        analysis = _dict_to_analysis(text, prop_out)
-        report = await self._adversary_a.challenge(analysis, debate_round=round_n)
-        return {
-            "factual_score":  report.overall_factual_score,
-            "critical_flaws": report.critical_flaws,
-            "verdict":        "refuted" if report.overall_factual_score < 0.3 else "contested",
-        }
-
-    async def _run_adversary_b(self, text, prop_out, mock) -> Dict:
-        if self.offline and mock:
-            return {
-                "perspective_score":   mock["pcs_b"],
-                "missing_perspectives": mock.get("missing_perspectives", []),
-                "narrative_stance":    "skewed" if mock["pcs_b"] < 0.5 else "partial",
-            }
-        from achp.agents.adversary_b import AdversaryBAgent
-        if self._adversary_b is None:
-            self._adversary_b = AdversaryBAgent()
-        analysis = _dict_to_analysis(text, prop_out)
-        report = await self._adversary_b.audit(analysis)
-        return {
-            "perspective_score":   report.perspective_completeness_score,
-            "missing_perspectives": [p.model_dump() for p in report.missing_perspectives],
-            "narrative_stance":    report.narrative_stance,
-        }
-
-    async def _run_judge(self, text, prop_out, adv_a, adv_b, nil_result, mock) -> Dict:
-        if self.offline and mock:
-            v = mock["verdict"]
-            cts_raw = mock["judge_cts"]
-            return {
-                "verdict":            v,
-                "verdict_confidence": 0.90 if cts_raw > 0.7 else 0.70,
-                "cts_raw":            cts_raw,
-                "nss_raw":            mock["judge_nss"],
-                "reasoning":          mock["consensus_reasoning"],
-                "supporting":         mock["supporting"],
-                "contradicting":      mock["contradicting"],
-                "caveats":            mock["caveats"],
-            }
-        from achp.agents.judge import JudgeAgent
-        from achp.agents.adversary_a import AdversaryAReport, ClaimChallenge
-        from achp.agents.adversary_b import NarrativeAuditReport, MissingPerspective
-        from achp.agents.nil_supervisor import NILReport
-        if self._judge is None:
-            self._judge = JudgeAgent()
-        analysis = _dict_to_analysis(text, prop_out)
-        # Build minimal AdversaryAReport
-        adv_a_report = _dict_to_adv_a_report(adv_a)
-        adv_b_report = _dict_to_adv_b_report(adv_b)
-        # Use nil_supervisor NILReport format
-        nil_sup_report = _nil_result_to_supervisor(nil_result)
-        verdict = await self._judge.judge(analysis, adv_a_report, adv_b_report, nil_sup_report)
-        return {
-            "verdict":            verdict.verdict,
-            "verdict_confidence": verdict.verdict_confidence,
-            "cts_raw":            verdict.metrics.CTS,
-            "nss_raw":            verdict.metrics.NSS,
-            "reasoning":          verdict.consensus_reasoning,
-            "supporting":         verdict.key_supporting_evidence,
-            "contradicting":      verdict.key_contradicting_evidence,
-            "caveats":            verdict.important_caveats,
-        }
-
     def _blocked(self, run_id: str, text: str, reason: str) -> ACHPOutput:
-        z = {"CTS":0.0,"PCS":0.0,"BIS":1.0,"NSS":0.0,"EPS":0.0}
+        z = {"CTS": 0.0, "PCS": 0.0, "BIS": 1.0, "NSS": 0.0, "EPS": 0.0}
         return ACHPOutput(
-            run_id=run_id, timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime()),
+            run_id=run_id, timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             input=text, verdict="BLOCKED", verdict_confidence=1.0, composite_score=0.0,
             metrics=z,
-            nil={"verdict":"blocked","confidence":0.0,"summary":""},
+            nil={"verdict": "blocked", "confidence": 0.0, "summary": ""},
             atomic_claims=[], adversary_a={}, adversary_b={},
             consensus_reasoning=f"BLOCKED: {reason}",
-            key_evidence={"supporting":[],"contradicting":[]},
+            key_evidence={"supporting": [], "contradicting": []},
             caveats=[reason], debate_rounds=0,
-            pipeline={"mode":"blocked","latency_ms":{},"total_ms":0,"models":{},"cache_hit":False},
-            security={"pre_safe":False,"post_safe":True,"warnings":[reason]},
+            pipeline={"mode": "blocked", "latency_ms": {}, "total_ms": 0, "models": {}, "cache_hit": False,
+                      "groq_calls": 0},
+            security={"pre_safe": False, "post_safe": True, "warnings": [reason]},
         )
 
     async def run_stream(self, text: str) -> AsyncGenerator[Dict, None]:
-        q = asyncio.Queue()
+        q: asyncio.Queue = asyncio.Queue()
         sentinel = object()
+
         async def _run():
-            await self.run(text, sse_queue=q)
-            await q.put(sentinel)
-        asyncio.create_task(_run())
+            try:
+                await self.run(text, sse_queue=q)
+            finally:
+                await q.put(sentinel)
+
+        task = asyncio.create_task(_run())
         while True:
             ev = await q.get()
             if ev is sentinel:
                 break
             yield ev
+        await task
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Conversion helpers
+# Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
 def NSS_proxy(bis: float, framing: float) -> float:
     """NSS proxy when Judge doesn't return NSS."""
     return round(max(0.0, 1.0 - 0.6*bis - 0.4*framing), 4)
-
-
-def _dict_to_analysis(text: str, prop_out: Dict):
-    try:
-        from achp.agents.proposer import ClaimAnalysis, AtomicClaim
-        return ClaimAnalysis(
-            original_input=text,
-            atomic_claims=[AtomicClaim(**c) for c in prop_out.get("atomic_claims",[])],
-            overall_confidence=prop_out.get("overall_confidence",0.5),
-            claim_type=prop_out.get("claim_type","mixed"),
-            context_summary=text[:100],
-            retrieved_context=[],
-            model_used="mock",
-        )
-    except Exception:
-        return None
-
-
-def _dict_to_adv_a_report(adv_a: Dict):
-    try:
-        from achp.agents.adversary_a import AdversaryAReport
-        return AdversaryAReport(
-            challenges=[],
-            overall_factual_score=adv_a.get("factual_score",0.5),
-            critical_flaws=adv_a.get("critical_flaws",[]),
-            model_used="mock",
-        )
-    except Exception:
-        return None
-
-
-def _dict_to_adv_b_report(adv_b: Dict):
-    try:
-        from achp.agents.adversary_b import NarrativeAuditReport
-        return NarrativeAuditReport(
-            missing_perspectives=[],
-            represented_stakeholders=[],
-            framing_asymmetries=[],
-            silenced_voices=[],
-            perspective_completeness_score=adv_b.get("perspective_score",0.5),
-            narrative_stance=adv_b.get("narrative_stance","balanced"),
-            model_used="mock",
-        )
-    except Exception:
-        return None
-
-
-def _nil_result_to_supervisor(nil_result):
-    try:
-        from achp.agents.nil_supervisor import NILReport
-        return NILReport(
-            nil_verdict=nil_result.nil_verdict,
-            nil_confidence=nil_result.nil_confidence,
-            nil_summary=nil_result.nil_summary,
-            sentiment=nil_result.sentiment.data,
-            bias=nil_result.bias.data,
-            perspectives=nil_result.perspective.data,
-            framing=nil_result.framing.data,
-        )
-    except Exception:
-        return None

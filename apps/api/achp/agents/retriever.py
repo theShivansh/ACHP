@@ -1,18 +1,17 @@
 """
 ACHP — Retriever Agent (Onyx-style Agentic RAG)
 ================================================
-Integrates with SemanticCache (three-tier) before hitting
-BM25 or web-search fallback.
+Tools run here, on the server, before any model is called. The result is an EvidencePack:
+library chunks (the user's KB) first, then web results, each with a server-assigned evidence id.
 
 Pipeline per query:
-  1. Check SemanticCache → return immediately on hit
-  2. BM25 lexical search over local corpus (if available)
-  3. Semantic (bi-encoder) re-rank top BM25 results
-  4. Web fallback (DDGS) if local corpus empty
-  5. Cache the assembled context → return
+  1. Evidence cache (exact normalized query, short TTL; web results only)
+  2. BM25 lexical search over a local corpus (if one is loaded)
+  3. Semantic (bi-encoder) re-rank of the BM25 results
+  4. Web search (DDGS) when there's no local corpus
+  5. Cache write-back (non-empty web results only) → EvidencePack
 
-The retriever exposes `.retrieve(query)` as an async method
-consumed by the Orchestrator.
+Library chunks are never cached here: they're read fresh from the KB store for every run.
 """
 from __future__ import annotations
 
@@ -24,7 +23,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from achp.cache.embeddings import encode, batch_cosine_similarity
-from achp.cache.semantic_cache import SemanticCache, CacheConfig, get_cache
+from achp.evidence.pack import EvidencePack
+from achp.memory.evidence_cache import EvidenceCache, get_evidence_cache
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,8 @@ class RetrievalResult:
     docs: List[RetrievedDoc]
     from_cache: bool
     latency_ms: float
-    cache_tier: int = -1    # -1 = miss, 0/1/2/3 = which tier hit
+    cache_tier: int = -1    # -1 = miss, 0 = exact evidence-cache hit
+    pack: Optional[EvidencePack] = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -134,7 +135,7 @@ def _normalize_web_result(r: dict) -> Optional[RetrievedDoc]:
         source=source,
         score=1.0,
         retrieval_method="web",
-        metadata={"title": r.get("title", "")},
+        metadata={"title": r.get("title", ""), "retrieved_at": time.time()},
     )
 
 
@@ -170,24 +171,23 @@ class RetrieverAgent:
     """
     Onyx-style Agentic RAG Retriever.
 
-    1. SemanticCache check (three-tier)
+    1. Evidence cache (exact query, TTL)
     2. BM25 lexical search
     3. Semantic re-ranking (bi-encoder cosine)
     4. Web fallback (DDGS)
-    5. Cache write-back
+    5. Cache write-back → EvidencePack
     """
 
     AGENT_ID = "retriever"
 
     def __init__(
         self,
-        cache: Optional[SemanticCache] = None,
-        cache_config: Optional[CacheConfig] = None,
+        cache: Optional[EvidenceCache] = None,
         top_k: int = 5,
         use_web_fallback: bool = True,
         bi_encoder: str = "sentence-transformers/all-MiniLM-L6-v2",
     ):
-        self.cache = cache or get_cache(cache_config)
+        self.cache = cache or get_evidence_cache()
         self.bm25 = BM25Retriever()
         self.top_k = top_k
         self.use_web_fallback = use_web_fallback
@@ -198,38 +198,32 @@ class RetrieverAgent:
         """Pre-index a local document corpus for BM25 search."""
         self.bm25.index(documents, sources)
 
-    async def retrieve(self, query: str) -> RetrievalResult:
-        """Main retrieval entry point. Called by Orchestrator."""
+    async def retrieve(
+        self,
+        query: str,
+        *,
+        kb_chunks: Optional[List[Dict[str, Any]]] = None,
+        kb_name: Optional[str] = None,
+        extra_context: Optional[List[str]] = None,
+    ) -> RetrievalResult:
+        """Main retrieval entry point. `query` is the claim itself, never claim + library text."""
         t0 = time.perf_counter()
+        from_cache = False
 
-        # ── Step 1: Cache check ───────────────────────────────────────────
-        cached = await self.cache.get(query)
-        if cached:
-            return RetrievalResult(
-                query=query,
-                docs=cached.get("docs", []),
-                from_cache=True,
-                latency_ms=(time.perf_counter() - t0) * 1000,
-                cache_tier=cached.get("_cache_tier", 1),
-            )
-
-        # ── Step 2: BM25 lexical search ───────────────────────────────────
-        bm25_docs = self.bm25.search(query, top_k=self.top_k * 2)
-
-        # ── Step 3: Semantic re-rank ──────────────────────────────────────
-        if bm25_docs:
-            docs = await self._semantic_rerank(query, bm25_docs)
-        elif self.use_web_fallback:
-            # ── Step 4: Web fallback ──────────────────────────────────────
-            docs = await _web_search(query, max_results=self.top_k)
+        cached = self.cache.get(query)
+        if cached is not None:
+            docs: List[Any] = cached
+            from_cache = True
         else:
-            docs = []
-
-        docs = docs[:self.top_k]
-
-        # ── Step 5: Cache write-back ──────────────────────────────────────
-        payload = {
-            "docs": [
+            bm25_docs = self.bm25.search(query, top_k=self.top_k * 2)
+            if bm25_docs:
+                found = await self._semantic_rerank(query, bm25_docs)
+            elif self.use_web_fallback:
+                found = await _web_search(query, max_results=self.top_k)
+            else:
+                found = []
+            found = found[: self.top_k]
+            docs = [
                 {
                     "content": d.content,
                     "source": d.source,
@@ -237,20 +231,32 @@ class RetrieverAgent:
                     "retrieval_method": d.retrieval_method,
                     "metadata": d.metadata,
                 }
-                for d in docs
-            ],
-            "query": query,
-        }
-        await self.cache.set(query, payload)
+                for d in found
+            ]
+            self.cache.set(query, docs)
 
+        pack = EvidencePack.build(
+            query,
+            kb_chunks=kb_chunks or [],
+            kb_name=kb_name,
+            web_docs=docs,
+            context=extra_context or [],
+            from_cache=from_cache,
+        )
         latency = (time.perf_counter() - t0) * 1000
-        logger.info(f"RetrieverAgent | {len(docs)} docs | {latency:.0f}ms | '{query[:50]}'")
-
+        logger.info(
+            f"RetrieverAgent | {len(pack)} evidence items ({len(docs)} web, cache={from_cache}) "
+            f"| {latency:.0f}ms | '{query[:50]}'"
+        )
         return RetrievalResult(
             query=query,
-            docs=docs,
-            from_cache=False,
+            docs=[RetrievedDoc(content=d["content"], source=d["source"], score=d["score"],
+                               retrieval_method="cache" if from_cache else d["retrieval_method"],
+                               metadata=d.get("metadata", {})) for d in docs],
+            from_cache=from_cache,
             latency_ms=latency,
+            cache_tier=0 if from_cache else -1,
+            pack=pack,
         )
 
     async def _semantic_rerank(

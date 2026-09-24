@@ -163,7 +163,7 @@ class CacheConfig:
     # Models
     bi_encoder: str = "sentence-transformers/all-MiniLM-L6-v2"
     cross_encoder: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-    llm_validator_model: str = "openai/gpt-oss-120b"
+    llm_validator_model: str = "registry:cache_validator"   # resolved by achp.llm.registry
     llm_validator_provider: str = "groq"
 
     # Near-miss band: activate cross-encoder only in [cosine_near_miss_low, cosine_threshold)
@@ -310,37 +310,26 @@ class RedisBackend:
 async def _llm_validate_hit(
     query: str,
     cached_query: str,
-    model: str = "openai/gpt-oss-120b",
+    model: str = "registry:cache_validator",
     provider: str = "groq",
 ) -> Tuple[bool, float, str]:
     """
-    Ask an LLM to determine if a cached query's response would satisfy the new query.
-    Returns: (is_valid_hit, confidence_0_to_1, reasoning)
+    Ask an LLM whether a cached query's response would satisfy the new query.
+    Returns: (is_valid_hit, confidence_0_to_1, reason). Goes through the shared Groq runtime
+    (role "cache_validator"); `model`/`provider` are kept for API compatibility and ignored.
+    Any failure is a miss, never a hit.
     """
-    prompt = f"""You are evaluating semantic cache validity for an AI fact-checking system.
-
-CACHED QUERY: "{cached_query}"
-NEW QUERY: "{query}"
-
-Task: Would the answer to the cached query fully and accurately answer the new query?
-Answer format (JSON only):
-{{"valid": true/false, "confidence": 0.0-1.0, "reason": "brief explanation"}}
-
-Be strict: answer "valid: false" if the queries differ in scope, entity, or intent even slightly."""
-
     try:
-        # Always use Groq (provider param kept for API compat but always "groq")
-        from groq import AsyncGroq
-        client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
-            max_tokens=150,
-            response_format={"type": "json_object"},
+        from achp.llm.runtime import get_runtime
+        from achp.prompts.contract import build_messages
+        from achp.prompts.schemas import CacheValidationOutput
+        result = await get_runtime().complete(
+            "cache_validator",
+            build_messages("cache_validator", {"CACHED_QUERY": cached_query, "NEW_QUERY": query}),
+            CacheValidationOutput,
         )
-        result = json.loads(response.choices[0].message.content)
-        return result.get("valid", False), float(result.get("confidence", 0.0)), result.get("reason", "")
+        v = result.value
+        return v.valid, float(v.confidence), v.reason
 
     except Exception as e:
         logger.warning(f"LLM validation failed: {e}. Defaulting to no-hit.")

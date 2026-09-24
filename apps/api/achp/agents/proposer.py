@@ -1,30 +1,27 @@
 """
-ACHP — Proposer Agent
-=====================
-openai/gpt-oss-120b via Groq (long-context, fast).
-Decomposes a claim into atomic sub-claims with citations.
-Output is a structured ClaimAnalysis Pydantic model consumed by the debate layer.
+ACHP — Proposer (logical agent "Decomposer"). One Groq call.
 
-Post-training concept: uses SFT-style chain-of-thought prompting
-so the model reasons step-by-step before producing JSON output.
+Splits the claim into atomic, checkable parts and links each part to evidence ids from the run's
+evidence pack. Source attribution (`source_url`, `kb_page`, `kb_name`, `citations`) is derived on
+the server from those ids, so the model can't invent a URL or a chunk number.
 """
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
-import os
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
-from tenacity import retry, stop_after_attempt, wait_exponential
+
+from achp.evidence.pack import EvidencePack
+from achp.llm.runtime import GroqRuntime, LLMResult, get_runtime
+from achp.prompts.contract import build_messages
+from achp.prompts.schemas import ProposerOutput
 
 logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Output Schema
+# Output models (public shape unchanged; evidence_ids added)
 # ─────────────────────────────────────────────────────────────────────────────
 
 class AtomicClaim(BaseModel):
@@ -33,10 +30,11 @@ class AtomicClaim(BaseModel):
     verifiable: bool
     confidence: float = Field(ge=0.0, le=1.0)
     citations: List[str] = []
-    epistemic_marker: str = "claims"   # "claims"|"argues"|"shows"|"suggests"
-    source_url: Optional[str] = None   # exact web URL if sourced from web search
-    kb_page:    Optional[int] = None   # chunk index if sourced from a KB
-    kb_name:    Optional[str] = None   # KB display name
+    epistemic_marker: str = "claims"
+    source_url: Optional[str] = None   # URL of the first cited web evidence item
+    kb_page: Optional[int] = None      # chunk index of the first cited library item
+    kb_name: Optional[str] = None
+    evidence_ids: List[str] = []
 
 
 class ClaimAnalysis(BaseModel):
@@ -51,185 +49,81 @@ class ClaimAnalysis(BaseModel):
     token_usage: Dict[str, int] = {}
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Prompt Templates (SFT-style CoT)
-# ─────────────────────────────────────────────────────────────────────────────
-
-SYSTEM_PROMPT = """You are the ACHP Proposer — an expert claim analyst applying structured chain-of-thought reasoning.
-
-Your task: decompose a user's input into atomic, independently verifiable sub-claims.
-
-## Reasoning Process (think step-by-step):
-1. Identify the core assertion(s) in the input
-2. Break each compound claim into atomic units (one fact per claim)
-3. Assess verifiability (can it be checked against evidence?)
-4. Assign epistemic markers (claims/argues/shows/suggests/states)
-5. Note any hedging, certainty, or speculative language
-6. Map each claim to its evidence source if available in context
-
-## Output Format (strict JSON):
-{
-  "atomic_claims": [
-    {
-      "id": "C1",
-      "text": "exact atomic claim text",
-      "verifiable": true,
-      "confidence": 0.85,
-      "citations": ["source hint or URL if inferable from context"],
-      "source_url": null,
-      "kb_page": null,
-      "epistemic_marker": "claims"
-    }
-  ],
-  "overall_confidence": 0.80,
-  "claim_type": "factual|opinion|prediction|mixed",
-  "context_summary": "one sentence summary of what is being claimed"
-}
-
-## CRITICAL source attribution rules — read extremely carefully:
-
-- `kb_page`: Look at the Retrieved Context for blocks that start with `[CHUNK N]`.
-  If a chunk supports this specific atomic claim, set `kb_page` to that integer N.
-  EXAMPLE: If context contains `[CHUNK 2]\nEmmanuel Macron became president in 2017...`
-           and the claim is about Macron becoming president, set `"kb_page": 2`.
-  If NO chunk in the context supports this claim, set `kb_page` to null.
-  NEVER set kb_page to 0 by default — 0 is a valid chunk index, use it only when CHUNK 0 actually supports the claim.
-
-- `source_url`: Set to a valid https:// URL ONLY if that exact URL appears verbatim in the provided context. Otherwise MUST be null. Never invent or guess URLs.
-
-- `verifiable`: true only if the claim can be checked against objective external evidence
-- Be precise. Do not add claims not present in the input."""
-
-USER_PROMPT_TEMPLATE = """Retrieved Context:
-{context}
-
----
-Claim to analyze:
-"{claim}"
-
-Apply chain-of-thought reasoning, then output ONLY the JSON object."""
+def _as_pack(claim: str, context: Union[EvidencePack, List[str], None]) -> EvidencePack:
+    if isinstance(context, EvidencePack):
+        return context
+    return EvidencePack.build(claim, context=context or [])
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Proposer Agent
-# ─────────────────────────────────────────────────────────────────────────────
+def to_claim_analysis(claim: str, out: ProposerOutput, pack: EvidencePack,
+                      result: Optional[LLMResult] = None) -> ClaimAnalysis:
+    atomic: List[AtomicClaim] = []
+    for i, c in enumerate(out.claims, start=1):
+        ids = pack.valid(c.evidence_ids)
+        items = [pack.get(e) for e in ids]
+        web = next((it for it in items if it and it.kind == "web" and it.url), None)
+        kb = next((it for it in items if it and it.kind == "kb"), None)
+        atomic.append(AtomicClaim(
+            id=f"C{i}",
+            text=c.text.strip() or claim,
+            verifiable=c.verifiable,
+            confidence=c.confidence,
+            epistemic_marker=c.epistemic_marker,
+            evidence_ids=ids,
+            citations=[f"{it.label()} [{it.evidence_id}]" for it in items if it],
+            source_url=web.url if web else None,
+            kb_page=kb.kb_chunk_index if kb else None,
+            kb_name=kb.kb_name if kb else None,
+        ))
+    if not atomic:
+        # A claim always has at least itself as a part; this adds no facts.
+        atomic.append(AtomicClaim(id="C1", text=claim, verifiable=True, confidence=out.overall_confidence))
+    return ClaimAnalysis(
+        original_input=claim,
+        atomic_claims=atomic,
+        overall_confidence=out.overall_confidence,
+        claim_type=out.claim_type,
+        context_summary=out.context_summary,
+        retrieved_context=[it.text for it in pack.items],
+        latency_ms=result.latency_ms if result else 0.0,
+        model_used=result.model if result else "",
+        token_usage={"prompt_tokens": result.prompt_tokens, "completion_tokens": result.completion_tokens}
+        if result else {},
+    )
+
 
 class ProposerAgent:
     AGENT_ID = "proposer"
-    DEFAULT_MODEL = "openai/gpt-oss-120b"
-    FALLBACK_MODEL = "openai/gpt-oss-120b"
 
-    def __init__(
-        self,
-        model: Optional[str] = None,
-        max_tokens: int = 2048,
-        temperature: float = 0.1,
-    ):
-        self.model = model or os.getenv("PROPOSER_MODEL", self.DEFAULT_MODEL)
-        self.max_tokens = max_tokens
-        self.temperature = temperature
-        self._client = None
-        logger.info(f"ProposerAgent initialized | model={self.model}")
+    def __init__(self, runtime: Optional[GroqRuntime] = None):
+        self._runtime = runtime
 
-    def _get_client(self):
-        if self._client is None:
-            from groq import AsyncGroq
-            self._client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
-        return self._client
+    @property
+    def runtime(self) -> GroqRuntime:
+        return self._runtime or get_runtime()
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    async def run(self, claim: str, pack: EvidencePack, *, run_id: Optional[str] = None
+                  ) -> tuple[ClaimAnalysis, LLMResult]:
+        """Decompose a claim. Raises LLMUnavailable if no model can answer (never a stub)."""
+        messages = build_messages("proposer", {"CLAIM": claim, "EVIDENCE": pack.prompt_view()})
+        result = await self.runtime.complete("proposer", messages, ProposerOutput, run_id=run_id)
+        analysis = to_claim_analysis(claim, result.value, pack, result)
+        logger.info("Proposer | %d parts | type=%s | %s | %.0fms",
+                    len(analysis.atomic_claims), analysis.claim_type, result.model, result.latency_ms)
+        return analysis, result
+
     async def analyze(
         self,
         claim: str,
-        retrieved_context: Optional[List[str]] = None,
+        retrieved_context: Union[EvidencePack, List[str], None] = None,
     ) -> ClaimAnalysis:
-        """
-        Decompose a claim into atomic sub-claims.
-        Called by the Orchestrator after Retriever completes.
-        """
-        t0 = time.perf_counter()
-        context_str = "\n".join(retrieved_context or []) or "No context retrieved."
-
-        prompt = USER_PROMPT_TEMPLATE.format(claim=claim, context=context_str[:4000])
-        client = self._get_client()
-
-        response = None
-        try:
-            response = await client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user",   "content": prompt},
-                ],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                response_format={"type": "json_object"},
-            )
-        except Exception as e:
-            logger.warning(f"ProposerAgent: primary model failed ({e}), trying fallback")
-            try:
-                response = await client.chat.completions.create(
-                    model=self.FALLBACK_MODEL,
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user",   "content": prompt},
-                    ],
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                    response_format={"type": "json_object"},
-                )
-            except Exception as e2:
-                logger.error(f"ProposerAgent: fallback also failed ({e2}), returning safe default")
-
-        latency = (time.perf_counter() - t0) * 1000
-
-        if response is None:
-            # Safe default — pipeline continues with a single unverifiable claim
-            return ClaimAnalysis(
-                original_input=claim,
-                atomic_claims=[AtomicClaim(
-                    id="C1", text=claim, verifiable=False, confidence=0.3,
-                    epistemic_marker="claims",
-                )],
-                overall_confidence=0.3,
-                claim_type="mixed",
-                context_summary="Proposer LLM unavailable — analysis incomplete.",
-                retrieved_context=retrieved_context or [],
-                latency_ms=latency,
-                model_used="unavailable",
-                token_usage={},
-            )
-
-        raw = json.loads(response.choices[0].message.content)
-
-        atomic_claims = [
-            AtomicClaim(**c) for c in raw.get("atomic_claims", [])
-        ]
-
-        result = ClaimAnalysis(
-            original_input=claim,
-            atomic_claims=atomic_claims,
-            overall_confidence=raw.get("overall_confidence", 0.5),
-            claim_type=raw.get("claim_type", "mixed"),
-            context_summary=raw.get("context_summary", ""),
-            retrieved_context=retrieved_context or [],
-            latency_ms=latency,
-            model_used=self.model,
-            token_usage={
-                "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
-                "completion_tokens": response.usage.completion_tokens if response.usage else 0,
-            },
-        )
-
-        logger.info(
-            f"ProposerAgent | {len(atomic_claims)} atomic claims | "
-            f"type={result.claim_type} | {latency:.0f}ms"
-        )
-        return result
+        """Compatible entry point (older callers pass a list of context strings)."""
+        analysis, _ = await self.run(claim, _as_pack(claim, retrieved_context))
+        return analysis
 
     async def health_check(self) -> Dict[str, Any]:
         try:
             result = await self.analyze("The sky is blue.")
-            return {"status": "ok", "claims": len(result.atomic_claims), "model": self.model}
+            return {"status": "ok", "claims": len(result.atomic_claims), "model": result.model_used}
         except Exception as e:
             return {"status": "error", "error": str(e)}

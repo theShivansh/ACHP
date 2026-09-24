@@ -1,7 +1,7 @@
 import urllib.request, json, time, sys
 
 url = 'http://localhost:8000/analyze'
-payload = json.dumps({'claim': 'Regular exercise reduces heart disease risk by 30-40%', 'offline': True}).encode()
+payload = json.dumps({'claim': 'Regular exercise reduces heart disease risk by 30-40%'}).encode()
 req = urllib.request.Request(url, data=payload, headers={'Content-Type': 'application/json'}, method='POST')
 t0 = time.time()
 try:

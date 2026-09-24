@@ -1,21 +1,19 @@
 """
 ACHP — NIL Layer  (nil_layer.py)
 =================================
-Narrative Integrity Layer: 5 async sub-agents launched in parallel via
-asyncio.gather().  Each sub-agent is self-contained and writes exactly
-one key into the shared NILResult.
+Narrative Integrity Layer: 5 sub-checks, each writing one key into the shared NILResult.
+The layer makes no model calls of its own. Its LLM inputs (bias axes, epistemic quality,
+perspectives) arrive as `LanguageSignalsOut` from the analysis bundle, which serves Adversary A,
+Adversary B and NIL in one Groq call. `prepare()` runs the local framing embedding while the
+bundle call is in flight; `finalize()` merges the signals. The synthesizer math is unchanged.
 
-Sub-agents                 Model                  Metric          Mode
-──────────────────────────────────────────────────────────────────────
-1. SentimentEPS            VADER+openai/gpt-oss    EPS             offline→LLM
-2. BiasGroq                openai/gpt-oss-120b     BIS             Groq
-3. PerspectiveLlama        openai/gpt-oss-120b     PCS+opposites   Groq
-4. FramingCosine           all-MiniLM              framing_score   local embed
-5. ConfidenceSynthesizer   deterministic           final NIL score math
-
-Parallel budget: each sub-agent runs independently.
-The slowest sub-agent (Perspective ~5s) determines wall-clock time.
-All others complete in <1s offline / ~3s with APIs.
+Sub-check                  Source                            Metric
+─────────────────────────────────────────────────────────────────────────
+1. SentimentEPS            VADER + bundle epistemic_quality  EPS
+2. BiasSignal              bundle bias axes (else keywords)  BIS
+3. PerspectiveSignal       bundle perspectives               PCS + opposites
+4. FramingCosine           paraphrase-MiniLM + lexicon       framing_score
+5. ConfidenceSynthesizer   deterministic                     final NIL score math
 """
 from __future__ import annotations
 
@@ -100,11 +98,10 @@ class SentimentEPS:
     the claim's certainty level is vs its actual verifiability.
 
     Primary:  VADER for fast offline polarity
-    Enhanced: Groq openai/gpt-oss-120b for epistemic hedge detection
-              (uses extra_body tool_choice=none, json mode)
+    Enhanced: the analysis bundle's `epistemic_quality` (blended 40/60, as before)
     """
     NAME  = "sentiment"
-    MODEL = "openai/gpt-oss-120b"
+    MODEL = "vader"
 
     LOADED_WORDS = {
         # negative loading
@@ -121,24 +118,9 @@ class SentimentEPS:
     HEDGE_WORDS = {"suggests","may","could","might","reportedly","apparently","believes","seems","appears"}
 
     def __init__(self, use_llm: bool = True):
-        self.use_llm = use_llm and bool(os.getenv("GROQ_API_KEY"))
-        self._vader  = None
-        self._client = None
+        self.use_llm = use_llm   # kept for API compatibility; the signals decide
 
-    def _vader(self):
-        if self._vader_inst is None:
-            from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-            self._vader_inst = SentimentIntensityAnalyzer()
-        return self._vader_inst
-    _vader_inst = None            # store instance separately to avoid name clash
-
-    def _get_groq(self):
-        if self._client is None:
-            from groq import AsyncGroq
-            self._client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
-        return self._client
-
-    async def run(self, text: str) -> SubAgentResult:
+    async def run(self, text: str, signals: Optional[Any] = None) -> SubAgentResult:
         t0 = time.perf_counter()
         try:
             # ── VADER base ──────────────────────────────────────────────
@@ -175,33 +157,12 @@ class SentimentEPS:
                 "llm_enhanced":      False,
             }
 
-            # ── Optional Groq LLM enhancement ──────────────────────────
-            if self.use_llm and len(text) >= 20:
-                try:
-                    client = self._get_groq()
-                    resp = await asyncio.wait_for(client.chat.completions.create(
-                        model=self.MODEL,
-                        messages=[{
-                            "role": "system",
-                            "content": (
-                                "Rate the epistemic quality of this text. "
-                                "Output JSON only: {\"epistemic_quality\": 0.0-1.0, "
-                                "\"overclaiming\": true/false, \"hedging_adequate\": true/false, "
-                                "\"loaded_language\": [\"word\"]}"
-                            )
-                        }, {"role": "user", "content": text[:600]}],
-                        temperature=0.05, max_tokens=256,
-                        response_format={"type": "json_object"},
-                    ), timeout=10)
-                    llm_out = json.loads(resp.choices[0].message.content)
-                    # Blend LLM epistemic_quality with VADER-derived score
-                    llm_eps = llm_out.get("epistemic_quality", eps_base)
-                    data["EPS"] = round((eps_base * 0.4 + llm_eps * 0.6), 4)
-                    data["llm_enhanced"] = True
-                    data["llm_overclaiming"] = llm_out.get("overclaiming", False)
-                    data["llm_loaded_language"] = llm_out.get("loaded_language", [])
-                except Exception as e:
-                    logger.debug(f"SentimentEPS LLM enhancement skipped: {e}")
+            # ── Bundle enhancement (no model call here) ─────────────────
+            if signals is not None and len(text) >= 20:
+                data["EPS"] = round((eps_base * 0.4 + signals.epistemic_quality * 0.6), 4)
+                data["llm_enhanced"] = True
+                data["llm_overclaiming"] = signals.overclaiming
+                data["llm_loaded_language"] = list(signals.loaded_language)
 
             latency = (time.perf_counter() - t0) * 1000
             return SubAgentResult(self.NAME, True, data, latency, self.MODEL)
@@ -212,7 +173,7 @@ class SentimentEPS:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Sub-Agent 2 — Bias → BIS  (Groq openai/gpt-oss-120b)
+# Sub-Agent 2 — Bias → BIS  (bundle signals, keyword heuristic fallback)
 # ─────────────────────────────────────────────────────────────────────────────
 
 BIAS_AXES = [
@@ -220,32 +181,8 @@ BIAS_AXES = [
     "racial","cultural_western","academic_elitism","confirmation_bias","sensationalism",
 ]
 
-BIAS_SYSTEM = """\
-You are an expert media bias analyst. Analyze the text for bias indicators.
-Output ONLY valid JSON:
-{
-  "bias_axes": {
-    "political_left": 0.0-1.0,
-    "political_right": 0.0-1.0,
-    "corporate": 0.0-1.0,
-    "nationalist": 0.0-1.0,
-    "gender_stereotyping": 0.0-1.0,
-    "racial": 0.0-1.0,
-    "cultural_western": 0.0-1.0,
-    "academic_elitism": 0.0-1.0,
-    "confirmation_bias": 0.0-1.0,
-    "sensationalism": 0.0-1.0
-  },
-  "dominant_bias": "axis_name",
-  "BIS": 0.0-1.0,
-  "evidence": ["specific phrase or pattern that shows bias"],
-  "reasoning": "one-sentence explanation"
-}"""
-
-class BiasGroq:
+class BiasSignal:
     NAME    = "bias"
-    MODEL   = "openai/gpt-oss-120b"   # Groq primary
-    FALLBACK= "openai/gpt-oss-120b"   # same — very reliable
 
     _KEYWORD_MAP = {
         "political_left":    ["progressive","liberal","socialist","left-wing","democrat","marxist"],
@@ -257,17 +194,7 @@ class BiasGroq:
     }
 
     def __init__(self, use_llm: bool = True):
-        self.use_llm = use_llm and bool(os.getenv("GROQ_API_KEY"))
-        self._client = None
-
-    def _get_client(self):
-        if self._client is None:
-            from openai import AsyncOpenAI
-            self._client = AsyncOpenAI(
-                api_key=os.getenv("GROQ_API_KEY"),
-                base_url="https://api.groq.com/openai/v1",
-            )
-        return self._client
+        self.use_llm = use_llm   # kept for API compatibility
 
     def _heuristic(self, text: str) -> Dict[str, Any]:
         text_lower  = text.lower()
@@ -283,143 +210,73 @@ class BiasGroq:
         return {"bias_axes": scores, "dominant_bias": dominant, "BIS": bis,
                 "evidence": evidence[:6], "reasoning": "keyword-heuristic fallback", "method": "heuristic"}
 
-    async def run(self, text: str) -> SubAgentResult:
+    async def run(self, text: str, signals: Optional[Any] = None) -> SubAgentResult:
         t0 = time.perf_counter()
         try:
-            if self.use_llm:
-                try:
-                    client = self._get_client()
-                    resp = await asyncio.wait_for(client.chat.completions.create(
-                        model=self.MODEL,
-                        messages=[
-                            {"role": "system", "content": BIAS_SYSTEM},
-                            {"role": "user",   "content": f"Analyze bias in: {text[:1500]}"},
-                        ],
-                        temperature=0.1, max_tokens=512,
-                    ), timeout=20)
-                    raw = resp.choices[0].message.content
-                    # Strip possible markdown/think tags
-                    if "<think>" in raw:
-                        raw = raw.split("</think>")[-1].strip()
-                    if raw.startswith("```"):
-                        raw = raw.split("```")[1]
-                        if raw.startswith("json"):
-                            raw = raw[4:]
-                    data = json.loads(raw.strip())
-                    data["method"] = "groq-llm"
-                except Exception as e:
-                    logger.warning(f"BiasGroq LLM failed ({e}), using heuristic")
-                    data = self._heuristic(text)
+            if signals is not None:
+                data = {
+                    "bias_axes": signals.bias_axes.model_dump(),
+                    "dominant_bias": signals.dominant_bias,
+                    "BIS": signals.bias_score,
+                    "evidence": list(signals.bias_phrases),
+                    "reasoning": "",
+                    "method": "llm-bundle",
+                }
             else:
                 data = self._heuristic(text)
-
             latency = (time.perf_counter() - t0) * 1000
-            return SubAgentResult(self.NAME, True, data, latency, data.get("method",""))
+            return SubAgentResult(self.NAME, True, data, latency, data.get("method", ""))
         except Exception as e:
             latency = (time.perf_counter() - t0) * 1000
             return SubAgentResult(self.NAME, False, {}, latency, error=str(e))
 
-# Keep old name as alias for any imports elsewhere
-BiasDeepSeek = BiasGroq
+# Old names kept as aliases for any imports elsewhere
+BiasGroq = BiasSignal
+BiasDeepSeek = BiasSignal
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Sub-Agent 3 — Perspective Generator → PCS  (Groq openai/gpt-oss-120b)
+# Sub-Agent 3 — Perspectives → PCS  (bundle signals)
 # ─────────────────────────────────────────────────────────────────────────────
 
-PERSPECTIVE_SYSTEM = """\
-You are an expert at generating balanced, multi-stakeholder perspectives.
-
-Given a claim, produce:
-1. An OPPOSING perspective (disagrees, with reasoning)
-2. A NEUTRAL perspective (academic/objective framing)
-3. List any MISSING stakeholders whose views are absent
-
-Output ONLY JSON:
-{
-  "opposing": {
-    "stakeholder": "who holds this view",
-    "viewpoint": "their perspective (2-3 sentences)",
-    "key_arguments": ["arg1","arg2"]
-  },
-  "neutral": {
-    "stakeholder": "academic/researcher",
-    "viewpoint": "balanced framing (2-3 sentences)",
-    "key_considerations": ["point1","point2"]
-  },
-  "missing_stakeholders": [
-    {"group": "name", "likely_view": "summary", "significance": 0.0-1.0}
-  ],
-  "PCS": 0.0-1.0,
-  "perspective_note": "one-sentence summary of perspective landscape"
-}"""
-
-class PerspectiveLlama:
-    NAME    = "perspective"
-    MODEL   = "openai/gpt-oss-120b"
-    FALLBACK= "openai/gpt-oss-120b"
+class PerspectiveSignal:
+    NAME = "perspective"
 
     def __init__(self, use_llm: bool = True):
-        self.use_llm = use_llm and bool(os.getenv("GROQ_API_KEY"))
-        self._client = None
+        self.use_llm = use_llm   # kept for API compatibility
 
-    def _get_client(self):
-        if self._client is None:
-            from groq import AsyncGroq
-            self._client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
-        return self._client
-
-    def _offline_fallback(self, text: str) -> Dict[str, Any]:
+    @staticmethod
+    def _unavailable() -> Dict[str, Any]:
         return {
-            "opposing":  {"stakeholder": "skeptic", "viewpoint": "[Needs GROQ_API_KEY]", "key_arguments": []},
-            "neutral":   {"stakeholder": "researcher", "viewpoint": "[Needs GROQ_API_KEY]", "key_considerations": []},
+            "opposing": {"stakeholder": "", "viewpoint": "", "key_arguments": []},
+            "neutral": {"stakeholder": "", "viewpoint": "", "key_considerations": []},
             "missing_stakeholders": [],
             "PCS": 0.5,
-            "perspective_note": "offline fallback — set GROQ_API_KEY for full perspective generation",
-            "method": "offline",
+            "perspective_note": "Perspective analysis unavailable for this run.",
+            "method": "unavailable",
         }
 
-    async def run(self, text: str) -> SubAgentResult:
+    async def run(self, text: str, signals: Optional[Any] = None) -> SubAgentResult:
         t0 = time.perf_counter()
-        try:
-            if not self.use_llm:
-                data    = self._offline_fallback(text)
-                latency = (time.perf_counter() - t0) * 1000
-                return SubAgentResult(self.NAME, True, data, latency, "offline")
+        if signals is None:
+            return SubAgentResult(self.NAME, False, self._unavailable(),
+                                  (time.perf_counter() - t0) * 1000, "unavailable")
+        data = {
+            "opposing": {"stakeholder": signals.opposing.stakeholder,
+                         "viewpoint": signals.opposing.viewpoint,
+                         "key_arguments": list(signals.opposing.key_points)},
+            "neutral": {"stakeholder": signals.neutral.stakeholder,
+                        "viewpoint": signals.neutral.viewpoint,
+                        "key_considerations": list(signals.neutral.key_points)},
+            "missing_stakeholders": [m.model_dump() for m in signals.missing_stakeholders],
+            "PCS": signals.perspective_score,
+            "perspective_note": "",
+            "method": "llm-bundle",
+        }
+        return SubAgentResult(self.NAME, True, data, (time.perf_counter() - t0) * 1000, "llm-bundle")
 
-            client  = self._get_client()
-            model   = self.MODEL
-            try:
-                resp = await asyncio.wait_for(client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": PERSPECTIVE_SYSTEM},
-                        {"role": "user",   "content": f'Claim: "{text[:800]}"'},
-                    ],
-                    temperature=0.4, max_tokens=1024,
-                    response_format={"type": "json_object"},
-                ), timeout=25)
-            except Exception:
-                resp = await asyncio.wait_for(client.chat.completions.create(
-                    model=self.FALLBACK,
-                    messages=[
-                        {"role": "system", "content": PERSPECTIVE_SYSTEM},
-                        {"role": "user",   "content": f'Claim: "{text[:800]}"'},
-                    ],
-                    temperature=0.4, max_tokens=1024,
-                    response_format={"type": "json_object"},
-                ), timeout=25)
-                model = self.FALLBACK
 
-            data = json.loads(resp.choices[0].message.content)
-            data["method"] = model
-            latency = (time.perf_counter() - t0) * 1000
-            return SubAgentResult(self.NAME, True, data, latency, model)
-
-        except Exception as e:
-            latency = (time.perf_counter() - t0) * 1000
-            logger.warning(f"PerspectiveLlama failed: {e}")
-            return SubAgentResult(self.NAME, False, self._offline_fallback(text), latency, error=str(e))
+PerspectiveLlama = PerspectiveSignal
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -735,21 +592,15 @@ class NILLayer:
 
     def __init__(
         self,
-        use_groq_llm:     Optional[bool] = None,
-        use_openrouter:   Optional[bool] = None,
+        use_groq_llm:     Optional[bool] = None,   # kept for API compatibility
+        use_openrouter:   Optional[bool] = None,   # kept for API compatibility
     ):
-        # Auto-detect from env
-        has_groq  = bool(os.getenv("GROQ_API_KEY"))
-
-        self._sentiment  = SentimentEPS    (use_llm=use_groq_llm   if use_groq_llm   is not None else has_groq)
-        self._bias       = BiasGroq        (use_llm=use_groq_llm   if use_groq_llm   is not None else has_groq)
-        self._perspective= PerspectiveLlama(use_llm=use_groq_llm   if use_groq_llm   is not None else has_groq)
-        self._framing    = FramingCosine   ()
+        self._sentiment  = SentimentEPS()
+        self._bias       = BiasSignal()
+        self._perspective= PerspectiveSignal()
+        self._framing    = FramingCosine()
         self._synth      = ConfidenceSynthesizer()
-
-        logger.info(
-            f"NILLayer ready | groq={'on' if has_groq else 'off'} | openrouter=disabled"
-        )
+        logger.info("NILLayer ready | model calls: none (signals come from the analysis bundle)")
         # Pre-warm the encoder singleton NOW (at startup) so first request is fast
         import threading
         threading.Thread(target=_get_encoder_singleton, daemon=True).start()
@@ -761,20 +612,28 @@ class NILLayer:
             logger.warning(f"NIL sub-agent '{name}' crashed: {e}")
             return SubAgentResult(name, False, {}, 0.0, error=str(e))
 
-    async def run(self, text: str, reference_text: str = "") -> NILResult:
-        """
-        Run all 4 analysis sub-agents in parallel, then synthesize.
-        """
+    async def prepare(self, text: str, reference_text: str = "") -> Dict[str, Any]:
+        """The local work that doesn't need model signals (framing embeddings). Run it alongside
+        the analysis bundle call."""
         t_wall = time.perf_counter()
+        framing = await self._safe("framing", self._framing.run(text, reference_text))
+        return {"text": text, "framing": framing, "t_wall": t_wall}
+
+    async def run(self, text: str, reference_text: str = "", signals: Optional[Any] = None) -> NILResult:
+        return await self.finalize(await self.prepare(text, reference_text), signals)
+
+    async def finalize(self, prepared: Dict[str, Any], signals: Optional[Any] = None) -> NILResult:
+        """Combine the prepared framing check with the bundle's language signals, then synthesize."""
+        text = prepared["text"]
+        t_wall = prepared["t_wall"]
         input_hash = hashlib.sha256(text.encode()).hexdigest()[:12]
 
-        # ── Parallel launch: 4 analysis agents ──────────────────────
-        sent_res, bias_res, persp_res, frame_res = await asyncio.gather(
-            self._safe("sentiment",   self._sentiment.run(text)),
-            self._safe("bias",        self._bias.run(text)),
-            self._safe("perspective", self._perspective.run(text)),
-            self._safe("framing",     self._framing.run(text, reference_text)),
+        sent_res, bias_res, persp_res = await asyncio.gather(
+            self._safe("sentiment",   self._sentiment.run(text, signals)),
+            self._safe("bias",        self._bias.run(text, signals)),
+            self._safe("perspective", self._perspective.run(text, signals)),
         )
+        frame_res = prepared["framing"]
 
         parallel_budget = (time.perf_counter() - t_wall) * 1000
 
@@ -851,11 +710,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     async def _main():
-        layer = NILLayer(
-            use_groq_llm=not args.offline,
-            use_openrouter=not args.offline,
-        )
-        result = await layer.run(args.text)
+        layer = NILLayer()
+        result = await layer.run(args.text)   # deterministic checks only (no bundle signals)
         out = layer.serialize(result)
         print(json.dumps(out, indent=2))
 

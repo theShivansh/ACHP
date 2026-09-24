@@ -1,2 +1,4 @@
-from achp.core.master_orchestrator import MasterOrchestrator, OrchestratorConfig, PipelineMode
-__all__ = ["MasterOrchestrator","OrchestratorConfig","PipelineMode"]
+"""ACHP pipeline core. CorePipeline is the only orchestrator."""
+from achp.core.core_pipeline import ACHPOutput, CorePipeline, PipelineError
+
+__all__ = ["ACHPOutput", "CorePipeline", "PipelineError"]

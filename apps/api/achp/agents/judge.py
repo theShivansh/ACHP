@@ -1,47 +1,35 @@
 """
-ACHP — Judge Agent (LLM Council Consensus)
-==========================================
-Primary: Groq (openai/gpt-oss-120b or env: JUDGE_MODEL).
-Fallback: Groq openai/gpt-oss-120b (JUDGE_FALLBACK_MODEL).
+ACHP — Judge (logical agent "Judge"). One Groq call.
 
-Switched from OpenRouter to Groq since OR requires paid credits.
-Tenacity retries only on 5xx / transient errors, NOT on 4xx.
+Reads the whole debate (the parts, Adversary A's per-part findings with evidence ids, Adversary
+B's audit, the NIL signals) against the evidence pack, labels every part and gives the overall
+verdict. Grounding then enforces evidence-first rules: a label that asserts support or
+contradiction without a valid evidence id becomes "unverifiable", and a verdict with no grounded
+part becomes UNVERIFIABLE. Evidence lines in the response are rendered from the pack, never from
+model text.
 
-Metrics computed:
-  BIS — Bias Impact Score        [0-1, 1=high bias]
-  PCS — Perspective Completeness [0-1, 1=all perspectives]
-  EPS — Epistemic Position Score [0-1, 1=well-calibrated]
-  NSS — Narrative Stance Score   [0-1, 1=aligns with facts]
-  CTS — Consensus Truth Score    [0-1, 1=verified true]
+Metrics the Judge returns are raw readings; the published CTS·PCS·BIS·NSS·EPS are computed by the
+formulas in achp.core.core_pipeline (pinned by the Assay parity tests).
 """
 from __future__ import annotations
 
-import json
 import logging
-import os
-import time
+from collections import Counter
 from typing import Any, Dict, List, Optional
 
-from openai import AsyncOpenAI, APIStatusError
 from pydantic import BaseModel, Field
-from tenacity import (
-    retry,
-    retry_if_exception,
-    stop_after_attempt,
-    wait_exponential,
-)
 
-from achp.agents.proposer    import ClaimAnalysis
 from achp.agents.adversary_a import AdversaryAReport
 from achp.agents.adversary_b import NarrativeAuditReport
-from achp.agents.nil_supervisor import NILReport
+from achp.agents.proposer import ClaimAnalysis
+from achp.evidence.grounding import ground_judge
+from achp.evidence.pack import EvidencePack
+from achp.llm.runtime import GroqRuntime, LLMResult, get_runtime
+from achp.prompts.contract import build_messages
+from achp.prompts.schemas import JudgeOutput
 
 logger = logging.getLogger(__name__)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Output Schemas
-# ─────────────────────────────────────────────────────────────────────────────
 
 class ACHPMetrics(BaseModel):
     BIS: float = Field(ge=0.0, le=1.0, description="Bias Impact Score")
@@ -52,7 +40,6 @@ class ACHPMetrics(BaseModel):
 
     @property
     def composite(self) -> float:
-        """Equal-weight composite ACHP score."""
         return (self.BIS + self.PCS + self.EPS + self.NSS + self.CTS) / 5
 
 
@@ -68,203 +55,100 @@ class JudgeVerdict(BaseModel):
     model_used: str = ""
     latency_ms: float = 0.0
     debate_summary: str = ""
+    claims: List[Dict[str, Any]] = []            # per-part {claim_id, label, evidence_for, evidence_against, missing_context}
+    key_supporting_evidence_ids: List[str] = []
+    key_contradicting_evidence_ids: List[str] = []
+    needs_second_round: bool = False
+    second_round_reason: Optional[str] = None
+    public_note: str = ""
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Retry predicate — only retry on 5xx / network errors, NOT on 4xx
-# ─────────────────────────────────────────────────────────────────────────────
+def _nil_view(nil: Any) -> Dict[str, Any]:
+    if nil is None:
+        return {}
+    f = getattr(nil, "framing", None)
+    s = getattr(nil, "sentiment", None)
+    return {
+        "verdict": getattr(nil, "nil_verdict", "unknown"),
+        "bias_impact": getattr(nil, "BIS", None),
+        "epistemic_position": getattr(nil, "EPS", None),
+        "perspective_completeness": getattr(nil, "PCS", None),
+        "framing_score": getattr(nil, "framing_score", None),
+        "dominant_frame": (f.data if f else {}).get("dominant_frame"),
+        "loaded_words": (s.data if s else {}).get("loaded_words", []),
+    }
 
-def _is_retryable(exc: BaseException) -> bool:
-    if isinstance(exc, APIStatusError):
-        return exc.status_code >= 500
-    return True
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Prompts
-# ─────────────────────────────────────────────────────────────────────────────
-
-SYSTEM_PROMPT = """You are the Judge in the ACHP LLM Council — the final arbiter.
-
-You receive a structured debate transcript between:
-- Proposer: decomposed the claim into atomic sub-claims
-- Adversary A: challenged the factual accuracy of each claim
-- Adversary B: audited missing perspectives and narrative fairness
-- NIL Report: automated sentiment, bias, and framing analysis
-
-Your role: synthesize all inputs into a fair, calibrated consensus verdict.
-
-## Scoring Guidelines:
-- BIS (Bias Impact Score): How much harmful bias is present? (1=extreme bias)
-- PCS (Perspective Completeness): Are all relevant perspectives included? (1=complete)
-- EPS (Epistemic Position Score): Are claims appropriately hedged vs overclaimed? (1=well-calibrated)
-- NSS (Narrative Stance Score): Does the narrative framing align with factual consensus? (1=aligned)
-- CTS (Consensus Truth Score): Overall factual credibility after debate? (1=fully verified)
-
-## Verdict Scale:
-TRUE > 0.85 | MOSTLY_TRUE 0.70-0.85 | MIXED 0.50-0.70 | MOSTLY_FALSE 0.30-0.50 | FALSE < 0.30 | UNVERIFIABLE (insufficient evidence)
-
-Output FORMAT (strict JSON):
-{
-  "verdict": "MOSTLY_TRUE",
-  "verdict_confidence": 0.82,
-  "metrics": {"BIS": 0.20, "PCS": 0.75, "EPS": 0.80, "NSS": 0.85, "CTS": 0.78},
-  "consensus_reasoning": "detailed explanation of the verdict",
-  "key_supporting_evidence": ["evidence that supports the claim"],
-  "key_contradicting_evidence": ["evidence against the claim"],
-  "important_caveats": ["nuances the reader should know"],
-  "recommended_further_reading": ["topics to explore"],
-  "debate_summary": "one-paragraph summary of the full debate"
-}"""
-
-
-def _build_debate_transcript(
-    analysis: ClaimAnalysis,
-    adversary_a: AdversaryAReport,
-    adversary_b: NarrativeAuditReport,
-    nil_report: NILReport,
-) -> str:
-    return f"""=== PROPOSER (Groq openai/gpt-oss-120b) ===
-Original claim: {analysis.original_input}
-Claim type: {analysis.claim_type}
-Overall confidence: {analysis.overall_confidence}
-Atomic claims:
-{chr(10).join(f'  [{c.id}] {c.text} (verifiable={c.verifiable})' for c in analysis.atomic_claims)}
-
-=== ADVERSARY A — Factual Challenges ({adversary_a.model_used}) ===
-Factual score: {adversary_a.overall_factual_score}
-Critical flaws: {adversary_a.critical_flaws}
-Per-claim verdicts: {[f'{c.claim_id}:{c.verdict}({c.confidence:.2f})' for c in adversary_a.challenges]}
-
-=== ADVERSARY B — Narrative Audit ({adversary_b.model_used}) ===
-Perspective completeness: {adversary_b.perspective_completeness_score}
-Narrative stance: {adversary_b.narrative_stance}
-Missing perspectives: {[p.stakeholder for p in adversary_b.missing_perspectives[:5]]}
-Silenced voices: {adversary_b.silenced_voices}
-Framing asymmetries: {adversary_b.framing_asymmetries}
-
-=== NIL SUPERVISOR REPORT ===
-Sentiment: {nil_report.sentiment}
-Bias indicators: {nil_report.bias}
-NIL verdict: {nil_report.nil_verdict} (confidence={nil_report.nil_confidence})
-NIL summary: {nil_report.nil_summary}"""
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Judge Agent
-# ─────────────────────────────────────────────────────────────────────────────
 
 class JudgeAgent:
     AGENT_ID = "judge"
-    DEFAULT_MODEL  = "openai/gpt-oss-120b"   # Groq primary
-    FALLBACK_MODEL = "openai/gpt-oss-120b"   # Groq fallback
 
-    def __init__(self, model: Optional[str] = None, temperature: float = 0.1):
-        self.model         = model or os.getenv("JUDGE_MODEL", self.DEFAULT_MODEL)
-        self.fallback      = os.getenv("JUDGE_FALLBACK_MODEL", self.FALLBACK_MODEL)
-        self.temperature   = temperature
-        self._groq_client: Optional[AsyncOpenAI] = None
-        logger.info(f"JudgeAgent initialized | model={self.model}")
+    def __init__(self, runtime: Optional[GroqRuntime] = None):
+        self._runtime = runtime
 
-    def _get_groq_client(self) -> AsyncOpenAI:
-        if self._groq_client is None:
-            self._groq_client = AsyncOpenAI(
-                api_key=os.getenv("GROQ_API_KEY"),
-                base_url="https://api.groq.com/openai/v1",
-            )
-        return self._groq_client
+    @property
+    def runtime(self) -> GroqRuntime:
+        return self._runtime or get_runtime()
 
-    @staticmethod
-    def _parse_raw(text: str) -> dict:
-        """Strip <think> tags and markdown fences, then parse JSON."""
-        if "<think>" in text:
-            text = text.split("</think>")[-1].strip()
-        if "```" in text:
-            parts = text.split("```")
-            text = parts[1] if len(parts) > 1 else parts[0]
-            if text.startswith("json"):
-                text = text[4:]
-        return json.loads(text.strip())
-
-    @retry(
-        retry=retry_if_exception(_is_retryable),
-        stop=stop_after_attempt(2),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        reraise=False,
-    )
-    async def _call_groq(self, messages: list, model: str) -> dict:
-        client = self._get_groq_client()
-        response = await client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=self.temperature,
-            max_tokens=2048,
-        )
-        return self._parse_raw(response.choices[0].message.content)
-
-    async def judge(
+    async def run(
         self,
         analysis: ClaimAnalysis,
         adversary_a: AdversaryAReport,
         adversary_b: NarrativeAuditReport,
-        nil_report: NILReport,
-    ) -> JudgeVerdict:
-        t0 = time.perf_counter()
-        transcript = _build_debate_transcript(analysis, adversary_a, adversary_b, nil_report)
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": f"Debate Transcript:\n{transcript}\n\nOutput your verdict JSON:"},
-        ]
-
-        raw: Optional[dict] = None
-        model_used = self.model
-
-        # ── Try primary Groq model ────────────────────────────────────────
-        try:
-            raw = await self._call_groq(messages, self.model)
-        except APIStatusError as e:
-            logger.warning(f"Judge primary failed ({e.status_code}), falling back to {self.fallback}")
-        except Exception as e:
-            logger.warning(f"Judge primary error ({e}), falling back to {self.fallback}")
-
-        # ── Groq fallback ─────────────────────────────────────────────────
-        if raw is None:
-            try:
-                raw = await self._call_groq(messages, self.fallback)
-                model_used = self.fallback
-            except Exception as e:
-                logger.error(f"Judge fallback also failed: {e}")
-                raw = {
-                    "verdict": "MIXED",
-                    "verdict_confidence": 0.5,
-                    "metrics": {"BIS": 0.3, "PCS": 0.5, "EPS": 0.5, "NSS": 0.5, "CTS": 0.5},
-                    "consensus_reasoning": "Analysis completed with partial data; judge LLM failed.",
-                    "key_supporting_evidence": [],
-                    "key_contradicting_evidence": [],
-                    "important_caveats": ["Judge LLM was unavailable; verdict is a default"],
-                    "recommended_further_reading": [],
-                    "debate_summary": "Automated judgment unavailable.",
-                }
-
-        latency = (time.perf_counter() - t0) * 1000
-        metrics = ACHPMetrics(**raw["metrics"])
-
+        nil: Any,
+        pack: EvidencePack,
+        *,
+        run_id: Optional[str] = None,
+    ) -> tuple[JudgeVerdict, Counter, LLMResult]:
+        payload = {
+            "CLAIM": analysis.original_input,
+            "PARTS": [{"claim_id": c.id, "text": c.text, "verifiable": c.verifiable,
+                       "evidence_ids": c.evidence_ids} for c in analysis.atomic_claims],
+            "EVIDENCE": pack.prompt_view(),
+            "FACT_CHALLENGE": {
+                "overall_factual_score": adversary_a.overall_factual_score,
+                "per_part": [c.model_dump(exclude={"counter_evidence"}) for c in adversary_a.challenges],
+                "critical_flaws": adversary_a.critical_flaws,
+                "flaws": adversary_a.flaws,
+                "round": adversary_a.debate_round,
+            },
+            "NARRATIVE_AUDIT": {
+                "perspective_completeness": adversary_b.perspective_completeness_score,
+                "narrative_stance": adversary_b.narrative_stance,
+                "missing_perspectives": [m.model_dump() for m in adversary_b.missing_perspectives],
+                "framing_asymmetries": adversary_b.framing_asymmetries,
+                "flaws": adversary_b.flaws,
+            },
+            "LANGUAGE_SIGNALS": _nil_view(nil),
+        }
+        result = await self.runtime.complete("judge", build_messages("judge", payload), JudgeOutput, run_id=run_id)
+        grounded, dropped = ground_judge(result.value, pack, [c.id for c in analysis.atomic_claims])
+        m = grounded.metrics
         verdict = JudgeVerdict(
-            verdict=raw["verdict"],
-            verdict_confidence=raw["verdict_confidence"],
-            metrics=metrics,
-            consensus_reasoning=raw.get("consensus_reasoning", ""),
-            key_supporting_evidence=raw.get("key_supporting_evidence", []),
-            key_contradicting_evidence=raw.get("key_contradicting_evidence", []),
-            important_caveats=raw.get("important_caveats", []),
-            recommended_further_reading=raw.get("recommended_further_reading", []),
-            model_used=model_used,
-            latency_ms=latency,
-            debate_summary=raw.get("debate_summary", ""),
+            verdict=grounded.verdict,
+            verdict_confidence=grounded.verdict_confidence,
+            metrics=ACHPMetrics(BIS=m.BIS, PCS=m.PCS, EPS=m.EPS, NSS=m.NSS, CTS=m.CTS),
+            consensus_reasoning=grounded.consensus_reasoning,
+            key_supporting_evidence=[pack.cite(e) for e in grounded.key_supporting_evidence_ids],
+            key_contradicting_evidence=[pack.cite(e) for e in grounded.key_contradicting_evidence_ids],
+            important_caveats=grounded.important_caveats,
+            model_used=result.model,
+            latency_ms=result.latency_ms,
+            debate_summary=grounded.debate_summary,
+            claims=[c.model_dump() for c in grounded.claims],
+            key_supporting_evidence_ids=grounded.key_supporting_evidence_ids,
+            key_contradicting_evidence_ids=grounded.key_contradicting_evidence_ids,
+            needs_second_round=grounded.needs_second_round,
+            second_round_reason=grounded.second_round_reason,
+            public_note=grounded.public_note,
         )
+        logger.info("Judge | %s (%.2f) | %s | %.0fms | dropped=%s", verdict.verdict,
+                    verdict.verdict_confidence, result.model, result.latency_ms, dict(+dropped))
+        return verdict, dropped, result
 
-        logger.info(
-            f"JudgeAgent | verdict={verdict.verdict} | CTS={metrics.CTS:.2f} | "
-            f"composite={metrics.composite:.2f} | model={model_used} | {latency:.0f}ms"
-        )
+    async def judge(self, analysis: ClaimAnalysis, adversary_a: AdversaryAReport,
+                    adversary_b: NarrativeAuditReport, nil_report: Any,
+                    pack: Optional[EvidencePack] = None) -> JudgeVerdict:
+        """Compatible entry point."""
+        pack = pack or EvidencePack.build(analysis.original_input, context=analysis.retrieved_context)
+        verdict, _, _ = await self.run(analysis, adversary_a, adversary_b, nil_report, pack)
         return verdict
