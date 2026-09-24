@@ -688,13 +688,6 @@ function UploadZone({
         </button>
       )}
 
-      {/* Progress bar */}
-      {uploadState === 'uploading' && (
-        <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
-          <div className="kb-progress-bar" style={{ height: '100%', background: 'linear-gradient(90deg, #A100F0, #00F0FF)', borderRadius: 99 }} />
-        </div>
-      )}
-
       {/* Status message */}
       {uploadMsg && (
         <div style={{

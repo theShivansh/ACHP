@@ -696,6 +696,10 @@ export default function HomePage() {
 // Map FastAPI AnalyzeResponse → ACHPOutput format
 // ─────────────────────────────────────────────────────────────────────────────
 function mapFastAPIResponse(raw: Record<string, unknown>): ACHPOutput {
+  // A result without a verdict is not shown with an invented one (non-negotiable 4).
+  if (typeof raw.verdict !== 'string' || !raw.transparency_report) {
+    throw new Error('The result came back incomplete, so no verdict is shown.');
+  }
   const tr = (raw.transparency_report as Record<string, unknown>) ?? {};
   const arts = (raw.artifacts as Record<string, unknown>) ?? {};
   const nil = (tr.nil_sub_agents as Record<string, unknown>) ?? {};
@@ -705,7 +709,7 @@ function mapFastAPIResponse(raw: Record<string, unknown>): ACHPOutput {
     run_id: (raw.run_id as string) ?? '',
     timestamp: (raw.timestamp as string) ?? new Date().toISOString(),
     input: (raw.claim as string) ?? '',
-    verdict: (raw.verdict as ACHPOutput['verdict']) ?? 'MIXED',
+    verdict: raw.verdict as ACHPOutput['verdict'],
     verdict_confidence: (raw.verdict_confidence as number) ?? 0.5,
     composite_score: (tr.composite_score as number) ?? 0.5,
     metrics: {

@@ -401,16 +401,6 @@ export default function Sidebar({
               {isRunning ? 'ACTIVE' : 'READY'}
             </span>
           </div>
-          <div style={{ height: 2, background: 'rgba(255,255,255,0.06)', marginBottom: 10 }}>
-            <div
-              style={{
-                height: '100%',
-                width: isRunning ? '60%' : '100%',
-                background: isRunning ? 'linear-gradient(90deg, #A100F0, #00F0FF)' : '#00F0FF',
-                transition: 'width 0.5s',
-              }}
-            />
-          </div>
           <div className="flex items-center justify-between">
             <div>
               <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.20)', textTransform: 'uppercase', fontFamily: 'Space Grotesk, sans-serif' }}>Analyses</p>

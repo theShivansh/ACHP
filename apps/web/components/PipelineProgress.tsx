@@ -101,7 +101,7 @@ export default function PipelineProgress({ run, connection, onRetry }: PipelineP
               <span className={cn('text-xs', lane.state === 'failed' && 'text-desk-red')}>
                 {STATE_WORDS[lane.state]}
                 {lane.state === 'done' ? seconds(lane.durationMs) : ''}
-                {lane.round > 1 && lane.state !== 'waiting' ? ' · round 2' : ''}
+                {lane.round > 1 && lane.state !== 'waiting' ? ` · round ${lane.round}` : ''}
               </span>
               <span className="text-xs text-desk-ink-2 max-sm:col-span-2">{lineFor(lane)}</span>
             </li>
