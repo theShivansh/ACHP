@@ -395,6 +395,8 @@ class RunEvents:
             data["metrics"] = {k: round(float(metrics[k]), 4) for k in ("CTS", "PCS", "BIS", "NSS", "EPS")}
         # Held, not emitted: verdict.final goes out in complete(), right before run.completed and
         # only after the result is stored, so no failure can ever follow a verdict (06 §3.1).
+        from achp.events.models import validate_payload
+        data = validate_payload("verdict.final", data)   # a bad payload fails here, inside the pipeline
         self._verdict = ("judge" if label != "blocked" else None, data)
         return data
 

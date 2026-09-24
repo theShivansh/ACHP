@@ -53,4 +53,6 @@ def test_templates_are_short_and_plain():
         assert notes.note_problem(s) is None, s
     assert notes.clipper_note(3, 1) == "Pinned 4 sources: 3 from the web, 1 from your library."
     assert notes.decomposer_note(3) == "Cut the message into 3 checkable parts."
+    assert notes.clipper_note(0, 2, timed_out=True) == "Web search timed out; used 2 sources: 2 from your library."
+    assert notes.clipper_note(0, 0, timed_out=True) == "Web search timed out, so no sources were found."
     assert notes.framing_note(["shocking"], ["all"]) == "Wording check: 1 loaded word ('shocking'); 1 absolute term ('all')."

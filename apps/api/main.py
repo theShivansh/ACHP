@@ -780,8 +780,12 @@ async def _execute_run(run_id: str, text: str, kb_id: Optional[str], kb_name: st
         return
     # The result is stored first; then verdict.final and run.completed go out together.
     bus.store.set_status(run_id, "completed", result=result)
-    await ev.complete(int((time.perf_counter() - t0) * 1000),
-                      bool((output.pipeline or {}).get("cache_hit", False)))
+    try:
+        await ev.complete(int((time.perf_counter() - t0) * 1000),
+                          bool((output.pipeline or {}).get("cache_hit", False)))
+    except Exception as e:
+        logger.exception(f"[{run_id}] Could not close the log: {e}")
+        await bus._fail(run_id, "internal", "internal_error", notes.failure_message("internal", "internal_error"), True)
 
 
 def _start_run(text: str, kb_id: Optional[str], kb_name: str, *, run_id: Optional[str] = None,

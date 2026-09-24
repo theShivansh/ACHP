@@ -164,8 +164,9 @@ class RunEventBus:
                                      failure_message("internal", "internal_error"), True)
                     return None
         finally:
-            if run_id in self._waiting:
+            if run_id in self._waiting:      # cancelled while waiting: the runs behind it move up
                 self._waiting.remove(run_id)
+                await self._requeue()
 
     async def _requeue(self) -> None:
         """The queue moved: tell each waiting run its new position."""
@@ -183,13 +184,14 @@ class RunEventBus:
         return len(ids)
 
     async def _fail(self, run_id: str, stage: str, code: str, message: str, retryable: bool) -> None:
-        record = self.store.get_run(run_id)
-        if record is None or record.status in ("completed", "failed"):
+        # Decided by the log, not the status column: a run stored as completed whose
+        # run.completed never made it out is still open and must end in run.failed.
+        if self.store.get_run(run_id) is None or self.store.ended(run_id):
             return
         await self.emit(run_id, "run.failed", None,
                         {"stage": stage, "error_code": code, "message": message, "retryable": retryable})
-        self.store.set_status(run_id, "failed", error={"stage": stage, "error_code": code, "message": message,
-                                                       "retryable": retryable})
+        self.store.set_status(run_id, "failed", clear_result=True,
+                              error={"stage": stage, "error_code": code, "message": message, "retryable": retryable})
 
 
 _bus: Optional[RunEventBus] = None

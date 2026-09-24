@@ -125,12 +125,12 @@ class SQLiteEventStore:
         )
 
     def set_status(self, run_id: str, status: str, *, result: Optional[Dict[str, Any]] = None,
-                   error: Optional[Dict[str, Any]] = None) -> None:
+                   error: Optional[Dict[str, Any]] = None, clear_result: bool = False) -> None:
         with self._lock:
             self._db.execute(
-                "UPDATE runs SET status = ?, result_json = COALESCE(?, result_json), "
+                "UPDATE runs SET status = ?, result_json = CASE WHEN ? THEN NULL ELSE COALESCE(?, result_json) END, "
                 "error_json = COALESCE(?, error_json) WHERE run_id = ?",
-                (status,
+                (status, 1 if clear_result else 0,
                  json.dumps(result, ensure_ascii=False) if result is not None else None,
                  json.dumps(error, ensure_ascii=False) if error is not None else None,
                  run_id),
@@ -193,8 +193,15 @@ class SQLiteEventStore:
         return len(old)
 
     def unfinished_runs(self) -> List[str]:
+        """Runs whose log doesn't end in run.completed / run.failed, whatever their status says."""
         with self._lock:
-            return [r[0] for r in self._db.execute("SELECT run_id FROM runs WHERE status IN ('queued','running')")]
+            return [r[0] for r in self._db.execute(
+                "SELECT run_id FROM runs r WHERE NOT EXISTS (SELECT 1 FROM events e WHERE e.run_id = r.run_id "
+                "AND e.type IN ('run.completed', 'run.failed'))")]
+
+    def ended(self, run_id: str) -> bool:
+        tail = self.last_event(run_id)
+        return tail is not None and tail.type in _TERMINAL
 
     def last_event(self, run_id: str) -> Optional[StoredEvent]:
         with self._lock:

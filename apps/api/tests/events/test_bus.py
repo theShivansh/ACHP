@@ -78,6 +78,49 @@ async def test_nothing_is_logged_after_a_terminal_event():
     assert [e.type for e in bus.events(rid)] == ["run.failed"]
 
 
+async def test_a_run_stored_as_completed_but_never_closed_still_ends_in_run_failed():
+    bus = new_bus()
+    rid = bus.create_run({"text": "x"})
+    await bus.emit(rid, "run.started", None, {"input": {"type": "text", "text": "x"}, "agents": []})
+    bus.store.set_status(rid, "completed", result={"verdict": "MIXED"})   # result stored, emit then lost
+    await bus._fail(rid, "internal", "internal_error", "m", True)
+    assert bus.events(rid)[-1].type == "run.failed"
+    record = bus.get_run(rid)
+    assert record.status == "failed" and record.result is None
+
+
+async def test_restart_sweep_reads_the_log_not_the_status():
+    bus = new_bus()
+    rid = bus.create_run({"text": "x"})
+    await bus.emit(rid, "run.started", None, {"input": {"type": "text", "text": "x"}, "agents": []})
+    bus.store.set_status(rid, "completed", result={"verdict": "MIXED"})
+    done = bus.create_run({"text": "y"})
+    await bus.emit(done, "run.completed", None, {"total_ms": 1})
+    assert await bus.close_interrupted() == 1
+    assert bus.events(rid)[-1].type == "run.failed" and bus.events(done)[-1].type == "run.completed"
+    got = await asyncio.wait_for(_collect(bus.subscribe(rid, 0, ping_s=0.05)), 1)
+    assert got[-1].type == "run.failed"                     # the stream closes
+
+
+async def test_a_cancelled_waiting_run_moves_the_queue_up():
+    bus = new_bus(max_concurrent=1)
+    gate = asyncio.Event()
+    a, b, c = (bus.create_run({"text": str(i)}) for i in range(3))
+
+    async def work(rid):
+        await bus.emit(rid, "run.started", None, {"input": {"type": "text", "text": "x"}, "agents": []})
+        await gate.wait()
+        await bus.emit(rid, "run.completed", None, {"total_ms": 1})
+
+    ta, tb, tc = (bus.start(r, lambda r=r: work(r)) for r in (a, b, c))
+    await asyncio.sleep(0.05)
+    tb.cancel()
+    await asyncio.sleep(0.05)
+    assert [e.data["position"] for e in bus.events(c) if e.type == "run.queued"] == [2, 1]
+    gate.set()
+    await asyncio.wait_for(asyncio.gather(ta, tc), 1)
+
+
 async def test_replay_after_seq():
     bus = new_bus()
     rid = bus.create_run({"text": "x"})

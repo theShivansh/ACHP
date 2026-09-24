@@ -114,6 +114,26 @@ def test_a_failure_after_the_verdict_was_computed_never_leaves_a_verdict(client,
     assert types[-1] == "run.failed" and "verdict.final" not in types
 
 
+def test_if_closing_the_log_fails_the_run_still_ends_in_run_failed(client, monkeypatch):
+    from achp.events.emitter import RunEvents
+    c, _ = client
+
+    async def broken(self, total_ms, cache_hit=False):
+        raise RuntimeError("emit failed")
+
+    monkeypatch.setattr(RunEvents, "complete", broken)
+    rid = c.post("/runs", json={"input": {"type": "text", "text": CLAIM}}).json()["run_id"]
+    end = time.time() + 10
+    while time.time() < end:
+        log = c.get(f"/runs/{rid}/events.json").json()["events"]
+        if log and log[-1]["type"] in ("run.completed", "run.failed"):
+            break
+        time.sleep(0.05)
+    assert log[-1]["type"] == "run.failed" and "verdict.final" not in [e["type"] for e in log]
+    snap = c.get(f"/runs/{rid}").json()
+    assert snap["status"] == "failed" and "result" not in snap
+
+
 def test_ping_frame_is_a_named_event_without_an_id():
     import main
     assert main.SSE_PING.startswith(": ping\n") and "event: ping\n" in main.SSE_PING

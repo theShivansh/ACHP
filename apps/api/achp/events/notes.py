@@ -75,8 +75,10 @@ def gatekeeper_note(safe: bool) -> str:
 def clipper_note(web: int, kb: int, other: int = 0, from_cache: bool = False, timed_out: bool = False) -> str:
     total = web + kb + other
     if timed_out:
-        return ("Web search timed out, so no sources were found." if total == 0 else
-                f"Web search timed out; used {plural(total, 'source')} from your library and added text.")
+        if total == 0:
+            return "Web search timed out, so no sources were found."
+        used = [f"{kb} from your library" if kb else "", f"{other} from the text you added" if other else ""]
+        return f"Web search timed out; used {plural(total, 'source')}: {', '.join(u for u in used if u)}."
     if total == 0:
         return "Found no sources for this claim."
     parts = []
