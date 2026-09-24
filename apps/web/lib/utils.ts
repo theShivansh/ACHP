@@ -1,10 +1,6 @@
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import { type Verdict } from './types';
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+export { cn } from "cn";
 
 /** Format score 0–1 as percentage string */
 export function fmt(v: number, decimals = 0): string {
