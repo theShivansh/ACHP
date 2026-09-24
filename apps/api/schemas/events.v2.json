@@ -1,0 +1,2296 @@
+{
+  "$defs": {
+    "AgentAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "search_web",
+            "search_kb",
+            "fetch_source",
+            "llm_call",
+            "compute",
+            "validate"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 40,
+          "title": "Label",
+          "type": "string"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "claim_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claim Id"
+        }
+      },
+      "required": [
+        "action",
+        "label"
+      ],
+      "title": "AgentAction",
+      "type": "object"
+    },
+    "AgentActionEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "agent.action",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/AgentAction"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "AgentActionEvent",
+      "type": "object"
+    },
+    "AgentDone": {
+      "additionalProperties": false,
+      "properties": {
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "summary": {
+          "maxLength": 100,
+          "title": "Summary",
+          "type": "string"
+        },
+        "counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Counts",
+          "type": "object"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The model that actually served this agent's call",
+          "title": "Model"
+        }
+      },
+      "required": [
+        "duration_ms",
+        "summary"
+      ],
+      "title": "AgentDone",
+      "type": "object"
+    },
+    "AgentDoneEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "agent.done",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/AgentDone"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "AgentDoneEvent",
+      "type": "object"
+    },
+    "AgentFailed": {
+      "additionalProperties": false,
+      "properties": {
+        "error_code": {
+          "title": "Error Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "error_code",
+        "message",
+        "retryable"
+      ],
+      "title": "AgentFailed",
+      "type": "object"
+    },
+    "AgentFailedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "agent.failed",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/AgentFailed"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "AgentFailedEvent",
+      "type": "object"
+    },
+    "AgentInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Configured primary model; null for agents that call no model",
+          "title": "Model"
+        },
+        "fallback_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Model"
+        },
+        "group": {
+          "title": "Group",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "role",
+        "group"
+      ],
+      "title": "AgentInfo",
+      "type": "object"
+    },
+    "AgentNote": {
+      "additionalProperties": false,
+      "properties": {
+        "note": {
+          "maxLength": 140,
+          "minLength": 1,
+          "title": "Note",
+          "type": "string"
+        },
+        "claim_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claim Id"
+        },
+        "source": {
+          "default": "template",
+          "description": "model = a validated public_note; template = the deterministic fallback",
+          "enum": [
+            "model",
+            "template"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "note"
+      ],
+      "title": "AgentNote",
+      "type": "object"
+    },
+    "AgentNoteEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "agent.note",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/AgentNote"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "AgentNoteEvent",
+      "type": "object"
+    },
+    "AgentSkipped": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "title": "AgentSkipped",
+      "type": "object"
+    },
+    "AgentSkippedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "agent.skipped",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/AgentSkipped"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "AgentSkippedEvent",
+      "type": "object"
+    },
+    "AgentStarted": {
+      "additionalProperties": false,
+      "properties": {
+        "step": {
+          "minimum": 1,
+          "title": "Step",
+          "type": "integer"
+        },
+        "group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group"
+        },
+        "round": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Debate round when the agent runs again",
+          "title": "Round"
+        }
+      },
+      "required": [
+        "step"
+      ],
+      "title": "AgentStarted",
+      "type": "object"
+    },
+    "AgentStartedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "agent.started",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/AgentStarted"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "AgentStartedEvent",
+      "type": "object"
+    },
+    "AssayComputed": {
+      "additionalProperties": false,
+      "description": "Defined now so the contract is complete; emitted from P5 (11_THE_ASSAY.md).",
+      "properties": {
+        "formula_version": {
+          "title": "Formula Version",
+          "type": "string"
+        },
+        "mode": {
+          "const": "code",
+          "title": "Mode",
+          "type": "string"
+        },
+        "signals": {
+          "additionalProperties": true,
+          "title": "Signals",
+          "type": "object"
+        },
+        "metrics": {
+          "$ref": "#/$defs/Metrics"
+        },
+        "composite": {
+          "title": "Composite",
+          "type": "number"
+        },
+        "formula_verdict": {
+          "title": "Formula Verdict",
+          "type": "string"
+        },
+        "judge_verdict": {
+          "title": "Judge Verdict",
+          "type": "string"
+        },
+        "two_key": {
+          "additionalProperties": true,
+          "title": "Two Key",
+          "type": "object"
+        },
+        "ledger": {
+          "additionalProperties": true,
+          "title": "Ledger",
+          "type": "object"
+        },
+        "tipping_point": {
+          "additionalProperties": true,
+          "title": "Tipping Point",
+          "type": "object"
+        },
+        "masking": {
+          "additionalProperties": true,
+          "title": "Masking",
+          "type": "object"
+        },
+        "integrity_map": {
+          "additionalProperties": true,
+          "title": "Integrity Map",
+          "type": "object"
+        }
+      },
+      "required": [
+        "formula_version",
+        "mode",
+        "signals",
+        "metrics",
+        "composite",
+        "formula_verdict",
+        "judge_verdict",
+        "two_key",
+        "ledger",
+        "tipping_point",
+        "masking",
+        "integrity_map"
+      ],
+      "title": "AssayComputed",
+      "type": "object"
+    },
+    "AssayComputedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "assay.computed",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/AssayComputed"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "AssayComputedEvent",
+      "type": "object"
+    },
+    "ClaimExtracted": {
+      "additionalProperties": false,
+      "properties": {
+        "claim": {
+          "$ref": "#/$defs/ExtractedClaim"
+        }
+      },
+      "required": [
+        "claim"
+      ],
+      "title": "ClaimExtracted",
+      "type": "object"
+    },
+    "ClaimExtractedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "claim.extracted",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/ClaimExtracted"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "ClaimExtractedEvent",
+      "type": "object"
+    },
+    "ClaimMarked": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "relation": {
+          "enum": [
+            "contradicts",
+            "supports",
+            "missing_context",
+            "framing",
+            "unclear"
+          ],
+          "title": "Relation",
+          "type": "string"
+        },
+        "span": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Span",
+          "type": "array"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "maximum": 3,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Severity"
+        },
+        "evidence_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 140,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "claim_id",
+        "relation",
+        "span"
+      ],
+      "title": "ClaimMarked",
+      "type": "object"
+    },
+    "ClaimMarkedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "claim.marked",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/ClaimMarked"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "ClaimMarkedEvent",
+      "type": "object"
+    },
+    "ClaimVerdict": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "label": {
+          "enum": [
+            "supported",
+            "contradicted",
+            "mixed",
+            "missing_context",
+            "unverifiable",
+            "blocked"
+          ],
+          "title": "Label",
+          "type": "string"
+        },
+        "confidence_band": {
+          "enum": [
+            "strong",
+            "moderate",
+            "weak"
+          ],
+          "title": "Confidence Band",
+          "type": "string"
+        },
+        "confidence_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence Reason"
+        },
+        "evidence_for": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence For",
+          "type": "array"
+        },
+        "evidence_against": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Against",
+          "type": "array"
+        },
+        "missing_context": {
+          "anyOf": [
+            {
+              "maxLength": 140,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Missing Context"
+        }
+      },
+      "required": [
+        "claim_id",
+        "label",
+        "confidence_band"
+      ],
+      "title": "ClaimVerdict",
+      "type": "object"
+    },
+    "DebateRound": {
+      "additionalProperties": false,
+      "properties": {
+        "round": {
+          "minimum": 2,
+          "title": "Round",
+          "type": "integer"
+        },
+        "reason": {
+          "maxLength": 140,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "round",
+        "reason"
+      ],
+      "title": "DebateRound",
+      "type": "object"
+    },
+    "DebateRoundEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "debate.round",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/DebateRound"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "DebateRoundEvent",
+      "type": "object"
+    },
+    "EvidenceFound": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/EvidenceObject"
+        }
+      },
+      "required": [
+        "evidence"
+      ],
+      "title": "EvidenceFound",
+      "type": "object"
+    },
+    "EvidenceFoundEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "evidence.found",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/EvidenceFound"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "EvidenceFoundEvent",
+      "type": "object"
+    },
+    "EvidenceObject": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "pattern": "^e\\d+$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "claim_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claim Id"
+        },
+        "source": {
+          "$ref": "#/$defs/EvidenceSource"
+        },
+        "locator": {
+          "title": "Locator",
+          "type": "string"
+        },
+        "quote": {
+          "description": "Verbatim substring of the retrieved text",
+          "minLength": 1,
+          "title": "Quote",
+          "type": "string"
+        },
+        "relation": {
+          "anyOf": [
+            {
+              "enum": [
+                "contradicts",
+                "supports",
+                "missing_context",
+                "framing",
+                "unclear"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relation"
+        },
+        "strength": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Strength"
+        },
+        "freshness": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Freshness"
+        },
+        "verifier_status": {
+          "default": "pending",
+          "enum": [
+            "pending",
+            "accepted",
+            "rejected"
+          ],
+          "title": "Verifier Status",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retrieved At"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "source",
+        "locator",
+        "quote"
+      ],
+      "title": "EvidenceObject",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "web",
+            "kb",
+            "context"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "domain": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Domain"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "published_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Published At"
+        }
+      },
+      "required": [
+        "source_id",
+        "kind"
+      ],
+      "title": "EvidenceSource",
+      "type": "object"
+    },
+    "EvidenceVerified": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "rejected"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "status"
+      ],
+      "title": "EvidenceVerified",
+      "type": "object"
+    },
+    "EvidenceVerifiedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "evidence.verified",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/EvidenceVerified"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "EvidenceVerifiedEvent",
+      "type": "object"
+    },
+    "ExtractedClaim": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "source_span": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Source Span",
+          "type": "array"
+        },
+        "verifiable": {
+          "title": "Verifiable",
+          "type": "boolean"
+        },
+        "epistemic_marker": {
+          "title": "Epistemic Marker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim_id",
+        "text",
+        "source_span",
+        "verifiable",
+        "epistemic_marker"
+      ],
+      "title": "ExtractedClaim",
+      "type": "object"
+    },
+    "KBRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "KBRef",
+      "type": "object"
+    },
+    "Metrics": {
+      "additionalProperties": false,
+      "properties": {
+        "CTS": {
+          "title": "Cts",
+          "type": "number"
+        },
+        "PCS": {
+          "title": "Pcs",
+          "type": "number"
+        },
+        "BIS": {
+          "title": "Bis",
+          "type": "number"
+        },
+        "NSS": {
+          "title": "Nss",
+          "type": "number"
+        },
+        "EPS": {
+          "title": "Eps",
+          "type": "number"
+        }
+      },
+      "required": [
+        "CTS",
+        "PCS",
+        "BIS",
+        "NSS",
+        "EPS"
+      ],
+      "title": "Metrics",
+      "type": "object"
+    },
+    "OverallVerdict": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "enum": [
+            "supported",
+            "contradicted",
+            "mixed",
+            "missing_context",
+            "unverifiable",
+            "blocked"
+          ],
+          "title": "Label",
+          "type": "string"
+        },
+        "summary": {
+          "maxLength": 140,
+          "title": "Summary",
+          "type": "string"
+        },
+        "confidence_band": {
+          "enum": [
+            "strong",
+            "moderate",
+            "weak"
+          ],
+          "title": "Confidence Band",
+          "type": "string"
+        },
+        "confidence_reason": {
+          "title": "Confidence Reason",
+          "type": "string"
+        },
+        "judge_verdict": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The Judge's six-level verdict (TRUE … UNVERIFIABLE, or BLOCKED)",
+          "title": "Judge Verdict"
+        }
+      },
+      "required": [
+        "label",
+        "summary",
+        "confidence_band",
+        "confidence_reason"
+      ],
+      "title": "OverallVerdict",
+      "type": "object"
+    },
+    "RunCompleted": {
+      "additionalProperties": false,
+      "properties": {
+        "total_ms": {
+          "minimum": 0,
+          "title": "Total Ms",
+          "type": "integer"
+        },
+        "cache_hit": {
+          "default": false,
+          "title": "Cache Hit",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "total_ms"
+      ],
+      "title": "RunCompleted",
+      "type": "object"
+    },
+    "RunCompletedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "run.completed",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/RunCompleted"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "RunCompletedEvent",
+      "type": "object"
+    },
+    "RunFailed": {
+      "additionalProperties": false,
+      "properties": {
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        },
+        "error_code": {
+          "title": "Error Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "stage",
+        "error_code",
+        "message",
+        "retryable"
+      ],
+      "title": "RunFailed",
+      "type": "object"
+    },
+    "RunFailedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "run.failed",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/RunFailed"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "RunFailedEvent",
+      "type": "object"
+    },
+    "RunInput": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "text",
+          "default": "text",
+          "title": "Type",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "RunInput",
+      "type": "object"
+    },
+    "RunQueued": {
+      "additionalProperties": false,
+      "properties": {
+        "position": {
+          "description": "1 = next to start",
+          "minimum": 1,
+          "title": "Position",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "position"
+      ],
+      "title": "RunQueued",
+      "type": "object"
+    },
+    "RunQueuedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "run.queued",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/RunQueued"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "RunQueuedEvent",
+      "type": "object"
+    },
+    "RunStarted": {
+      "additionalProperties": false,
+      "properties": {
+        "input": {
+          "$ref": "#/$defs/RunInput"
+        },
+        "agents": {
+          "items": {
+            "$ref": "#/$defs/AgentInfo"
+          },
+          "title": "Agents",
+          "type": "array"
+        },
+        "pipeline_mode": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pipeline Mode"
+        },
+        "kb": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/KBRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "prompt_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt Version"
+        }
+      },
+      "required": [
+        "input",
+        "agents"
+      ],
+      "title": "RunStarted",
+      "type": "object"
+    },
+    "RunStartedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "run.started",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/RunStarted"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "RunStartedEvent",
+      "type": "object"
+    },
+    "SignalComputed": {
+      "additionalProperties": false,
+      "properties": {
+        "signal": {
+          "enum": [
+            "sentiment",
+            "bias",
+            "perspective",
+            "framing",
+            "hedging"
+          ],
+          "title": "Signal",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Not shown to Sharers",
+          "title": "Value"
+        },
+        "spans": {
+          "default": [],
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "explanation": {
+          "anyOf": [
+            {
+              "maxLength": 140,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Explanation"
+        }
+      },
+      "required": [
+        "signal",
+        "label"
+      ],
+      "title": "SignalComputed",
+      "type": "object"
+    },
+    "SignalComputedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "signal.computed",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/SignalComputed"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "SignalComputedEvent",
+      "type": "object"
+    },
+    "VerdictFinal": {
+      "additionalProperties": false,
+      "properties": {
+        "overall": {
+          "$ref": "#/$defs/OverallVerdict"
+        },
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/ClaimVerdict"
+          },
+          "title": "Claims",
+          "type": "array"
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Metrics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "overall",
+        "claims"
+      ],
+      "title": "VerdictFinal",
+      "type": "object"
+    },
+    "VerdictFinalEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "verdict.final",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/VerdictFinal"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "VerdictFinalEvent",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "agent.action": "#/$defs/AgentActionEvent",
+      "agent.done": "#/$defs/AgentDoneEvent",
+      "agent.failed": "#/$defs/AgentFailedEvent",
+      "agent.note": "#/$defs/AgentNoteEvent",
+      "agent.skipped": "#/$defs/AgentSkippedEvent",
+      "agent.started": "#/$defs/AgentStartedEvent",
+      "assay.computed": "#/$defs/AssayComputedEvent",
+      "claim.extracted": "#/$defs/ClaimExtractedEvent",
+      "claim.marked": "#/$defs/ClaimMarkedEvent",
+      "debate.round": "#/$defs/DebateRoundEvent",
+      "evidence.found": "#/$defs/EvidenceFoundEvent",
+      "evidence.verified": "#/$defs/EvidenceVerifiedEvent",
+      "run.completed": "#/$defs/RunCompletedEvent",
+      "run.failed": "#/$defs/RunFailedEvent",
+      "run.queued": "#/$defs/RunQueuedEvent",
+      "run.started": "#/$defs/RunStartedEvent",
+      "signal.computed": "#/$defs/SignalComputedEvent",
+      "verdict.final": "#/$defs/VerdictFinalEvent"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/RunQueuedEvent"
+    },
+    {
+      "$ref": "#/$defs/RunStartedEvent"
+    },
+    {
+      "$ref": "#/$defs/AgentStartedEvent"
+    },
+    {
+      "$ref": "#/$defs/AgentActionEvent"
+    },
+    {
+      "$ref": "#/$defs/AgentNoteEvent"
+    },
+    {
+      "$ref": "#/$defs/AgentDoneEvent"
+    },
+    {
+      "$ref": "#/$defs/AgentSkippedEvent"
+    },
+    {
+      "$ref": "#/$defs/AgentFailedEvent"
+    },
+    {
+      "$ref": "#/$defs/EvidenceFoundEvent"
+    },
+    {
+      "$ref": "#/$defs/EvidenceVerifiedEvent"
+    },
+    {
+      "$ref": "#/$defs/ClaimExtractedEvent"
+    },
+    {
+      "$ref": "#/$defs/ClaimMarkedEvent"
+    },
+    {
+      "$ref": "#/$defs/SignalComputedEvent"
+    },
+    {
+      "$ref": "#/$defs/DebateRoundEvent"
+    },
+    {
+      "$ref": "#/$defs/VerdictFinalEvent"
+    },
+    {
+      "$ref": "#/$defs/AssayComputedEvent"
+    },
+    {
+      "$ref": "#/$defs/RunCompletedEvent"
+    },
+    {
+      "$ref": "#/$defs/RunFailedEvent"
+    }
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://achp/events.v2.json",
+  "title": "ACHP event protocol v2",
+  "x-event-types": [
+    "run.queued",
+    "run.started",
+    "agent.started",
+    "agent.action",
+    "agent.note",
+    "agent.done",
+    "agent.skipped",
+    "agent.failed",
+    "evidence.found",
+    "evidence.verified",
+    "claim.extracted",
+    "claim.marked",
+    "signal.computed",
+    "debate.round",
+    "verdict.final",
+    "assay.computed",
+    "run.completed",
+    "run.failed"
+  ],
+  "x-terminal-types": [
+    "run.completed",
+    "run.failed"
+  ]
+}

@@ -91,6 +91,32 @@ CORS: allow the Vercel production + preview origins and `Last-Event-ID`.
 ```
 The `quote` must be a verbatim substring of the fetched source text (the server checks this). If it isn't, it's rejected before emission.
 
+### 3.3 Implementation notes (P2, 2026-09-24)
+
+The schema of record is `apps/api/schemas/events.v2.json`, exported from `apps/api/achp/events/models.py`. All deviations from the tables above are **additive and optional**:
+
+| Where | Addition | Why |
+|---|---|---|
+| `run.started.agents[]` | `fallback_model` | The registry has a primary and a fallback per agent; the lane details can show both |
+| `run.started` | `prompt_version` | Ties a log to the prompt contract that produced it |
+| `agent.started` | `round` (≥2) | Marks a re-debate start |
+| `agent.note` | `source`: `model` \| `template` | Trace shows whether a note is a validated `public_note` or the §5 fallback |
+| `agent.done` | `model` | The model that actually served the call (the fallback when the primary was rate-limited) |
+| EvidenceObject | `retrieved_at` | Staleness is visible; `claim_id`, `relation`, `strength` and `freshness` are omitted at retrieval time rather than invented (the verifier fills them in P8) |
+| `verdict.final.overall` | `judge_verdict` | The Judge's six-level verdict (`TRUE` … `UNVERIFIABLE`, or `BLOCKED`); `label` maps it to the vocabulary above |
+| `verdict.final.claims[]` | `confidence_reason` | Each part's band states its reason, like the overall band |
+| `GET /runs/{id}` | `error` `{stage, error_code, message, retryable}` | Present on failed runs; `result` is the `/analyze` response shape |
+| `GET /runs/{id}/events.json` | `run_id`; `?since=` | Gap repair fetches only what's missing |
+| `POST /runs` | `options.fail_at` | The fixture recorder's `--fail-at`; rejected (400) unless the backend sets `ACHP_ALLOW_FAULT_INJECTION=1` |
+
+Other decisions:
+- Optional fields with no value are **omitted**, not sent as `null`.
+- `run.queued.position` is 1-based (1 = next to start).
+- A blocked run emits `agent.skipped` (`reason: "blocked"`) for every lane after the Gatekeeper, then `verdict.final` with `agent: null`, `overall.label: "blocked"`, `claims: []` and **no `metrics`**.
+- A run left `queued`/`running` by a server restart gets `run.failed` (`stage: "server"`, `error_code: "server_restarted"`) at the next startup.
+- `GET /analyze/{id}/stream` is an alias of `/runs/{id}/events`.
+- **Confidence band** (`achp/events/confidence.py`, to be shown on `/method`). Per part: unverifiable/blocked → weak; sources pointing both ways → weak; ≥2 sources for the label and the Fact Challenger reached the same finding → strong; ≥2 sources, or 1 source with the challenger agreeing → moderate; otherwise weak. Overall: the weakest band among the rated parts, one step lower when the Judge's own confidence is below 0.5; unverifiable and blocked runs are weak.
+
 ---
 
 ## 4. State machines

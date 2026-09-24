@@ -34,6 +34,8 @@ Thumbs.db
 # ACHP runtime data (SQLite + FAISS indexes) - do NOT commit
 apps/api/data/kb/
 apps/api/data/*.db
+apps/api/.data/
+.data/
 
 # Zip artifacts and test output files (NOT requirements.txt)
 *.zip
