@@ -3,24 +3,15 @@ app:
   version: "0.2.0"
   log_level: INFO
 
+# Documentation only: the code reads models from achp/llm/registry.py (the canonical registry,
+# with env overrides). Logical agents → physical Groq calls:
 models:
-  proposer:
-    name: openai/gpt-oss-120b
-    provider: groq
-    context_window: 128000
-  adversary_a:
-    name: openai/gpt-oss-120b
-    provider: groq
-  adversary_b:
-    name: openai/gpt-oss-120b
-    provider: groq
-  judge:
-    name: openai/gpt-oss-120b
-    provider: groq
-    fallback: openai/gpt-oss-120b
-  perspective:
-    name: openai/gpt-oss-120b
-    provider: groq
+  proposer:      {primary: openai/gpt-oss-120b, fallback: openai/gpt-oss-20b, call: proposer}
+  adversary_a:   {primary: openai/gpt-oss-120b, fallback: openai/gpt-oss-20b, call: analysis}
+  adversary_b:   {primary: openai/gpt-oss-120b, fallback: openai/gpt-oss-20b, call: analysis}
+  nil_bundle:    {primary: openai/gpt-oss-120b, fallback: openai/gpt-oss-20b, call: analysis}
+  judge:         {primary: openai/gpt-oss-120b, fallback: openai/gpt-oss-20b, call: judge}
+  qa:            {primary: openai/gpt-oss-120b, fallback: openai/gpt-oss-20b, call: qa}
 
 cache:
   backend: redis

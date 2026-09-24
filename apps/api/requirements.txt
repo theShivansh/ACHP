@@ -11,14 +11,12 @@ sse-starlette>=2.1.0              # Server-Sent Events for real-time UI
 python-multipart>=0.0.9
 
 # --- LLM Providers ---
-groq>=0.9.0                       # Groq SDK (Llama 4 Scout)
-openai>=1.30.0                    # OpenRouter uses OpenAI-compatible API
+groq>=0.30.0                      # Groq SDK: the only LLM client (achp/llm/runtime.py)
 
 # --- Async & Orchestration ---
 aiohttp>=3.9.0
 anyio>=4.0.0
 asyncio-pool>=0.6.0
-tenacity>=8.3.0                   # Retry with exponential backoff
 
 # --- Semantic Cache ---
 redis>=5.0.0
