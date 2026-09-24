@@ -132,6 +132,10 @@
   --color-mark-debit: var(--mark-debit);
   --color-mark-neutral: var(--mark-neutral);
   --color-mark-focus: var(--mark-focus);
+  --color-surface-fg: var(--surface-fg);
+  --color-surface-fg-2: var(--surface-fg-2);
+  --color-surface-line: var(--surface-line);
+  --color-surface-tint: var(--surface-tint);
 
   /* Families come from next/font in app/layout.tsx */
   --font-display: var(--font-newsreader), Georgia, serif;
@@ -252,7 +256,13 @@
     background: var(--desk);
     -webkit-text-size-adjust: 100%;
   }
+  /* Surface context: primitives read these, so one component works on the desk and on paper.
+   * The desk sets them here; the .paper utility resets them for the sheet. */
   body {
+    --surface-fg: var(--desk-ink);
+    --surface-fg-2: var(--desk-ink-2);
+    --surface-line: var(--desk-line);
+    --surface-tint: color-mix(in oklab, var(--desk-ink) 8%, transparent);
     min-height: 100vh;
     background: var(--desk);
     color: var(--desk-ink);
@@ -271,6 +281,10 @@
 /* ── Paper — 04 §5: one 256px feTurbulence grain tile at 3%, on the sheet only ───────────── */
 @utility paper {
   --focus-ring: var(--pencil-blue);
+  --surface-fg: var(--ink);
+  --surface-fg-2: var(--ink-2);
+  --surface-line: var(--sheet-line);
+  --surface-tint: color-mix(in oklab, var(--ink) 6%, transparent);
   background-color: var(--sheet);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23g)' opacity='0.03'/%3E%3C/svg%3E");
   background-size: 256px 256px;

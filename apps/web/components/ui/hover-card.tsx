@@ -18,10 +18,11 @@ function HoverCardTrigger({
   )
 }
 
+// The base for EvidenceCard on desktop (04 §7): a paper card, 3px radius, --lift-card.
 function HoverCardContent({
   className,
   align = "center",
-  sideOffset = 4,
+  sideOffset = 6,
   ...props
 }: React.ComponentProps<typeof HoverCardPrimitive.Content>) {
   return (
@@ -31,7 +32,7 @@ function HoverCardContent({
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          "z-50 w-64 origin-(--radix-hover-card-content-transform-origin) rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-hidden data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          "paper z-50 w-80 rounded-card border-(length:--rule) border-sheet-line p-4 shadow-lift-card outline-none data-[state=open]:animate-[rise-in_var(--dur-base)_var(--ease-out)] data-[state=closed]:animate-[fade-out_var(--dur-quick)_var(--ease-exit)_forwards]",
           className
         )}
         {...props}

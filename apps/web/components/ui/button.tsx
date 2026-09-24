@@ -3,35 +3,31 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
 import { Slot } from "radix-ui"
 
+// 04 §5/§7: 6px radius (never a pill), Public Sans 500 14px, the global 2px focus outline.
+// Colors come from the surface context, so a button reads correctly on the desk and on paper.
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-button type-ui whitespace-nowrap transition-colors duration-(--dur-quick) ease-out disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:stroke-[1.5] [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
-        outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+        primary: "bg-pencil-blue text-on-pencil-blue hover:bg-pencil-blue/90 active:bg-pencil-blue/80",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border border-surface-line bg-transparent text-surface-fg hover:bg-surface-tint active:bg-surface-tint",
+        ghost: "bg-transparent text-surface-fg-2 hover:bg-surface-tint hover:text-surface-fg",
+        destructive:
+          "border border-pencil-red bg-transparent text-pencil-red hover:bg-pencil-red/10 active:bg-pencil-red/15",
+        link: "h-auto px-0 text-pencil-blue underline underline-offset-4 hover:decoration-2",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
-        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-8 px-3 has-[>svg]:px-2.5",
+        default: "h-10 px-4 has-[>svg]:px-3",
+        lg: "h-11 px-5 has-[>svg]:px-4",
+        icon: "size-10",
         "icon-sm": "size-8",
-        "icon-lg": "size-10",
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: "primary",
       size: "default",
     },
   }
@@ -39,7 +35,7 @@ const buttonVariants = cva(
 
 function Button({
   className,
-  variant = "default",
+  variant = "primary",
   size = "default",
   asChild = false,
   ...props
