@@ -638,7 +638,9 @@ export default function HomePage() {
           const d = await r.json().catch(() => ({}));
           throw new Error(d.error || `HTTP ${r.status}`);
         }
-        data = await r.json();
+        const proxied = await r.json();
+        // The proxy returns the backend's /analyze shape (or demo data in the pipeline shape).
+        data = proxied.transparency_report ? mapFastAPIResponse(proxied) : proxied;
       }
 
       sse.close();
