@@ -697,7 +697,9 @@ export default function HomePage() {
 // ─────────────────────────────────────────────────────────────────────────────
 function mapFastAPIResponse(raw: Record<string, unknown>): ACHPOutput {
   // A result without a verdict is not shown with an invented one (non-negotiable 4).
-  if (typeof raw.verdict !== 'string' || !raw.transparency_report) {
+  const tr0 = raw.transparency_report as Record<string, unknown> | undefined;
+  const numbers = [raw.verdict_confidence, tr0?.composite_score, tr0?.cts, tr0?.pcs, tr0?.bis, tr0?.nss, tr0?.eps];
+  if (typeof raw.verdict !== 'string' || !tr0 || numbers.some((n) => typeof n !== 'number')) {
     throw new Error('The result came back incomplete, so no verdict is shown.');
   }
   const tr = (raw.transparency_report as Record<string, unknown>) ?? {};
@@ -710,14 +712,14 @@ function mapFastAPIResponse(raw: Record<string, unknown>): ACHPOutput {
     timestamp: (raw.timestamp as string) ?? new Date().toISOString(),
     input: (raw.claim as string) ?? '',
     verdict: raw.verdict as ACHPOutput['verdict'],
-    verdict_confidence: (raw.verdict_confidence as number) ?? 0.5,
-    composite_score: (tr.composite_score as number) ?? 0.5,
+    verdict_confidence: raw.verdict_confidence as number,
+    composite_score: tr.composite_score as number,
     metrics: {
-      CTS: (tr.cts as number) ?? 0.5,
-      PCS: (tr.pcs as number) ?? 0.5,
-      BIS: (tr.bis as number) ?? 0.5,
-      NSS: (tr.nss as number) ?? 0.5,
-      EPS: (tr.eps as number) ?? 0.5,
+      CTS: tr.cts as number,
+      PCS: tr.pcs as number,
+      BIS: tr.bis as number,
+      NSS: tr.nss as number,
+      EPS: tr.eps as number,
     },
     nil: {
       verdict: (nil.verdict as string) ?? tr.nil_verdict as string ?? 'unknown',
@@ -733,7 +735,7 @@ function mapFastAPIResponse(raw: Record<string, unknown>): ACHPOutput {
     consensus_reasoning: (raw.verified_answer as string) ?? '',
     key_evidence: (arts.key_evidence as ACHPOutput['key_evidence']) ?? { supporting: [], contradicting: [] },
     caveats: [],
-    debate_rounds: (tr.debate_rounds as number) ?? 1,
+    debate_rounds: (tr.debate_rounds as number) ?? 0,
     pipeline: {
       mode: (tr.pipeline_mode as string) ?? 'full',
       total_ms: (tr.total_latency_ms as number) ?? 0,

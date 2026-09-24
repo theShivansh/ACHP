@@ -118,6 +118,20 @@ describe('reducer: run and lane state machines (06 §4)', () => {
     expect(s.verdict).toBeNull();
   });
 
+  it('a backstop run.failed closes lanes that were still working', () => {
+    const events = log('mixed');
+    const i = events.findIndex((e) => e.type === 'agent.started' && e.agent === 'judge');
+    const partial = reduceAll(events.slice(0, i + 1));
+    const failed = {
+      v: 2, run_id: partial.runId!, seq: partial.lastSeq + 1, ts: '', t_ms: 0, type: 'run.failed', agent: null,
+      data: { stage: 'server', error_code: 'server_restarted', message: 'The server restarted.', retryable: true },
+    } as RunEvent;
+    const s = reduceRun(partial, failed);
+    expect(s.lanes.judge.state).toBe('failed');
+    expect(s.lanes.judge.error?.code).toBe('server_restarted');
+    expect(s.lanes.proposer.state).toBe('done');
+  });
+
   it('blocked run: later lanes skipped, a blocked verdict with no metrics', () => {
     for (const events of [log('blocked'), ...allLogs().filter((l) => l.name === 'fixture/blocked').map((l) => l.events)]) {
       const s = reduceAll(events);

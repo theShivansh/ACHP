@@ -331,7 +331,26 @@ export function reduceRun(state: RunState, event: RunEvent): RunState {
 
     case 'run.failed':
       // The last good state stays visible; there is never a verdict on a failed run.
-      return { ...s, status: 'failed', failure: event.data, verdict: null, assay: null };
+      // Lanes still working or waiting when the run died end as failed (06 §4.1).
+      return {
+        ...s,
+        status: 'failed',
+        failure: event.data,
+        verdict: null,
+        assay: null,
+        lanes: Object.fromEntries(
+          Object.entries(s.lanes).map(([id, l]) => [
+            id,
+            l.state === 'working' || l.state === 'waiting'
+              ? {
+                  ...l,
+                  state: 'failed' as const,
+                  error: l.error ?? { code: event.data.error_code, message: event.data.message, retryable: event.data.retryable },
+                }
+              : l,
+          ]),
+        ),
+      };
   }
 }
 
