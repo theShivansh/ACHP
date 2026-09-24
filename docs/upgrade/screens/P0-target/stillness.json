@@ -1,0 +1,52 @@
+[
+  {
+    "capture": "achp-site-html-case-mobile-light",
+    "route": "file:///C:/Users/shailendra/Downloads/ACHP_Interface_Upgrade_Kit%20final/ACHP/docs/upgrade/achp-site.html#/case",
+    "running": []
+  },
+  {
+    "capture": "achp-site-html-case-mobile-dark",
+    "route": "file:///C:/Users/shailendra/Downloads/ACHP_Interface_Upgrade_Kit%20final/ACHP/docs/upgrade/achp-site.html#/case",
+    "running": []
+  },
+  {
+    "capture": "achp-site-html-case-desktop-light",
+    "route": "file:///C:/Users/shailendra/Downloads/ACHP_Interface_Upgrade_Kit%20final/ACHP/docs/upgrade/achp-site.html#/case",
+    "running": []
+  },
+  {
+    "capture": "achp-site-html-case-desktop-dark",
+    "route": "file:///C:/Users/shailendra/Downloads/ACHP_Interface_Upgrade_Kit%20final/ACHP/docs/upgrade/achp-site.html#/case",
+    "running": []
+  },
+  {
+    "capture": "achp-site-html-case-mobile-light-reduced",
+    "route": "file:///C:/Users/shailendra/Downloads/ACHP_Interface_Upgrade_Kit%20final/ACHP/docs/upgrade/achp-site.html#/case",
+    "running": []
+  },
+  {
+    "capture": "achp-site-html-case-quiet-mobile-light",
+    "route": "file:///C:/Users/shailendra/Downloads/ACHP_Interface_Upgrade_Kit%20final/ACHP/docs/upgrade/achp-site.html#/case/quiet",
+    "running": []
+  },
+  {
+    "capture": "achp-site-html-case-quiet-mobile-dark",
+    "route": "file:///C:/Users/shailendra/Downloads/ACHP_Interface_Upgrade_Kit%20final/ACHP/docs/upgrade/achp-site.html#/case/quiet",
+    "running": []
+  },
+  {
+    "capture": "achp-site-html-case-quiet-desktop-light",
+    "route": "file:///C:/Users/shailendra/Downloads/ACHP_Interface_Upgrade_Kit%20final/ACHP/docs/upgrade/achp-site.html#/case/quiet",
+    "running": []
+  },
+  {
+    "capture": "achp-site-html-case-quiet-desktop-dark",
+    "route": "file:///C:/Users/shailendra/Downloads/ACHP_Interface_Upgrade_Kit%20final/ACHP/docs/upgrade/achp-site.html#/case/quiet",
+    "running": []
+  },
+  {
+    "capture": "achp-site-html-case-quiet-mobile-light-reduced",
+    "route": "file:///C:/Users/shailendra/Downloads/ACHP_Interface_Upgrade_Kit%20final/ACHP/docs/upgrade/achp-site.html#/case/quiet",
+    "running": []
+  }
+]
