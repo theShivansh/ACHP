@@ -117,8 +117,40 @@ async def test_a_cancelled_waiting_run_moves_the_queue_up():
     tb.cancel()
     await asyncio.sleep(0.05)
     assert [e.data["position"] for e in bus.events(c) if e.type == "run.queued"] == [2, 1]
+    assert [e.type for e in bus.events(b)] == ["run.queued", "run.failed"]       # never left open
+    assert bus.events(b)[-1].data["error_code"] == "cancelled"
     gate.set()
     await asyncio.wait_for(asyncio.gather(ta, tc), 1)
+
+
+async def test_verdict_and_completion_are_written_together_or_not_at_all(monkeypatch):
+    from achp.events import RunEvents
+    bus = new_bus()
+    rid = bus.create_run({"text": "x"})
+    ev = RunEvents(bus, rid)
+    await ev.run_started("x", kb_id=None, kb_name=None, pipeline_mode="full")
+    await ev.verdict_final(judge_verdict="MIXED", judge_confidence=0.8, summary="s", claims=[],
+                           challenger={}, metrics=None)
+    real = bus.store._db
+
+    class Flaky:
+        def __init__(self, db):
+            self.db = db
+
+        def execute(self, sql, *a):
+            if sql.startswith("INSERT INTO events") and a and a[0][4] == "run.completed":
+                raise OSError("disk full")
+            return self.db.execute(sql, *a)
+
+        def __getattr__(self, name):
+            return getattr(self.db, name)
+
+    bus.store._db = Flaky(real)
+    with pytest.raises(OSError):
+        await ev.complete(0)
+    bus.store._db = real
+    await bus._fail(rid, "internal", "internal_error", "m", True)
+    assert [e.type for e in bus.events(rid)] == ["run.started", "run.failed"]
 
 
 async def test_replay_after_seq():

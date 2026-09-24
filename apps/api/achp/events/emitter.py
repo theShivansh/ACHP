@@ -405,8 +405,12 @@ class RunEvents:
         if self._ended:
             return
         self._ended = True
+        items = []
         if self._verdict is not None:
             agent, data = self._verdict
             self._verdict = None
-            await self.emit("verdict.final", agent, data)
-        await self.emit("run.completed", None, {"total_ms": max(0, int(total_ms)), "cache_hit": bool(cache_hit)})
+            items.append(("verdict.final", agent, data))
+        items.append(("run.completed", None, {"total_ms": max(0, int(total_ms)), "cache_hit": bool(cache_hit)}))
+        if self.enabled:
+            # One transaction: a verdict is never logged without the run.completed that closes it.
+            await self.bus.emit_many(self.run_id, items)

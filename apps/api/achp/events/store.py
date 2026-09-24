@@ -15,7 +15,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 
 RUN_TTL_S = 72 * 3600
@@ -139,8 +139,13 @@ class SQLiteEventStore:
     # ── events ───────────────────────────────────────────────────────────
 
     def append(self, run_id: str, type: str, agent: Optional[str], data: Dict[str, Any]) -> StoredEvent:
+        return self.append_many(run_id, [(type, agent, data)])[0]
+
+    def append_many(self, run_id: str,
+                    items: List[Tuple[str, Optional[str], Dict[str, Any]]]) -> List[StoredEvent]:
+        """Append events in one transaction: all of them are logged, or none is."""
         now = time.time()
-        payload = json.dumps(data, ensure_ascii=False)
+        out: List[StoredEvent] = []
         with self._lock:
             self._db.execute("BEGIN IMMEDIATE")
             try:
@@ -148,25 +153,30 @@ class SQLiteEventStore:
                 if row is None:
                     raise KeyError(run_id)
                 started = row["started_at"]
-                if type == "run.started" and started is None:
-                    started = now
-                    self._db.execute("UPDATE runs SET started_at = ?, status = 'running' WHERE run_id = ?",
-                                     (now, run_id))
                 tail = self._db.execute("SELECT seq, type FROM events WHERE run_id = ? ORDER BY seq DESC LIMIT 1",
                                         (run_id,)).fetchone()
-                if tail is not None and tail["type"] in _TERMINAL:
-                    raise RunEnded(f"{run_id} already ended with {tail['type']}; {type} was not logged")
-                seq = (tail["seq"] if tail is not None else 0) + 1
-                t_ms = int(round((now - started) * 1000)) if started is not None else 0
-                self._db.execute(
-                    "INSERT INTO events(run_id, seq, ts, t_ms, type, agent, data_json) VALUES (?,?,?,?,?,?,?)",
-                    (run_id, seq, now, max(0, t_ms), type, agent, payload),
-                )
+                seq = tail["seq"] if tail is not None else 0
+                last_type = tail["type"] if tail is not None else None
+                for type, agent, data in items:
+                    if last_type in _TERMINAL:
+                        raise RunEnded(f"{run_id} already ended with {last_type}; {type} was not logged")
+                    if type == "run.started" and started is None:
+                        started = now
+                        self._db.execute("UPDATE runs SET started_at = ?, status = 'running' WHERE run_id = ?",
+                                         (now, run_id))
+                    seq += 1
+                    t_ms = max(0, int(round((now - started) * 1000))) if started is not None else 0
+                    self._db.execute(
+                        "INSERT INTO events(run_id, seq, ts, t_ms, type, agent, data_json) VALUES (?,?,?,?,?,?,?)",
+                        (run_id, seq, now, t_ms, type, agent, json.dumps(data, ensure_ascii=False)),
+                    )
+                    out.append(StoredEvent(run_id, int(seq), now, t_ms, type, agent, data))
+                    last_type = type
                 self._db.execute("COMMIT")
             except BaseException:
                 self._db.execute("ROLLBACK")
                 raise
-        return StoredEvent(run_id, int(seq), now, max(0, t_ms), type, agent, data)
+        return out
 
     def events(self, run_id: str, after_seq: int = 0) -> List[StoredEvent]:
         with self._lock:

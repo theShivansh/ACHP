@@ -71,16 +71,20 @@ class RunEventBus:
     # ── emit / replay / subscribe ────────────────────────────────────────
 
     async def emit(self, run_id: str, type: str, agent: Optional[str], data: Dict[str, Any]) -> Event:
-        clean = validate_payload(type, data)
-        stored = self.store.append(run_id, type, agent, clean)
-        event = to_event(stored)
-        for q in list(self._subs.get(run_id, ())):
-            q.put_nowait(event)
-        if event.terminal:
-            record = self.store.get_run(run_id)
-            if record and record.status not in ("completed", "failed"):
-                self.store.set_status(run_id, "completed" if type == "run.completed" else "failed")
-        return event
+        return (await self.emit_many(run_id, [(type, agent, data)]))[0]
+
+    async def emit_many(self, run_id: str, items: List[tuple]) -> List[Event]:
+        """Validate every payload, then append them in one transaction (all or none) and fan out."""
+        clean = [(type, agent, validate_payload(type, data)) for type, agent, data in items]
+        events = [to_event(s) for s in self.store.append_many(run_id, clean)]
+        for event in events:
+            for q in list(self._subs.get(run_id, ())):
+                q.put_nowait(event)
+            if event.terminal:
+                record = self.store.get_run(run_id)
+                if record and record.status not in ("completed", "failed"):
+                    self.store.set_status(run_id, "completed" if event.type == "run.completed" else "failed")
+        return events
 
     def events(self, run_id: str, after_seq: int = 0) -> List[Event]:
         if self.store.get_run(run_id) is None:
@@ -149,24 +153,28 @@ class RunEventBus:
             except Exception:  # never let a log write stop the run from queueing
                 logger.exception("[%s] run.queued emit failed", run_id)
         try:
-            async with self._sem:
-                if run_id in self._waiting:
-                    self._waiting.remove(run_id)
-                    await self._requeue()
-                try:
-                    return await work()
-                except asyncio.CancelledError:
-                    await self._fail(run_id, "server", "cancelled", failure_message("server", "cancelled"), True)
-                    raise
-                except Exception as e:  # the pipeline wrapper emits run.failed itself; this is the backstop
-                    logger.exception("[%s] run crashed: %s", run_id, e)
-                    await self._fail(run_id, "internal", "internal_error",
-                                     failure_message("internal", "internal_error"), True)
-                    return None
-        finally:
-            if run_id in self._waiting:      # cancelled while waiting: the runs behind it move up
+            await self._sem.acquire()
+        except asyncio.CancelledError:       # cancelled while still waiting for a free desk
+            if run_id in self._waiting:      # the runs behind it move up
                 self._waiting.remove(run_id)
                 await self._requeue()
+            await self._fail(run_id, "server", "cancelled", failure_message("server", "cancelled"), True)
+            raise
+        try:
+            if run_id in self._waiting:
+                self._waiting.remove(run_id)
+                await self._requeue()
+            return await work()
+        except asyncio.CancelledError:
+            await self._fail(run_id, "server", "cancelled", failure_message("server", "cancelled"), True)
+            raise
+        except Exception as e:  # the pipeline wrapper emits run.failed itself; this is the backstop
+            logger.exception("[%s] run crashed: %s", run_id, e)
+            await self._fail(run_id, "internal", "internal_error",
+                             failure_message("internal", "internal_error"), True)
+            return None
+        finally:
+            self._sem.release()
 
     async def _requeue(self) -> None:
         """The queue moved: tell each waiting run its new position."""

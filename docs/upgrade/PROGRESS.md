@@ -112,17 +112,27 @@ Decisions:
 - Decision: `/analyze` returns 503 `{detail, stage, error_code, retryable}` on a failed stage and 400 for `offline:true`, because the old fabricated verdicts break non-negotiable 4; the success shape is unchanged.
 - Decision: a 429 on one model routes the rest of the run to the other model while it cools, because Groq quotas are per model.
 
-## P2 — Event protocol v2
-- [ ] S1.1 `POST /runs` → 202 `{run_id}`
-- [ ] S1.2 `GET /runs/{id}/events` SSE resume via `Last-Event-ID`
-- [ ] S1.3 replay a finished run from the persisted log
-- [ ] S1.4 agents/models from `run.started.agents[]`
-- [ ] S1.5 Trace data (events → JSON export)
-- [ ] S1.6 visible failure; mocks only with `?demo=1` + watermark; delete the production mock fallback
-- [ ] S1.7 public-note validation → deterministic templates
-- [ ] Frontend types / `reducer.ts` / hook / announcer; delete the fake progress, fabricated logs and mocks
-- [ ] Record fixtures per `fixtures-plan.md` (P2 set)
-- Gate: pytest contract suite · reducer tests · honesty greps (09 §5) · `event-contract-verifier`
+## P2 — Event protocol v2  ✅ 2026-09-24 (except 6 live fixtures, blocked on a Groq key; see Deferred)
+- [x] Models for every 06 §3.1 type + EvidenceObject, JSON Schema at `apps/api/schemas/events.v2.json`; SQLite store with gapless seq, 72h TTL (5546d35)
+- [x] S1.7 public-note validation → deterministic templates; confidence band as a pure function (a7f959d)
+- [x] S1.4 `RunEventBus` + emissions from every pipeline step; `run.started.agents[]` from the model registry; `agent.done.model` = the model that served (443040f)
+- [x] S1.1 `POST /runs` → 202 in <300ms · S1.2 SSE resume via `Last-Event-ID`/`?since=` · S1.3 replay a finished run · `/analyze` is a run wrapper; `_sse_queues` removed (f7b4372)
+- [x] Contract tests in `apps/api/tests/events/`, including a live mid-run drop-and-resume through uvicorn (4930fcb)
+- [x] S1.6 plain failure messages (no provider errors or model ids); a ping frame EventSource can see (f320ff6); no verdict can precede a failure; streams resumed at the end close (b83f118)
+- [x] `scripts/record_run.py` (+ `--fail-at` behind `ACHP_ALLOW_FAULT_INJECTION=1`); `scripts/synthetic_run_logs.py` for unit-test logs (5338114)
+- [x] Frontend `lib/runs`: types (+ schema sync test), pure reducer (deduped, gaps rejected, frozen after terminal), `RunConnection` (20s watchdog, gap repair, 1s/3s/7s backoff, polling fallback), `useRunEvents`, throttled announcer (5ed4778, 29a54f8)
+- [x] S1.5 Trace tab = the real events, export = `events.json` verbatim · deleted `buildDetailedLogs`, the Logs tab, `PipelineProgress`'s creep + 92% cap, the `progressPulse` bar, the Sidebar's fixed 60% bar, the KB creeping upload bar and the hard-coded model strings · legacy page runs on `/runs` + the hook · demo data watermarked and only with `?demo=1` (d61d718, ae3ff7e)
+- [ ] Record fixtures per `fixtures-plan.md` (P2 set): `blocked` recorded for real (no model call needed); the other 6 need a backend with a Groq key
+Gate evidence: `pytest -q` **150 passed** · Assay parity 23/23, leverage lint PASS · web typecheck ✓ lint ✓ (0 errors) · vitest **120 passed** (reducer snapshots for 5 synthetic logs + the real `blocked` fixture) · honesty greps (09 §5) clean (the `components/case` check starts in P3) · manual: `curl -H "Last-Event-ID: 5"` resumed at 6; browser pane: keyless run → Gatekeeper done → plain error card, no verdict; blocked run → 13 events in Trace; Sidebar model from `run.started` · `event-contract-verifier`: pass 1 → 0 P0 / 3 P1; pass 2 → 1 new P1 (a run could end without a terminal event); pass 3 → **PASS, 0 P0 / 0 P1**. Its last two P2s (verdict + completion written in one transaction; a run cancelled while queued ends in `run.failed`) were then fixed with tests
+Decisions:
+- Decision: every 06 deviation is additive and recorded in 06 §3.3 (fallback_model, prompt_version, agent.started.round, agent.note.source, agent.done.model, evidence retrieved_at, judge_verdict, per-part confidence_reason, snapshot `error`).
+- Decision: `verdict.final` is held until the result is stored and emitted right before `run.completed`, because the verifier showed a failure could otherwise follow a verdict.
+- Decision: the SSE ping is `: ping` + a named `ping` event with no id, because EventSource never dispatches comments and the 20s watchdog needs to see it.
+- Decision: failure messages are plain sentences keyed by error code; provider text stays in server logs, because the raw message leaked a model id and HTTP status.
+- Decision: whether a run has ended is read from the log (does it end in `run.completed`/`run.failed`), never from `runs.status`, and `verdict.final` + `run.completed` are written in one transaction, so every log ends in exactly one terminal event and no failed run carries a verdict.
+- Decision: the polling fallback reads `events.json?since=` rather than the snapshot, so the UI stays a projection of events.
+- Decision: unit-test logs are generated by the real pipeline + bus with a fake model transport and live under `lib/runs/__tests__/logs/` as `synthetic-*`, never in `fixtures/runs/`, because recorded fixtures must be real runs.
+- Decision: EvidenceObject `strength`/`freshness`/`claim_id`/`relation` are omitted at retrieval time rather than invented; the verifier fills them in P8.
 
 ## P3 — Live investigation board
 - [ ] S3.1 lane states from events · [ ] S3.2 live action line · [ ] S3.3 parallel group · [ ] S3.4 strips as parts arrive · [ ] S3.5 marks on exact spans · [ ] S3.6 mid-run failure · [ ] S3.7 mobile agent strip · [ ] S9.1 paced announcements
@@ -178,4 +188,6 @@ Decisions:
 - Playwright WebKit + Firefox browsers (~200 MB): not installed, so the `mobile-light` and `firefox-fallback` projects haven't run. Install with `pnpm -C apps/web exec playwright install webkit firefox` before P6 (the replay gate needs 3 engines).
 - Fold `apps/web` into the root pnpm workspace → P10 (Vercel install path must change with it).
 - P1 critic P3/genericness, deferred: wordmark optical centering is nudged 1px, fine-tune in P11; the case sheet's 120px margin column → P3 (CaseSheet); a hand-drawn lamp glyph in place of the status dot → P9 (cold-start lamp); a small seal mark beside the wordmark is a brand choice → P11 (G8).
+- P2 fixtures: record `exercise-mixed`, `all-supported`, `contradicted-strong`, `missing-context`, `unverifiable`, `failed-midway` with `python scripts/record_run.py --all` against a backend that has `GROQ_API_KEY` (and `ACHP_ALLOW_FAULT_INJECTION=1` for `failed-midway`). No key locally; the live Space runs pre-P2 code.
+- P2 verifier P2s left for later phases: `assay.computed` nested shapes typed → P5; the legacy report renders from the snapshot `result` and legacy components keep hard-coded agent descriptions and a % confidence → replaced in P3/P4/P9; the blocked result still shows the legacy radar with BIS 100% → P4/P5 (the event log itself has no metrics for blocked runs).
 - G5: the paper's Table III mean (62.2%) needs the paper source to reconcile; `EVALUATION.md` generation goes in P9 (`/method`).
