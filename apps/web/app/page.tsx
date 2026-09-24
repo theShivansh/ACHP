@@ -1,8 +1,13 @@
 'use client';
 
-import { useState, useCallback, useRef, createContext, useEffect } from 'react';
+import { useState, useCallback, useRef, createContext, useEffect, useMemo } from 'react';
 import type { ACHPOutput, QAResponse } from '@/lib/types';
-import { downloadFullReport, downloadLogsAsFile } from '@/lib/exportReport';
+import { downloadEventsJson, downloadFullReport } from '@/lib/exportReport';
+import { createAnnouncer } from '@/lib/runs/announcer';
+import { fetchEventsJsonText, fetchRun, startRun } from '@/lib/runs/api';
+import { lanes, type RunState } from '@/lib/runs/reducer';
+import type { RunEvent } from '@/lib/runs/types';
+import { useRunEvents } from '@/lib/runs/useRunEvents';
 import TopBar from '@/components/TopBar';
 import Sidebar from '@/components/Sidebar';
 import QueryInput from '@/components/QueryInput';
@@ -116,151 +121,61 @@ function MonitorView({ results }: { results: ACHPOutput[] }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LOGS tab — detailed 11-agent execution trace
+// TRACE tab — the latest run's real event log (S1.5). Rows = events; export = events.json verbatim.
 // ─────────────────────────────────────────────────────────────────────────────
-function buildDetailedLogs(results: ACHPOutput[]) {
-  return results.flatMap(r => {
-    const lat = r.pipeline?.latency_ms ?? {};
-    const mod = r.pipeline?.models ?? {};
-    const pct = (n: number | undefined) => `${Math.round((n ?? 0) * 100)}%`;
-    const ms  = (k: string) => lat[k] !== undefined ? `${Math.round(lat[k])}ms` : 'N/A';
-    const t   = r.timestamp;
-    const id  = r.run_id;
-    const isWarn = r.verdict === 'FALSE' || r.verdict === 'MOSTLY_FALSE';
+function TraceView({ run }: { run: RunState }) {
+  const [exportError, setExportError] = useState<string | null>(null);
 
-    return [
-      // ── Run header ──────────────────────────────────────────────────────
-      { ts: t, level: 'INFO',  msg: `${'─'.repeat(60)}` },
-      { ts: t, level: 'INFO',  msg: `[${id}] ▶ NEW RUN — "${r.input.slice(0, 70)}${r.input.length > 70 ? '…' : ''}"` },
-      { ts: t, level: 'INFO',  msg: `[${id}] Pipeline mode: ${r.pipeline?.mode ?? 'full'} | Debate rounds: ${r.debate_rounds ?? 1}` },
-
-      // ── Agent 1: Security Validator (pre) ───────────────────────────────
-      { ts: t, level: 'INFO',  msg: `[${id}] [AGENT 1/11] SecurityValidator.validate_input() → ${r.security?.pre_safe ? 'SAFE ✓' : 'BLOCKED ✗'}  latency: ${ms('security_pre')}` },
-      { ts: t, level: r.security?.pre_safe ? 'INFO' : 'ERROR',
-        msg: `[${id}]   Decision: PII/toxicity scan passed guardlist. Warnings: ${r.security?.warnings?.length ?? 0}` },
-
-      // ── Agent 2: Retriever ────────────────────────────────────────────
-      { ts: t, level: 'INFO',  msg: `[${id}] [AGENT 2/11] RetrieverAgent.retrieve() | model: ${mod.retriever ?? 'onyx-rag+bm25'} | latency: ${ms('retriever')} | cache: ${r.pipeline?.cache_hit ? 'HIT ⚡' : 'MISS'}` },
-      { ts: t, level: 'DEBUG', msg: `[${id}]   RAG: BM25 + semantic search → top-k docs retrieved. Cache threshold: 0.85 cosine.` },
-
-      // ── Agent 3: Proposer ─────────────────────────────────────────────
-      { ts: t, level: 'INFO',  msg: `[${id}] [AGENT 3/11] ProposerAgent.analyze() | model: ${mod.proposer ?? 'llama-4-scout'} | claims: ${r.atomic_claims?.length ?? 0} | latency: ${ms('proposer')}` },
-      { ts: t, level: 'DEBUG', msg: `[${id}]   Decomposed into ${r.atomic_claims?.length ?? 0} atomic claims. Confidence: ${pct(r.atomic_claims?.[0]?.confidence)}.` },
-
-      // ── Agent 4: Adversary A (parallel block start) ───────────────────
-      { ts: t, level: 'INFO',  msg: `[${id}] [AGENT 4/11] AdversaryA.challenge() ─┐ PARALLEL | model: ${mod.adversary_a ?? 'deepseek-r1'} | factual_score: ${pct(r.adversary_a?.factual_score)} | verdict: ${r.adversary_a?.verdict ?? 'N/A'}` },
-      { ts: t, level: 'DEBUG', msg: `[${id}]   Formula(CTS): 0.40·factual_A=${pct(r.adversary_a?.factual_score)} used in CTS computation.` },
-
-      // ── Agent 5: Adversary B ──────────────────────────────────────────
-      { ts: t, level: 'INFO',  msg: `[${id}] [AGENT 5/11] AdversaryB.audit()     ─┤ PARALLEL | model: ${mod.adversary_b ?? 'qwen-32b'} | pcs_score: ${pct(r.adversary_b?.perspective_score)} | stance: ${r.adversary_b?.narrative_stance ?? 'N/A'}` },
-      { ts: t, level: 'DEBUG', msg: `[${id}]   Missing perspectives: ${r.adversary_b?.missing_perspectives?.length ?? 0}. Formula(PCS): 0.50·pcs_B contribution.` },
-
-      // ── Agent 6: NIL Sentiment sub-agent ─────────────────────────────
-      { ts: t, level: 'INFO',  msg: `[${id}] [AGENT 6/11] NIL.SentimentAnalyzer() ─┤ 5-PARALLEL | EPS: ${pct(r.nil?.EPS)} | Formula: 0.70·vader_eps + 0.20·(1−framing) + 0.10·hedge×3` },
-      { ts: t, level: 'DEBUG', msg: `[${id}]   VADER compound applied on full claim text. Hedge markers detected.` },
-
-      // ── Agent 7: NIL Bias Classifier ─────────────────────────────────
-      { ts: t, level: 'INFO',  msg: `[${id}] [AGENT 7/11] NIL.BiasClassifier()   ─┤ 5-PARALLEL | BIS: ${pct(r.nil?.BIS)} | Formula: 0.55·nil_bis + 0.25·framing + 0.12·|polarity| + boost` },
-      { ts: t, level: 'DEBUG', msg: `[${id}]   OpenRouter DeepSeek R1 classification. Frame boost applied if delegitimize/conspiracy detected.` },
-
-      // ── Agent 8: NIL Perspective Generator ───────────────────────────
-      { ts: t, level: 'INFO',  msg: `[${id}] [AGENT 8/11] NIL.PerspectiveGenerator() ─┤ 5-PARALLEL | PCS: ${pct(r.nil?.PCS)} | Opposing + Neutral stances generated.` },
-      { ts: t, level: 'DEBUG', msg: `[${id}]   Cosine similarity to baseline perspectives computed. Formula(PCS): 0.30·nil_pcs contribution.` },
-
-      // ── Agent 9: NIL Framing Comparator ──────────────────────────────
-      { ts: t, level: 'INFO',  msg: `[${id}] [AGENT 9/11] NIL.FramingComparator() ─┤ 5-PARALLEL | Cosine similarity framing score embedded in BIS/NSS.` },
-      { ts: t, level: 'DEBUG', msg: `[${id}]   BIS boost triggered for dominant frames: delegitimize(+0.15), alarm(+0.05), neutral(0.0).` },
-
-      // ── Agent 10: Judge ───────────────────────────────────────────────
-      { ts: t, level: 'INFO',  msg: `[${id}] [AGENT 10/11] JudgeAgent.judge() | model: ${mod.judge ?? 'deepseek-chat'} | verdict: ${r.verdict} | confidence: ${pct(r.verdict_confidence)} | latency: ${ms('judge')}` },
-      { ts: t, level: isWarn ? 'WARN' : 'DEBUG',
-        msg: `[${id}]   CTS=${pct(r.metrics?.CTS)} PCS=${pct(r.metrics?.PCS)} BIS=${pct(r.metrics?.BIS)} NSS=${pct(r.metrics?.NSS)} EPS=${pct(r.metrics?.EPS)} → composite=${pct(r.composite_score)}` },
-      { ts: t, level: 'DEBUG', msg: `[${id}]   NIL override: factual_score < 0.20 → misleading forced, BIS floored to max(BIS, 0.30).` },
-
-      // ── Agent 11: Security Validator (post) ──────────────────────────
-      { ts: t, level: 'INFO',  msg: `[${id}] [AGENT 11/11] SecurityValidator.validate_output() → ${r.security?.post_safe ? 'SAFE ✓' : 'FLAGGED ✗'}  latency: ${ms('security_post')}` },
-      { ts: t, level: 'INFO',  msg: `[${id}] ✅ PIPELINE COMPLETE | ${r.pipeline?.total_ms ?? 0}ms total | verdict: ${r.verdict} (${pct(r.verdict_confidence)} conf)` },
-    ];
-  }).reverse();
-}
-
-function LogsView({ results }: { results: ACHPOutput[] }) {
-  const logLines = buildDetailedLogs(results);
-  const levelColor: Record<string, string> = {
-    INFO: '#00F0FF', DEBUG: 'rgba(255,255,255,0.30)', WARN: '#FED639', ERROR: '#ffb4ab',
-  };
-
-  if (!logLines.length) {
+  if (!run.runId || !run.events.length) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <span className="material-symbols-outlined" style={{ fontSize: 48, color: 'rgba(255,255,255,0.10)' }}>terminal</span>
-        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.15em', fontFamily: 'Space Grotesk, sans-serif' }}>
-          System log is empty. Start an analysis to generate logs.
-        </p>
-      </div>
+      <p className="py-16 text-center text-sm text-desk-ink-2">
+        No trace yet. Check a claim and its event log appears here.
+      </p>
     );
   }
 
+  const exportJson = async () => {
+    setExportError(null);
+    try {
+      downloadEventsJson(run.runId!, await fetchEventsJsonText(run.runId!));
+    } catch {
+      setExportError('The event log could not be downloaded. Try again in a moment.');
+    }
+  };
+
   return (
-    <div className="animate-stagger-in">
-      {/* Header + export button */}
-      <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
-        <h2 className="font-bold uppercase" style={{ fontSize: 11, letterSpacing: '0.15em', color: 'rgba(255,255,255,0.40)', fontFamily: 'Space Grotesk, sans-serif' }}>
-          System Logs — {logLines.length} entries
-        </h2>
+    <section aria-label="Trace" className="text-desk-ink">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm">
+          Run {run.runId} · {run.events.length} events
+        </p>
         <button
-          onClick={() => downloadLogsAsFile(logLines)}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            padding: '6px 12px',
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
-            textTransform: 'uppercase', fontFamily: 'Space Grotesk, sans-serif',
-            background: 'rgba(0,240,255,0.05)', border: '1px solid rgba(0,240,255,0.18)',
-            color: 'rgba(0,240,255,0.60)', cursor: 'pointer', borderRadius: 2,
-            transition: 'all 0.15s',
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.background = 'rgba(0,240,255,0.12)';
-            (e.currentTarget as HTMLElement).style.color = '#00F0FF';
-            (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,240,255,0.40)';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLElement).style.background = 'rgba(0,240,255,0.05)';
-            (e.currentTarget as HTMLElement).style.color = 'rgba(0,240,255,0.60)';
-            (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,240,255,0.18)';
-          }}
-          title="Export execution log as .log file"
+          type="button"
+          onClick={exportJson}
+          className="min-h-11 rounded-md border border-desk-line px-3 text-sm hover:bg-desk-raised focus-visible:outline-2"
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 12 }}>download</span>
-          EXPORT LOG
+          Export events.json
         </button>
       </div>
-      <div
-        style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.05)', padding: '16px', maxHeight: 520, overflowY: 'auto' }}
-        className="custom-scrollbar"
-      >
-        {logLines.map((l, i) => (
-          <div key={i} className="flex gap-3" style={{ marginBottom: 5 }}>
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.18)', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0, paddingTop: 1, minWidth: 72 }}>
-              {new Date(l.ts).toLocaleTimeString()}
+      {exportError && (
+        <p role="alert" className="mb-2 text-sm text-desk-red">
+          {exportError}
+        </p>
+      )}
+      <ol className="max-h-[32rem] overflow-y-auto rounded-md border border-desk-line bg-desk-raised font-mono text-xs">
+        {run.events.map((e) => (
+          <li key={e.seq} data-seq={e.seq} className="grid grid-cols-[3rem_5rem_9rem_1fr] gap-2 border-b border-desk-line px-3 py-1.5">
+            <span className="text-desk-ink-2">{e.seq}</span>
+            <span className="text-desk-ink-2">{(e.t_ms / 1000).toFixed(2)}s</span>
+            <span>{e.type}</span>
+            <span className="truncate text-desk-ink-2">
+              {e.agent ? `${e.agent} · ` : ''}
+              {JSON.stringify(e.data)}
             </span>
-            <span className="font-bold" style={{
-              fontSize: 10, color: levelColor[l.level] ?? '#00F0FF',
-              fontFamily: 'JetBrains Mono, monospace', flexShrink: 0, width: 50,
-            }}>
-              [{l.level}]
-            </span>
-            <span style={{
-              fontSize: 10, color: l.msg.startsWith('──') || l.msg.startsWith('  ') ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.60)',
-              fontFamily: 'JetBrains Mono, monospace', lineHeight: 1.55,
-              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-            }}>
-              {l.msg}
-            </span>
-          </div>
+          </li>
         ))}
-      </div>
-    </div>
+      </ol>
+    </section>
   );
 }
 
@@ -367,6 +282,11 @@ function IdleState({
 function AnalyzedState({ result, onNewQuery, isRunning }: { result: ACHPOutput; onNewQuery: (q: string) => void; isRunning: boolean }) {
   return (
     <div className="animate-stagger-in" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+      {result.pipeline?.mode === 'demo' && (
+        <p role="note" className="rounded-md border border-desk-ochre px-4 py-3 text-sm font-medium text-desk-ochre">
+          Demo data: sample output for trying the interface. Nothing was checked.
+        </p>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 288px', gap: 24, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
           <VerdictCard result={result} />
@@ -465,14 +385,54 @@ export default function HomePage() {
   const [inputMode,    setInputMode]    = useState<InputMode>('analyze');
   const [isRunning,    setIsRunning]    = useState(false);
   const [error,        setError]        = useState<string | null>(null);
-  const [activeTab,    setActiveTab]    = useState<'dashboard' | 'monitor' | 'logs'>('dashboard');
-  const [activeAgents, setActiveAgents] = useState<Set<string>>(new Set());
-  const [doneAgents,   setDoneAgents]   = useState<Set<string>>(new Set());
-  const [runId,        setRunId]        = useState<string | undefined>(undefined);
+  const [activeTab,    setActiveTab]    = useState<'dashboard' | 'monitor' | 'trace'>('dashboard');
+  const [runId,        setRunId]        = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState('');
   const queryInputRef = useRef<HTMLDivElement>(null);
-  const sseRef        = useRef<EventSource | null>(null);
 
   const result = activeResult;
+
+  // ── Live run: every progress line on this page is a server event (06 §1) ──
+  const announcer = useMemo(() => createAnnouncer(setAnnouncement), []);
+  useEffect(() => () => announcer.dispose(), [announcer]);
+
+  const onRunEvents = useCallback((events: RunEvent[]) => {
+    for (const e of events) {
+      announcer.push(e);
+      if (e.type === 'run.completed') {
+        fetchRun(e.run_id)
+          .then(snap => {
+            if (!snap.result) throw new Error('The run finished without a stored result.');
+            const data = mapFastAPIResponse(snap.result);
+            setActiveResult(data);
+            setResults(prev => [data, ...prev]);
+          })
+          .catch(err => setError(err instanceof Error ? err.message : 'The result could not be loaded.'))
+          .finally(() => setIsRunning(false));
+      }
+      if (e.type === 'run.failed') {
+        setError(e.data.message);
+        setIsRunning(false);
+      }
+    }
+  }, [announcer]);
+
+  const { state: run, connection, retry } = useRunEvents(runId, {}, onRunEvents);
+
+  // The sidebar keys its NIL sub-checks separately; they run in the nil_supervisor lane.
+  const { activeAgents, doneAgents, laneModels } = useMemo(() => {
+    const active = new Set<string>();
+    const done = new Set<string>();
+    const models: Record<string, string | null> = {};
+    const nilParts = ['sentiment', 'bias', 'perspective', 'framing'];
+    for (const l of lanes(run)) {
+      const keys = l.id === 'nil_supervisor' ? [l.id, ...nilParts] : [l.id];
+      if (l.state === 'working' || l.state === 'waiting') keys.forEach(k => active.add(k));
+      if (l.state === 'done') keys.forEach(k => done.add(k));
+      models[l.id] = l.servedBy ?? l.model;
+    }
+    return { activeAgents: active, doneAgents: done, laneModels: models };
+  }, [run]);
 
   // ── Phase transitions ──
   const enterAnalyzer = useCallback((kbId?: string) => {
@@ -491,14 +451,6 @@ export default function HomePage() {
     setPhase('kb-manager');
   }, []);
 
-  // ── Agent animation helpers ──
-  const markActive = (ids: string[]) =>
-    setActiveAgents(prev => new Set([...prev, ...ids]));
-  const markDone = (ids: string[]) => {
-    setActiveAgents(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n; });
-    setDoneAgents(prev => new Set([...prev, ...ids]));
-  };
-
   // ── Export — uses shared full-detail report utility ──
   const handleExport = useCallback(() => {
     if (!activeResult) return;
@@ -509,7 +461,7 @@ export default function HomePage() {
     queryInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
 
-  // ── Main run handler — SSE-connected real-time progress ──
+  // ── Main run handler: POST /runs, then the event log drives the page ──
   const handleRun = useCallback(async (query: string) => {
     if (!query.trim() || query.trim().length < 5) {
       setError('Please enter at least 5 characters.');
@@ -546,116 +498,37 @@ export default function HomePage() {
     setIsRunning(true);
     setActiveResult(null);
     setError(null);
-    setActiveAgents(new Set());
-    setDoneAgents(new Set());
     setActiveTab('dashboard');
 
-    // ── Generate a run_id client-side so we can open SSE before POST ──
-    const newRunId = Math.random().toString(36).slice(2, 10);
-    setRunId(newRunId);
-
-    const fastapiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
-
-    // ── Open SSE stream FIRST — backend will push events into it ───────────
-    if (sseRef.current) sseRef.current.close();
-    const sse = new EventSource(`${fastapiUrl}/analyze/${newRunId}/stream`);
-    sseRef.current = sse;
-
-    sse.onmessage = (e: MessageEvent) => {
+    // Demo data only with ?demo=1 (watermarked in AnalyzedState); never as a fallback.
+    if (new URLSearchParams(window.location.search).get('demo') === '1') {
       try {
-        const msg = JSON.parse(e.data) as {
-          event: string;
-          agent?: string;
-          agents?: string[];
-          status?: string;
-          data?: { agent?: string; agents?: string[]; status?: string };
-        };
-
-        // Backend emits: { event: "agent_status", data: { agent: "...", status: "running"/"done" } }
-        // OR flat:       { event: "agent_start"|"agent_done", agent: "..." }
-        const evType  = msg.event;
-        const payload = msg.data ?? msg;
-        const rawId   = (payload as { agent?: string; agents?: string[] }).agent
-          ?? (msg.agent);
-        const ids     = (payload as { agents?: string[] }).agents
-          ?? (msg.agents)
-          ?? (rawId ? [rawId] : []);
-        const status  = (payload as { status?: string }).status ?? msg.status;
-
-        // Normalise backend ID → frontend step ID
-        const normalise = (id: string) =>
-          id === 'security_validator' ? 'security'
-          : id === 'nil_layer'       ? 'nil_supervisor'
-          : id;
-
-        const normIds = ids.map(normalise).filter(Boolean);
-
-        const isStart = evType === 'agent_start'  || status === 'running' || status === 're_debating';
-        const isDone  = evType === 'agent_done'   || status === 'done';
-
-        if (isStart && normIds.length) {
-          setActiveAgents(prev => new Set([...prev, ...normIds]));
-        }
-        if (isDone && normIds.length) {
-          setActiveAgents(prev => { const n = new Set(prev); normIds.forEach(id => n.delete(id)); return n; });
-          setDoneAgents(prev => new Set([...prev, ...normIds]));
-        }
-        if (evType === 'pipeline_complete') {
-          setDoneAgents(new Set(['security','retriever','proposer','adversary_a',
-            'adversary_b','nil_supervisor','judge','done']));
-          setActiveAgents(new Set());
-          sse.close();
-        }
-      } catch { /* ignore parse errors */ }
-    };
-    sse.onerror = () => sse.close();
-
-    try {
-      let data: ACHPOutput;
-      try {
-        const payload: Record<string, unknown> = { claim: query };
-        if (activeKbId) payload.kb_id = activeKbId;
-        const r = await fetch(`${fastapiUrl}/analyze`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Run-Id': newRunId,   // hint backend to use our run_id
-          },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(180_000),
-        });
-        if (!r.ok) throw new Error(`FastAPI ${r.status}`);
-        const raw = await r.json();
-        data = mapFastAPIResponse(raw);
-      } catch {
-        // Fallback to Next.js route (no SSE progress in this case)
-        const r = await fetch('/api/analyze', {
+        const r = await fetch('/api/analyze?demo=1', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query }),
         });
-        if (!r.ok) {
-          const d = await r.json().catch(() => ({}));
-          throw new Error(d.error || `HTTP ${r.status}`);
-        }
-        const proxied = await r.json();
-        // The proxy returns the backend's /analyze shape (or demo data in the pipeline shape).
-        data = proxied.transparency_report ? mapFastAPIResponse(proxied) : proxied;
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const demo = (await r.json()) as ACHPOutput;
+        setActiveResult(demo);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Demo data could not be loaded.');
+      } finally {
+        setIsRunning(false);
       }
+      return;
+    }
 
-      sse.close();
-      // Ensure all agents show done
-      setActiveAgents(new Set());
-      setDoneAgents(new Set(['security','retriever','proposer','adversary_a',
-        'adversary_b','nil_supervisor','judge','done']));
-
-      setActiveResult(data);
-      setResults(prev => [data, ...prev]);
+    try {
+      const created = await startRun(query, activeKbId);
+      setRunId(created.run_id);
     } catch (e) {
-      sse.close();
-      setError(e instanceof Error ? e.message : 'Analysis failed. Please try again.');
-      setActiveAgents(new Set());
-    } finally {
+      setRunId(null);
+      setError(
+        e instanceof TypeError
+          ? 'The checker could not be reached, so nothing was checked. Try again in a moment.'
+          : e instanceof Error ? e.message : 'The check could not start.',
+      );
       setIsRunning(false);
     }
   }, [activeKbId, inputMode]);
@@ -670,6 +543,8 @@ export default function HomePage() {
       <div className="fixed inset-0 grid-backdrop pointer-events-none" style={{ zIndex: 0 }} />
 
       <div className="relative flex flex-col h-screen overflow-hidden" style={{ zIndex: 10 }}>
+        {/* Every visible progress change is also announced (ACHP is silent; 06 §7) */}
+        <div aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</div>
         <TopBar
           isRunning={isRunning}
           runId={result?.run_id}
@@ -693,6 +568,7 @@ export default function HomePage() {
               isRunning={isRunning}
               onRun={handleScrollToQuery}
               resultCount={results.length}
+              models={laneModels}
               onInitRun={() => {
                 setActiveTab('dashboard');
                 setTimeout(() => {
@@ -731,7 +607,7 @@ export default function HomePage() {
                     fontFamily: 'Space Grotesk, sans-serif', fontSize: 28, fontWeight: 700,
                     letterSpacing: '-0.02em', color: '#e5e2e1',
                   }}>
-                    {activeTab === 'monitor' ? 'Monitor' : activeTab === 'logs' ? 'Logs' : 'Dashboard'}
+                    {activeTab === 'monitor' ? 'Monitor' : activeTab === 'trace' ? 'Trace' : 'Dashboard'}
                   </h1>
                   <p style={{
                     fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 4,
@@ -740,8 +616,8 @@ export default function HomePage() {
                   }}>
                     {activeTab === 'monitor'
                       ? `Analysis History — ${results.length} run${results.length !== 1 ? 's' : ''} recorded`
-                      : activeTab === 'logs'
-                      ? `System Logs — ${results.length > 0 ? results.length * 5 + ' entries' : 'empty'}`
+                      : activeTab === 'trace'
+                      ? `Event log of the latest run — ${run.events.length} events`
                       : isRunning
                       ? 'Processing claim through 7-agent pipeline…'
                       : isAnalyzed
@@ -753,14 +629,14 @@ export default function HomePage() {
                 {/* Monitor tab */}
                 {activeTab === 'monitor' && <MonitorView results={results} />}
 
-                {/* Logs tab */}
-                {activeTab === 'logs' && <LogsView results={results} />}
+                {/* Trace tab: the real event log */}
+                {activeTab === 'trace' && <TraceView run={run} />}
 
                 {/* Dashboard tab */}
                 {activeTab === 'dashboard' && (
                   <>
-                    {isRunning && (
-                      <PipelineProgress activeAgents={activeAgents} doneAgents={doneAgents} isRunning={isRunning} runId={runId} />
+                    {runId && (isRunning || run.status === 'failed') && (
+                      <PipelineProgress run={run} connection={connection} onRetry={retry} />
                     )}
 
                     {error && (
@@ -784,21 +660,6 @@ export default function HomePage() {
                           inputMode={inputMode}
                           onModeChange={setInputMode}
                         />
-                      </div>
-                    )}
-
-                    {isRunning && !result && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 288px', gap: 24 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                          {[220, 280, 180, 140].map((h, i) => (
-                            <div key={i} className="shimmer-badge" style={{ height: h, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', animationDelay: `${i * 0.15}s` }} />
-                          ))}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                          {[300, 200].map((h, i) => (
-                            <div key={i} className="shimmer-badge" style={{ height: h, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }} />
-                          ))}
-                        </div>
                       </div>
                     )}
 

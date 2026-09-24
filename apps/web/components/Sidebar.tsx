@@ -1,14 +1,21 @@
 'use client';
 import { useState } from 'react';
 
+// Sub-checks of the Framing Lens run inside the nil_supervisor lane of the event log.
+const RUN_AGENT: Record<string, string> = {
+  sentiment: 'nil_supervisor',
+  bias: 'nil_supervisor',
+  perspective: 'nil_supervisor',
+  framing: 'nil_supervisor',
+};
+
 const AGENTS = [
   {
     key: 'retriever',
     label: 'Retriever',
     icon: 'database',
-    model: 'all-MiniLM-L6-v2 + FakeRedis',
     role: 'Semantic RAG + cache lookup',
-    desc: 'Performs semantic search over the knowledge base using sentence-transformers. Returns the top-k relevant passages with cosine similarity scores, and checks the semantic cache (Redis) for near-duplicate query results.',
+    desc: 'Searches the web, and your library when one is selected, and pins up to 8 sources with ids e1 to e8. Web results for the exact same claim are reused for 15 minutes.',
     outputs: ['Retrieved passages', 'Cache hit/miss', 'Confidence scores'],
     color: '#00F0FF',
   },
@@ -16,7 +23,6 @@ const AGENTS = [
     key: 'proposer',
     label: 'Proposer',
     icon: 'psychology',
-    model: 'Groq / Llama 4 Scout',
     role: 'Atomic claim extraction + citations',
     desc: 'Decomposes the input query into atomic, verifiable sub-claims. Each claim is tagged with an epistemic marker (claims, suggests, establishes), a verifiability flag, and a confidence score.',
     outputs: ['Atomic claims list', 'Epistemic markers', 'Citation hints'],
@@ -26,7 +32,6 @@ const AGENTS = [
     key: 'adversary_a',
     label: 'Adversary A',
     icon: 'security',
-    model: 'OpenRouter / DeepSeek R1',
     role: 'Factual challenger',
     desc: 'Rigorously challenges each atomic claim for factual accuracy. Searches for contradicking scientific literature, statistical misrepresentations, and logical fallacies. Outputs a factual score and list of critical flaws.',
     outputs: ['Factual score 0–1', 'Critical flaws', 'Verdict: refuted/contested/supported'],
@@ -36,7 +41,6 @@ const AGENTS = [
     key: 'adversary_b',
     label: 'Adversary B',
     icon: 'gavel',
-    model: 'Groq / Llama 3.3 70B',
     role: 'Narrative auditor',
     desc: 'Evaluates the narrative framing, perspective balance, and rhetorical stance of the claim. Identifies missing stakeholder viewpoints and scores the claim\'s epistemic posture.',
     outputs: ['Perspective score', 'Narrative stance', 'Missing perspectives'],
@@ -46,7 +50,6 @@ const AGENTS = [
     key: 'sentiment',
     label: 'Sentiment',
     icon: 'sentiment_very_satisfied',
-    model: 'VADER + Groq Scout',
     role: 'EPS — Epistemic position score',
     desc: 'Classifies the emotional and epistemic tone of the claim text. Combines VADER lexical scoring with LLM-based epistemic position analysis to produce the EPS (Epistemic Position Score).',
     outputs: ['Sentiment polarity', 'EPS score', 'Hedging detected'],
@@ -56,7 +59,6 @@ const AGENTS = [
     key: 'bias',
     label: 'Bias',
     icon: 'visibility_off',
-    model: 'all-MiniLM-L6-v2 + Groq',
     role: 'BIS — Bias impact classifier',
     desc: 'Detects ideological, political, or cognitive biases embedded in the claim framing. Identifies strawman arguments, loaded language, and false dichotomies. Outputs the BIS (Bias Impact Score).',
     outputs: ['BIS score 0–1', 'Bias categories', 'Loaded terms'],
@@ -66,7 +68,6 @@ const AGENTS = [
     key: 'perspective',
     label: 'Perspective',
     icon: 'switch_access_shortcut',
-    model: 'Groq / Mixtral 8x7B',
     role: 'PCS — Perspective completeness',
     desc: 'Generates concrete opposing and neutral reformulations of the claim to test perspective completeness. Evaluates whether the original framing fairly represents the solution space.',
     outputs: ['PCS score', 'Reformulated claims', 'Opposing views'],
@@ -76,7 +77,6 @@ const AGENTS = [
     key: 'framing',
     label: 'Framing',
     icon: 'grid_view',
-    model: 'all-MiniLM-L6-v2 cosine',
     role: 'NSS — Narrative stance scorer',
     desc: 'Computes cosine similarity between the claim embedding and a balanced-framing reference corpus. Lower similarity = more extreme narrative stance. Outputs the NSS (Narrative Stance Score).',
     outputs: ['NSS score 0–1', 'Cosine similarities', 'Reference framing gap'],
@@ -86,7 +86,6 @@ const AGENTS = [
     key: 'nil_supervisor',
     label: 'NIL Layer',
     icon: 'auto_awesome',
-    model: 'Groq + 5-agent parallel',
     role: 'Narrative Integrity supervisor',
     desc: 'Orchestrates 5 parallel sub-agents (Sentiment, Bias, Perspective, Framing, Confidence) and synthesizes their outputs into a unified Narrative Integrity verdict with confidence interval.',
     outputs: ['NIL verdict', 'Confidence', 'Composite BIS/EPS/PCS/NSS'],
@@ -96,20 +95,9 @@ const AGENTS = [
     key: 'judge',
     label: 'Judge',
     icon: 'balance',
-    model: 'Groq / Llama 3.3 70B',
     role: 'LLM council consensus + CTS score',
-    desc: 'Acts as the final arbitration layer. Receives all agent outputs, conducts structured multi-round debate (max 3 rounds), and produces the final verdict with consensus reasoning and the CTS (Consensus Truth Score).',
+    desc: 'Acts as the final arbitration layer. Receives all agent outputs, asks for a second round only when the challengers disagree on evidence (max 2 rounds), and produces the final verdict with consensus reasoning and the CTS (Consensus Truth Score).',
     outputs: ['Final verdict', 'CTS score', 'Consensus reasoning', 'Caveats'],
-    color: '#00F0FF',
-  },
-  {
-    key: 'orchestrator',
-    label: 'Orchestrator',
-    icon: 'memory',
-    model: 'Internal / planning mode',
-    role: 'Master pipeline coordinator',
-    desc: 'The master controller. Implements dynamic model routing, conditional branching (skip proposer if cache hit), and manages parallel NIL execution. Also handles retry logic with tenacity.',
-    outputs: ['Pipeline mode', 'Routing decisions', 'Total latency'],
     color: '#00F0FF',
   },
 ];
@@ -121,15 +109,19 @@ interface SidebarProps {
   onRun:        () => void;
   resultCount:  number;
   onInitRun?:   (query?: string) => void;
+  /** Model per run agent id, from run.started (the model that served it once it has run). */
+  models?:      Record<string, string | null>;
 }
 
 function AgentDetailPanel({
   agent,
+  model,
   isActive,
   isDone,
   onClose,
 }: {
   agent: typeof AGENTS[0];
+  model: string | null | undefined;
   isActive: boolean;
   isDone: boolean;
   onClose: () => void;
@@ -210,7 +202,7 @@ function AgentDetailPanel({
               {statusLabel}
             </span>
             <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.20)', marginLeft: 8, fontFamily: 'JetBrains Mono, monospace' }}>
-              {agent.model}
+              {model ?? (model === null ? 'No language model' : 'Model shown once a run starts')}
             </span>
           </div>
         </div>
@@ -264,6 +256,7 @@ export default function Sidebar({
   onRun,
   resultCount,
   onInitRun,
+  models = {},
 }: SidebarProps) {
   const [selectedAgent, setSelectedAgent] = useState<typeof AGENTS[0] | null>(null);
 
@@ -439,6 +432,7 @@ export default function Sidebar({
       {selectedAgent && (
         <AgentDetailPanel
           agent={selectedAgent}
+          model={models[RUN_AGENT[selectedAgent.key] ?? selectedAgent.key]}
           isActive={activeAgents.has(selectedAgent.key)}
           isDone={doneAgents.has(selectedAgent.key)}
           onClose={() => setSelectedAgent(null)}

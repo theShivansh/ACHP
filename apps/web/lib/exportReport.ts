@@ -18,6 +18,11 @@ function section(title: string, char = '─') {
 }
 
 /** Build the full detailed text report for an ACHPOutput result */
+/** The model the run reported for an agent; never a guess. */
+function servedBy(r: ACHPOutput, agent: string): string {
+  return r.pipeline?.models?.[agent] ?? 'model not reported';
+}
+
 export function buildFullReport(r: ACHPOutput): string {
   const lines: string[] = [];
 
@@ -82,7 +87,7 @@ export function buildFullReport(r: ACHPOutput): string {
   const advA = r.adversary_a;
   if (advA) {
     lines.push(divider('─'));
-    lines.push(section('🔹 ADVERSARY A — FACTUAL CHALLENGER (DeepSeek R1)'));
+    lines.push(section(`🔹 ADVERSARY A — FACTUAL CHALLENGER (${servedBy(r, 'adversary_a')})`));
     lines.push('');
     lines.push(`  Factual Score : ${pct(advA.factual_score)}`);
     lines.push(`  Verdict       : ${advA.verdict ?? 'N/A'}`);
@@ -98,7 +103,7 @@ export function buildFullReport(r: ACHPOutput): string {
   const advB = r.adversary_b;
   if (advB) {
     lines.push(divider('─'));
-    lines.push(section('🔹 ADVERSARY B — NARRATIVE AUDITOR (Qwen 32B)'));
+    lines.push(section(`🔹 ADVERSARY B — NARRATIVE AUDITOR (${servedBy(r, 'adversary_b')})`));
     lines.push('');
     lines.push(`  Perspective Score : ${pct(advB.perspective_score)}`);
     lines.push(`  Narrative Stance  : ${advB.narrative_stance?.toUpperCase() ?? 'N/A'}`);
@@ -124,7 +129,7 @@ export function buildFullReport(r: ACHPOutput): string {
     lines.push('');
     lines.push('  Sub-Agent Scores:');
     lines.push(`    SENTIMENT (EPS): ${pct(nil.EPS)}   — VADER compound + hedge ratio`);
-    lines.push(`    BIAS (BIS)     : ${pct(nil.BIS)}   — OpenRouter DeepSeek classification`);
+    lines.push(`    BIAS (BIS)     : ${pct(nil.BIS)}   — from the analysis bundle's language signals`);
     lines.push(`    PERSPECTIVE    : ${pct(nil.PCS)}   — Opposing + neutral stances`);
     lines.push(`    FRAMING        : (embedded in BIS/NSS) — Cosine similarity framing score`);
     lines.push(`    CONFIDENCE SYN.: composite of all 5 sub-agents`);
@@ -247,24 +252,13 @@ export function downloadFullReport(r: ACHPOutput): void {
   URL.revokeObjectURL(url);
 }
 
-/** Download raw system log lines as a .log file */
-export function downloadLogsAsFile(logLines: Array<{ ts: string; level: string; msg: string }>): void {
-  const content = logLines
-    .map(l => `[${new Date(l.ts).toISOString()}] [${l.level.padEnd(5)}] ${l.msg}`)
-    .join('\n');
-  const header = [
-    '# ACHP — System Execution Log',
-    `# Exported: ${new Date().toISOString()}`,
-    `# Entries:  ${logLines.length}`,
-    '#' + '─'.repeat(78),
-    '',
-    content,
-  ].join('\n');
-  const blob = new Blob([header], { type: 'text/plain;charset=utf-8' });
+/** Download a run's event log (the Trace export): the server's events.json, byte for byte. */
+export function downloadEventsJson(runId: string, json: string): void {
+  const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `achp-execution-log-${Date.now()}.log`;
+  a.download = `achp-events-${runId}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

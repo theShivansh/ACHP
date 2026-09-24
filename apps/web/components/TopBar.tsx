@@ -3,8 +3,8 @@
 interface TopBarProps {
   isRunning: boolean;
   runId?: string;
-  activeTab: 'dashboard' | 'monitor' | 'logs' | 'kb-manager';
-  onTabChange: (tab: 'dashboard' | 'monitor' | 'logs') => void;
+  activeTab: 'dashboard' | 'monitor' | 'trace' | 'kb-manager';
+  onTabChange: (tab: 'dashboard' | 'monitor' | 'trace') => void;
   hasResult: boolean;
   onExport: () => void;
   onScrollToQuery: () => void;
@@ -24,7 +24,7 @@ export default function TopBar({
   const NAV = [
     { id: 'dashboard',  label: 'DASHBOARD'   },
     { id: 'monitor',    label: 'MONITOR'      },
-    { id: 'logs',       label: 'LOGS'         },
+    { id: 'trace',      label: 'TRACE'        },
     { id: 'kb-manager', label: 'KB MANAGER'   },
   ] as const;
 
@@ -70,7 +70,7 @@ export default function TopBar({
                   if (isKB) {
                     onKBManager();
                   } else {
-                    onTabChange(id as 'dashboard' | 'monitor' | 'logs');
+                    onTabChange(id as 'dashboard' | 'monitor' | 'trace');
                   }
                 }}
                 className="btn-tactile font-bold uppercase transition-all"

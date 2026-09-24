@@ -173,14 +173,6 @@
   animation: radar-draw 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-/* ── Pipeline Progress Bar ──────────────────────────────────────────────── */
-@keyframes progressPulse {
-  0%   { width: 0%; }
-  70%  { width: 90%; }
-  100% { width: 100%; }
-}
-.pipeline-bar { animation: progressPulse 3s cubic-bezier(0.4,0,0.2,1) forwards; }
-
 /* ── Verdict Colours ────────────────────────────────────────────────────── */
 .verdict-TRUE        { color: #00F0FF; }
 .verdict-MOSTLY_TRUE { color: #7df4ff; }
