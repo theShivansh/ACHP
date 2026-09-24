@@ -17,9 +17,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol
 
-from achp.events.notes import failure_message
 
 RUN_TTL_S = 72 * 3600
+_TERMINAL = ("run.completed", "run.failed")
+
+
+class RunEnded(RuntimeError):
+    """The run's log already ends with run.completed / run.failed; nothing may follow."""
 
 
 @dataclass
@@ -148,8 +152,11 @@ class SQLiteEventStore:
                     started = now
                     self._db.execute("UPDATE runs SET started_at = ?, status = 'running' WHERE run_id = ?",
                                      (now, run_id))
-                seq = self._db.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM events WHERE run_id = ?",
-                                       (run_id,)).fetchone()[0]
+                tail = self._db.execute("SELECT seq, type FROM events WHERE run_id = ? ORDER BY seq DESC LIMIT 1",
+                                        (run_id,)).fetchone()
+                if tail is not None and tail["type"] in _TERMINAL:
+                    raise RunEnded(f"{run_id} already ended with {tail['type']}; {type} was not logged")
+                seq = (tail["seq"] if tail is not None else 0) + 1
                 t_ms = int(round((now - started) * 1000)) if started is not None else 0
                 self._db.execute(
                     "INSERT INTO events(run_id, seq, ts, t_ms, type, agent, data_json) VALUES (?,?,?,?,?,?,?)",
@@ -185,17 +192,18 @@ class SQLiteEventStore:
                 raise
         return len(old)
 
-    def mark_interrupted(self) -> int:
-        """Runs left queued/running by a previous process can't finish; close them honestly."""
+    def unfinished_runs(self) -> List[str]:
         with self._lock:
-            ids = [r[0] for r in self._db.execute("SELECT run_id FROM runs WHERE status IN ('queued','running')")]
-        for rid in ids:
-            self.append(rid, "run.failed", None, {
-                "stage": "server", "error_code": "server_restarted",
-                "message": failure_message("server", "server_restarted"), "retryable": True,
-            })
-            self.set_status(rid, "failed", error={"stage": "server", "error_code": "server_restarted"})
-        return len(ids)
+            return [r[0] for r in self._db.execute("SELECT run_id FROM runs WHERE status IN ('queued','running')")]
+
+    def last_event(self, run_id: str) -> Optional[StoredEvent]:
+        with self._lock:
+            r = self._db.execute("SELECT * FROM events WHERE run_id = ? ORDER BY seq DESC LIMIT 1",
+                                 (run_id,)).fetchone()
+        if r is None:
+            return None
+        return StoredEvent(r["run_id"], r["seq"], r["ts"], r["t_ms"], r["type"], r["agent"],
+                           json.loads(r["data_json"]))
 
     def close(self) -> None:
         with self._lock:

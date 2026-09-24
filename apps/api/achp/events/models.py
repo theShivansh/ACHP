@@ -91,7 +91,7 @@ class RunFailed(_Payload):
 class AgentStarted(_Payload):
     step: int = Field(ge=1)
     group: Optional[str] = None
-    round: Optional[int] = Field(None, ge=1, description="Debate round when the agent runs again")
+    round: Optional[int] = Field(None, ge=2, description="Debate round when the agent runs again")
 
 
 class AgentAction(_Payload):

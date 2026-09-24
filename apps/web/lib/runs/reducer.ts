@@ -2,6 +2,7 @@
 // - Deduped by seq: an event at or below `lastSeq` returns the same state object.
 // - Gapless: an event past `lastSeq + 1` is rejected and reported in `problems`; the caller
 //   repairs the gap from events.json and applies the missing events first.
+// - Final: after run.completed / run.failed nothing is applied (reported as `after_terminal`).
 // - Nothing here reads a clock. Times come from the events' `t_ms`.
 
 import type {
@@ -68,7 +69,7 @@ export interface EvidenceCard extends EvidenceObject {
 export interface Problem {
   seq: number;
   expected: number;
-  reason: 'gap' | 'wrong_run' | 'unknown_agent';
+  reason: 'gap' | 'wrong_run' | 'unknown_agent' | 'after_terminal';
 }
 
 export interface RunState {
@@ -160,6 +161,10 @@ export function reduceRun(state: RunState, event: RunEvent): RunState {
     return { ...state, problems: [...state.problems, { seq: event.seq, expected: state.lastSeq + 1, reason: 'wrong_run' }] };
   }
   if (event.seq <= state.lastSeq) return state; // duplicate (replay, reconnect): idempotent
+  if (state.status === 'completed' || state.status === 'failed') {
+    // The log ended; nothing after a terminal event may change what the page shows.
+    return { ...state, problems: [...state.problems, { seq: event.seq, expected: state.lastSeq, reason: 'after_terminal' }] };
+  }
   if (event.seq !== state.lastSeq + 1) {
     return { ...state, problems: [...state.problems, { seq: event.seq, expected: state.lastSeq + 1, reason: 'gap' }] };
   }

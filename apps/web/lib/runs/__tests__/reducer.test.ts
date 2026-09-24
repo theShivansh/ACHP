@@ -45,6 +45,16 @@ describe('reducer: idempotence and ordering', () => {
     expect(reduceRun(s, other).lastSeq).toBe(2);
   });
 
+  it('freezes after the terminal event: a late verdict can never appear on a failed run', () => {
+    const failed = reduceAll(log('failed-judge'));
+    const lateVerdict = log('mixed').find((e) => e.type === 'verdict.final')!;
+    const late = { ...lateVerdict, run_id: failed.runId!, seq: failed.lastSeq + 1 } as RunEvent;
+    const after = reduceRun(failed, late);
+    expect(after.verdict).toBeNull();
+    expect(after.lastSeq).toBe(failed.lastSeq);
+    expect(after.problems.at(-1)?.reason).toBe('after_terminal');
+  });
+
   it('never reads a clock: the same log gives the same state at any time', () => {
     const events = log('second-round');
     expect(reduceAll(events)).toEqual(reduceAll(events));

@@ -41,7 +41,7 @@ async def record(name: str, transport=None, retriever=None, text: str = CLAIM) -
     ev = RunEvents(bus, rid)
     try:
         await pipeline_with(transport or RoleTransport(), retriever).run(text, ev, run_id=rid)
-        await ev.emit("run.completed", None, {"total_ms": 0, "cache_hit": False})
+        await ev.complete(0, False)
     except PipelineError as e:
         await ev.fail(e.stage, e.code, notes.failure_message(e.stage, e.code), e.retryable)
     OUT.mkdir(parents=True, exist_ok=True)

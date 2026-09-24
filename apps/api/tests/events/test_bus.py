@@ -66,6 +66,18 @@ async def test_invalid_payloads_never_reach_the_log():
     assert bus.events(rid) == []
 
 
+async def test_nothing_is_logged_after_a_terminal_event():
+    from achp.events.bus import RunEnded
+    bus = new_bus()
+    rid = bus.create_run({"text": "x"})
+    await bus.emit(rid, "run.failed", None, {"stage": "judge", "error_code": "x", "message": "m", "retryable": True})
+    with pytest.raises(RunEnded):
+        await bus.emit(rid, "verdict.final", "judge", {
+            "overall": {"label": "mixed", "summary": "s", "confidence_band": "weak", "confidence_reason": "r"},
+            "claims": []})
+    assert [e.type for e in bus.events(rid)] == ["run.failed"]
+
+
 async def test_replay_after_seq():
     bus = new_bus()
     rid = bus.create_run({"text": "x"})
@@ -179,11 +191,56 @@ def test_store_persists_across_instances_and_expires_after_ttl(tmp_path):
     assert s2.get_run("r_old") is None and s2.events("r_old") == []
 
 
-def test_runs_left_running_by_a_dead_process_are_closed_honestly():
-    store = SQLiteEventStore(":memory:")
-    store.create_run("r_a", {"text": "a"})
-    store.append("r_a", "run.started", None, {"input": {"type": "text", "text": "a"}, "agents": []})
-    assert store.mark_interrupted() == 1
-    last = store.events("r_a")[-1]
+async def test_runs_left_running_by_a_dead_process_are_closed_honestly():
+    bus = new_bus()
+    rid = bus.create_run({"text": "a"})
+    await bus.emit(rid, "run.started", None, {"input": {"type": "text", "text": "a"}, "agents": []})
+    assert await bus.close_interrupted() == 1
+    last = bus.events(rid)[-1]
     assert last.type == "run.failed" and last.data["error_code"] == "server_restarted"
-    assert store.get_run("r_a").status == "failed"
+    record = bus.get_run(rid)
+    assert record.status == "failed"
+    assert set(record.error) == {"stage", "error_code", "message", "retryable"}
+
+
+async def test_resuming_at_or_past_the_end_of_a_finished_log_closes_at_once():
+    bus = new_bus()
+    rid = bus.create_run({"text": "x"})
+    await bus.emit(rid, "agent.note", None, NOTE)
+    done = await bus.emit(rid, "run.completed", None, {"total_ms": 1})
+    for after in (done.seq, done.seq + 5):
+        got = await asyncio.wait_for(_collect(bus.subscribe(rid, after, ping_s=0.05)), 1)
+        assert got == []
+
+
+async def test_a_cursor_past_the_end_of_a_live_log_does_not_skip_new_events():
+    bus = new_bus()
+    rid = bus.create_run({"text": "x"})
+    await bus.emit(rid, "agent.note", None, NOTE)
+    task = asyncio.create_task(_collect(bus.subscribe(rid, after_seq=50)))
+    await asyncio.sleep(0.01)
+    await bus.emit(rid, "agent.note", None, NOTE)
+    await bus.emit(rid, "run.completed", None, {"total_ms": 1})
+    assert [e.seq for e in await asyncio.wait_for(task, 1)] == [2, 3]
+
+
+async def test_queue_positions_move_up_as_runs_start():
+    bus = new_bus(max_concurrent=1)
+    gate = asyncio.Event()
+    ids = [bus.create_run({"text": str(i)}) for i in range(3)]
+
+    async def work(rid):
+        await bus.emit(rid, "run.started", None, {"input": {"type": "text", "text": "x"}, "agents": []})
+        await gate.wait()
+        await bus.emit(rid, "run.completed", None, {"total_ms": 1})
+
+    tasks = [bus.start(r, lambda r=r: work(r)) for r in ids]
+    await asyncio.sleep(0.05)
+    gate.set()
+    await asyncio.wait_for(asyncio.gather(*tasks), 1)
+    positions = [e.data["position"] for e in bus.events(ids[2]) if e.type == "run.queued"]
+    assert positions == [2, 1]
+
+
+async def _collect(it):
+    return [e async for e in it if e is not None]

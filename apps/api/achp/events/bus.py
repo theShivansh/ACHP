@@ -22,7 +22,7 @@ from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List, Optional
 
 from achp.events.models import TERMINAL_TYPES, Event, validate_payload
 from achp.events.notes import failure_message
-from achp.events.store import EventStore, SQLiteEventStore, StoredEvent
+from achp.events.store import EventStore, RunEnded, SQLiteEventStore, StoredEvent  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +93,8 @@ class RunEventBus:
             raise RunNotFound(run_id)
         q: asyncio.Queue = asyncio.Queue()
         self._subs.setdefault(run_id, set()).add(q)
+        # A cursor past the end of the log can't skip events that haven't happened yet.
+        after_seq = min(after_seq, self.store.get_run(run_id).last_seq)
         last = after_seq
         try:
             for e in self.store.events(run_id, after_seq):
@@ -101,6 +103,9 @@ class RunEventBus:
                 yield ev
                 if ev.terminal:
                     return
+            tail = self.store.last_event(run_id)
+            if tail is not None and tail.seq <= last and tail.type in TERMINAL_TYPES:
+                return  # resumed at or after the end of a finished log: nothing more will come
             while True:
                 try:
                     ev = await (asyncio.wait_for(q.get(), ping_s) if ping_s else q.get())
@@ -147,6 +152,7 @@ class RunEventBus:
             async with self._sem:
                 if run_id in self._waiting:
                     self._waiting.remove(run_id)
+                    await self._requeue()
                 try:
                     return await work()
                 except asyncio.CancelledError:
@@ -160,6 +166,21 @@ class RunEventBus:
         finally:
             if run_id in self._waiting:
                 self._waiting.remove(run_id)
+
+    async def _requeue(self) -> None:
+        """The queue moved: tell each waiting run its new position."""
+        for i, rid in enumerate(list(self._waiting), start=1):
+            try:
+                await self.emit(rid, "run.queued", None, {"position": i})
+            except Exception:
+                logger.exception("[%s] run.queued emit failed", rid)
+
+    async def close_interrupted(self) -> int:
+        """Runs left queued/running by a previous process can't finish; close them honestly."""
+        ids = self.store.unfinished_runs()
+        for rid in ids:
+            await self._fail(rid, "server", "server_restarted", failure_message("server", "server_restarted"), True)
+        return len(ids)
 
     async def _fail(self, run_id: str, stage: str, code: str, message: str, retryable: bool) -> None:
         record = self.store.get_run(run_id)

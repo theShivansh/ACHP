@@ -115,6 +115,12 @@ Other decisions:
 - A blocked run emits `agent.skipped` (`reason: "blocked"`) for every lane after the Gatekeeper, then `verdict.final` with `agent: null`, `overall.label: "blocked"`, `claims: []` and **no `metrics`**.
 - A run left `queued`/`running` by a server restart gets `run.failed` (`stage: "server"`, `error_code: "server_restarted"`) at the next startup.
 - `GET /analyze/{id}/stream` is an alias of `/runs/{id}/events`.
+- **Ordering guarantees.** `verdict.final` is held until the run's result is built and stored, then emitted immediately before `run.completed`. So a run that fails at any point, even after the Judge answered, has no `verdict.final`. The store refuses any event after `run.completed`/`run.failed`, and the client reducer ignores (and reports) anything after a terminal event.
+- **Resume cursor.** The stream resumes after the later of `?since=` and `Last-Event-ID`. A cursor past the end of the log is clamped to it. Resuming at or after the terminal event of a finished run closes the stream at once.
+- `run.queued` is re-emitted with the new `position` each time the queue moves.
+- `verdict.final.claims[].missing_context` is model text, so it passes the same §5 checks as a public note (only an over-long value is trimmed; anything else is dropped).
+- **Client fallback (§7).** From the second failed reconnect, the client polls `GET /runs/{id}/events.json?since=` every 2s rather than the snapshot, so the UI stays a projection of events. After the third failed reconnect it shows `interrupted` with Retry.
+- `assay.computed` has its payload model now; its nested shapes (`two_key`, `ledger`, `tipping_point`, …) are typed when P5 starts emitting it.
 - The 15s keep-alive frame is `: ping` **plus** a named event with no `id:` (`event: ping`, `data: {}`). EventSource never dispatches comments, so the named event is what resets the client's 20s watchdog; having no `id:` leaves `Last-Event-ID` unchanged.
 - **Confidence band** (`achp/events/confidence.py`, to be shown on `/method`). Per part: unverifiable/blocked → weak; sources pointing both ways → weak; ≥2 sources for the label and the Fact Challenger reached the same finding → strong; ≥2 sources, or 1 source with the challenger agreeing → moderate; otherwise weak. Overall: the weakest band among the rated parts, one step lower when the Judge's own confidence is below 0.5; unverifiable and blocked runs are weak.
 

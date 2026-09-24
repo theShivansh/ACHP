@@ -160,6 +160,8 @@ class RunEvents:
         self._working: List[str] = []
         self._marks: Set[Tuple[str, str, Span]] = set()
         self.evidence_ids: List[str] = []
+        self._verdict: Optional[Tuple[Optional[str], Dict[str, Any]]] = None
+        self._ended = False
 
     @property
     def enabled(self) -> bool:
@@ -228,7 +230,11 @@ class RunEvents:
         await self.emit("agent.skipped", agent, {"reason": reason})
 
     async def fail(self, stage: str, code: str, message: str, retryable: bool) -> None:
-        """agent.failed for every lane still working, then run.failed."""
+        """agent.failed for every lane still working, then run.failed. A held verdict is dropped."""
+        self._verdict = None
+        if self._ended:
+            return
+        self._ended = True
         for agent in list(self._working):
             await self.emit("agent.failed", agent,
                             {"error_code": code, "message": notes.clip(message, 200), "retryable": retryable})
@@ -357,8 +363,6 @@ class RunEvents:
     async def debate_round(self, round: int, reason: Optional[str]) -> None:
         text, _src = notes.validate_note(reason, "The challengers were asked to look again at conflicting sources.",
                                          self.evidence_ids)
-        if "judge" in self._working:
-            self._working.remove("judge")
         await self.emit("debate.round", "judge", {"round": round, "reason": text})
 
     async def verdict_final(self, *, judge_verdict: str, judge_confidence: float, summary: str,
@@ -377,7 +381,7 @@ class RunEvents:
             mc = c.get("missing_context")
             if mc:
                 problem = notes.note_problem(mc, self.evidence_ids)
-                if problem in (None, "too_long", "not_one_sentence"):
+                if problem in (None, "too_long"):          # the 06 §5 rules; only length is repaired
                     row["missing_context"] = notes.clip(mc)
             rows.append(row)
             parts.append((c["label"], band, reason))
@@ -389,5 +393,18 @@ class RunEvents:
         }
         if metrics:
             data["metrics"] = {k: round(float(metrics[k]), 4) for k in ("CTS", "PCS", "BIS", "NSS", "EPS")}
-        await self.emit("verdict.final", "judge" if label != "blocked" else None, data)
+        # Held, not emitted: verdict.final goes out in complete(), right before run.completed and
+        # only after the result is stored, so no failure can ever follow a verdict (06 §3.1).
+        self._verdict = ("judge" if label != "blocked" else None, data)
         return data
+
+    async def complete(self, total_ms: int, cache_hit: bool = False) -> None:
+        """verdict.final (if the run produced one) and run.completed, back to back."""
+        if self._ended:
+            return
+        self._ended = True
+        if self._verdict is not None:
+            agent, data = self._verdict
+            self._verdict = None
+            await self.emit("verdict.final", agent, data)
+        await self.emit("run.completed", None, {"total_ms": max(0, int(total_ms)), "cache_hit": bool(cache_hit)})

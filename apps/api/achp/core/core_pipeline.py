@@ -419,6 +419,7 @@ class CorePipeline:
                 )
                 mem.evidence = retrieval.pack
                 cache_hit = retrieval.from_cache
+                timed_out = False
             except asyncio.TimeoutError:
                 from achp.evidence.pack import EvidencePack
                 logger.warning(f"[{run_id}] Retriever timed out; continuing with library evidence only")
@@ -426,12 +427,13 @@ class CorePipeline:
                 mem.evidence = EvidencePack.build(text, kb_chunks=kb_chunks or [], kb_name=kb_name,
                                                   context=extra_context or [])
                 cache_hit = False
+                timed_out = True
             mem.models["retriever"] = "ddgs+bm25"
             latencies["retriever"] = (time.perf_counter() - t0) * 1000
             shown = await ev.evidence(mem.evidence, text)
             kinds = [it.kind for it in mem.evidence.items]
             web, kb, other = kinds.count("web"), kinds.count("kb"), kinds.count("context")
-            clipper = notes.clipper_note(web, kb, other, from_cache=cache_hit)
+            clipper = notes.clipper_note(web, kb, other, from_cache=cache_hit, timed_out=timed_out)
             await ev.note("retriever", None, clipper)
             await ev.done("retriever", clipper.rstrip("."),
                           {"sources": len(mem.evidence), "web": web, "kb": kb, "shown": shown})

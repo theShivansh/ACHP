@@ -91,6 +91,35 @@ def test_resume_after_last_event_id_or_since(client):
     assert [e["seq"] for e in c.get(f"/runs/{rid}/events.json?since=3").json()["events"]][0] == 4
 
 
+def test_last_event_id_and_since_take_the_later_cursor(client):
+    c, _ = client
+    rid = c.post("/runs", json={"input": {"type": "text", "text": CLAIM}}).json()["run_id"]
+    total = wait_done(c, rid)["last_seq"]
+    frames = parse_sse(c.get(f"/runs/{rid}/events?since=2", headers={"Last-Event-ID": "6"}).text)
+    assert [int(f["id"]) for f in frames] == list(range(7, total + 1))
+
+
+def test_a_failure_after_the_verdict_was_computed_never_leaves_a_verdict(client, monkeypatch):
+    import main
+    c, _ = client
+
+    def boom(*a, **k):
+        raise RuntimeError("response build failed")
+
+    monkeypatch.setattr(main, "_pipeline_to_response", boom)
+    rid = c.post("/runs", json={"input": {"type": "text", "text": CLAIM}}).json()["run_id"]
+    snap = wait_done(c, rid)
+    assert snap["status"] == "failed" and "result" not in snap
+    types = [e["type"] for e in c.get(f"/runs/{rid}/events.json").json()["events"]]
+    assert types[-1] == "run.failed" and "verdict.final" not in types
+
+
+def test_ping_frame_is_a_named_event_without_an_id():
+    import main
+    assert main.SSE_PING.startswith(": ping\n") and "event: ping\n" in main.SSE_PING
+    assert "id:" not in main.SSE_PING and main.SSE_PING.endswith("\n\n")
+
+
 def test_unknown_runs_404(client):
     c, _ = client
     for path in ("/runs/r_nope", "/runs/r_nope/events", "/runs/r_nope/events.json"):

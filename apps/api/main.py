@@ -114,9 +114,9 @@ async def lifespan(app: FastAPI):
     logger.info("ACHP API starting up …")
     from achp.events import get_bus
     try:
-        store = get_bus().store
-        removed = store.cleanup()
-        closed = store.mark_interrupted()
+        bus = get_bus()
+        removed = bus.store.cleanup()
+        closed = await bus.close_interrupted()
         logger.info(f"Event store ready | expired runs removed={removed} | interrupted runs closed={closed}")
     except Exception as e:
         logger.warning(f"Event store housekeeping failed: {e}")
@@ -770,13 +770,18 @@ async def _execute_run(run_id: str, text: str, kb_id: Optional[str], kb_name: st
         await fail("internal", "internal_error", notes.failure_message("internal", "internal_error"), True)
         return
 
-    response = _pipeline_to_response(output, kb_used=kb_id)
-    response.run_id = run_id
-    bus.store.set_status(run_id, "completed", result=response.model_dump())
-    await ev.emit("run.completed", None, {
-        "total_ms": int((time.perf_counter() - t0) * 1000),
-        "cache_hit": bool((output.pipeline or {}).get("cache_hit", False)),
-    })
+    try:
+        response = _pipeline_to_response(output, kb_used=kb_id)
+        response.run_id = run_id
+        result = response.model_dump()
+    except Exception as e:
+        logger.exception(f"[{run_id}] Could not build the result: {e}")
+        await fail("internal", "internal_error", notes.failure_message("internal", "internal_error"), True)
+        return
+    # The result is stored first; then verdict.final and run.completed go out together.
+    bus.store.set_status(run_id, "completed", result=result)
+    await ev.complete(int((time.perf_counter() - t0) * 1000),
+                      bool((output.pipeline or {}).get("cache_hit", False)))
 
 
 def _start_run(text: str, kb_id: Optional[str], kb_name: str, *, run_id: Optional[str] = None,
@@ -810,10 +815,9 @@ async def create_run(body: RunCreate):
 
 
 def _after_seq(request: Request, since: Optional[int]) -> int:
-    if since is not None:
-        return since
+    """The later of `?since=` and `Last-Event-ID` (a native reconnect to a ?since URL sends both)."""
     raw = (request.headers.get("last-event-id") or "").strip()
-    return int(raw) if raw.isdigit() else 0
+    return max(since or 0, int(raw) if raw.isdigit() else 0)
 
 
 @app.get("/runs/{run_id}/events", summary="The run's event log as SSE (resumable)", tags=["Runs"])

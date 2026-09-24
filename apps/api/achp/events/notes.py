@@ -72,8 +72,11 @@ def gatekeeper_note(safe: bool) -> str:
             else "Stopped before checking: this message can't be checked safely.")
 
 
-def clipper_note(web: int, kb: int, other: int = 0, from_cache: bool = False) -> str:
+def clipper_note(web: int, kb: int, other: int = 0, from_cache: bool = False, timed_out: bool = False) -> str:
     total = web + kb + other
+    if timed_out:
+        return ("Web search timed out, so no sources were found." if total == 0 else
+                f"Web search timed out; used {plural(total, 'source')} from your library and added text.")
     if total == 0:
         return "Found no sources for this claim."
     parts = []
