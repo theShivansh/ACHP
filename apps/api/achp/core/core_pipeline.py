@@ -104,7 +104,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, List, Optional, Protocol
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Protocol
 
 from pydantic import BaseModel, Field
 
@@ -324,20 +324,31 @@ class CorePipeline:
     async def run(
         self,
         text: str,
-        sse_queue: Optional[asyncio.Queue] = None,
+        events: Optional[Any] = None,
         extra_context: Optional[List[str]] = None,
         *,
         kb_chunks: Optional[List[Dict[str, Any]]] = None,
+        kb_search: Optional[Callable[[], Awaitable[List[Dict[str, Any]]]]] = None,
         kb_id: Optional[str] = None,
         kb_name: Optional[str] = None,
         run_id: Optional[str] = None,
+        fail_at: Optional[str] = None,
     ) -> ACHPOutput:
-        """Run the pipeline on the claim `text`. Library chunks travel separately in `kb_chunks`
-        (never pasted into the claim), so security, retrieval and NIL all see only the claim."""
+        """Run the pipeline on the claim `text`.
+
+        Library chunks travel separately (`kb_chunks`, or `kb_search` to run the library search
+        inside the retriever lane), never pasted into the claim, so security, retrieval and NIL all
+        see only the claim. `events` is a RunEvents (achp.events); every step emits through it, and
+        without one the calls are no-ops. `fail_at` makes that stage fail on purpose (the fixture
+        recorder's `--fail-at`, enabled only with ACHP_ALLOW_FAULT_INJECTION=1 at the API).
+        """
+        from achp.events import notes
+        from achp.events.emitter import RunEvents
         from achp.llm.runtime import LLMUnavailable
         from achp.memory.run_memory import RequestMemory, RunMemory
         from achp.prompts.contract import PROMPT_VERSION
 
+        ev = events if events is not None else RunEvents()
         run_id = run_id or uuid.uuid4().hex[:8]
         t_start = time.perf_counter()
         latencies: Dict[str, float] = {}
@@ -347,23 +358,35 @@ class CorePipeline:
             kb_chunks=tuple(kb_chunks or ()), extra_context=tuple(extra_context or ()),
         ))
 
-        async def emit(event: str, data: Dict):
-            if sse_queue:
-                await sse_queue.put({"event": event, "data": data, "ts": time.time()})
+        def injected(stage: str) -> None:
+            if fail_at == stage:
+                raise PipelineError(stage, "injected_failure",
+                                    f"Failure injected at the {stage} step by the fixture recorder.", True)
 
         mode = self._plan(text)
+        await ev.run_started(text, kb_id=kb_id, kb_name=kb_name, pipeline_mode=mode,
+                             prompt_version=PROMPT_VERSION)
 
         # ── 1. Security pre-check (no model call) ────────────────────────
-        await emit("agent_status", {"agent": "security_validator", "status": "running", "step": 1})
+        await ev.started("security_validator")
+        await ev.action("security_validator", "validate", "Checking for unsafe content")
         t0 = time.perf_counter()
         sv = self._get_security()
         pre = sv.validate_input(text)
         latencies["security_pre"] = (time.perf_counter() - t0) * 1000
         warnings.extend(pre.warnings)
+        await ev.note("security_validator", None, notes.gatekeeper_note(pre.safe))
         if not pre.safe:
             logger.warning(f"[{run_id}] BLOCKED: {pre.block_reason}")
-            return self._blocked(run_id, text, pre.block_reason or "Security pre-check failed")
-        await emit("agent_status", {"agent": "security_validator", "status": "done"})
+            await ev.done("security_validator", "Blocked: not safe to check", {"warnings": len(pre.warnings)})
+            for agent in ("retriever", "proposer", "adversary_a", "adversary_b", "nil_supervisor", "judge"):
+                await ev.skipped(agent, "blocked")
+            out = self._blocked(run_id, text, pre.block_reason or "Security pre-check failed")
+            await ev.verdict_final(judge_verdict="BLOCKED", judge_confidence=1.0,
+                                   summary="Not checked: this message can't be checked safely.",
+                                   claims=[], challenger={}, metrics=None)
+            return out
+        await ev.done("security_validator", "Safe to check", {"warnings": len(pre.warnings)})
 
         if self.offline or not os.getenv("GROQ_API_KEY", "").strip() and self._runtime is None:
             raise PipelineError("config", "no_api_key",
@@ -374,13 +397,23 @@ class CorePipeline:
         stage = "retriever"
         try:
             # ── 2. Retriever → evidence pack (server-side tools) ────────────
-            await emit("agent_status", {"agent": "retriever", "status": "running", "step": 2})
+            await ev.started("retriever")
+            injected("retriever")
             t0 = time.perf_counter()
+            if kb_search is not None:
+                await ev.action("retriever", "search_kb", "Searching your library", kb_name or kb_id)
+                kb_chunks = list(await kb_search())
+                mem.request = RequestMemory(text=text, kb_id=kb_id, kb_name=kb_name, kb_chunks=tuple(kb_chunks),
+                                            extra_context=tuple(extra_context or ()))
+
+            async def on_action(action: str, label: str, detail: str) -> None:
+                await ev.action("retriever", action, label, detail)
+
             try:
                 retrieval = await asyncio.wait_for(
                     self._retriever.retrieve(
                         text, kb_chunks=list(kb_chunks or []), kb_name=kb_name,
-                        extra_context=list(extra_context or []),
+                        extra_context=list(extra_context or []), on_action=on_action,
                     ),
                     timeout=self.RETRIEVER_TIMEOUT_S,
                 )
@@ -395,26 +428,39 @@ class CorePipeline:
                 cache_hit = False
             mem.models["retriever"] = "ddgs+bm25"
             latencies["retriever"] = (time.perf_counter() - t0) * 1000
-            await emit("agent_status", {"agent": "retriever", "status": "done",
-                                        "from_cache": cache_hit, "evidence": len(mem.evidence)})
+            shown = await ev.evidence(mem.evidence, text)
+            kinds = [it.kind for it in mem.evidence.items]
+            web, kb, other = kinds.count("web"), kinds.count("kb"), kinds.count("context")
+            clipper = notes.clipper_note(web, kb, other, from_cache=cache_hit)
+            await ev.note("retriever", None, clipper)
+            await ev.done("retriever", clipper.rstrip("."),
+                          {"sources": len(mem.evidence), "web": web, "kb": kb, "shown": shown})
 
             # ── 3. Proposer (Groq call 1) ─────────────────────────────────
-            await emit("agent_status", {"agent": "proposer", "status": "running", "step": 3})
-            t0 = time.perf_counter()
             stage = "proposer"
+            await ev.started("proposer")
+            injected("proposer")
+            await ev.action("proposer", "llm_call", "Cutting the message into parts")
+            t0 = time.perf_counter()
             mem.analysis, res = await self._proposer.run(text, mem.evidence, run_id=run_id)
             mem.record_call("proposer", res)
             mem.models["proposer"] = res.model
             latencies["proposer"] = (time.perf_counter() - t0) * 1000
-            await emit("agent_status", {"agent": "proposer", "status": "done",
-                                        "claim_type": mem.analysis.claim_type,
-                                        "num_claims": len(mem.analysis.atomic_claims)})
+            parts = mem.analysis.atomic_claims
+            await ev.claims(text, parts)
+            await ev.note("proposer", None, notes.decomposer_note(len(parts)))
+            await ev.done("proposer", notes.decomposer_note(len(parts)).rstrip("."),
+                          {"parts": len(parts)}, model=res.model)
 
             # ── 4+5+6. Analysis bundle (Groq call 2) ∥ NIL local checks ───
-            for step, agent in ((4, "adversary_a"), (5, "adversary_b"), (6, "nil_supervisor")):
-                await emit("agent_status", {"agent": agent, "status": "running", "step": step})
-            t0 = time.perf_counter()
             stage = "analysis"
+            for agent in ("adversary_a", "adversary_b", "nil_supervisor"):
+                await ev.started(agent)
+            injected("analysis")
+            await ev.action("adversary_a", "llm_call", "Testing each part against sources")
+            await ev.action("adversary_b", "llm_call", "Looking for missing perspectives")
+            await ev.action("nil_supervisor", "compute", "Reading the wording")
+            t0 = time.perf_counter()
             nil = self._get_nil()
             bundle, prepared = await asyncio.gather(
                 self._bundle.run(text, mem.analysis, mem.evidence, run_id=run_id),
@@ -429,12 +475,19 @@ class CorePipeline:
             for agent in ("adversary_a", "adversary_b"):
                 mem.models[agent] = bundle.llm.model
             mem.models["nil"] = f"vader+{os.getenv('NIL_EMBED_MODEL', 'paraphrase-MiniLM-L3-v2')}+{bundle.llm.model}"
-            await emit("agent_status", {"agent": "adversary_a", "status": "done",
-                                        "factual_score": mem.adversary_a.overall_factual_score})
-            await emit("agent_status", {"agent": "adversary_b", "status": "done",
-                                        "pcs": mem.adversary_b.perspective_completeness_score})
-            await emit("agent_status", {"agent": "nil_supervisor", "status": "done",
-                                        "nil_verdict": nil_result.nil_verdict})
+            claim_texts = {c.id: c.text for c in parts}
+            a, b = mem.adversary_a, mem.adversary_b
+            await self._emit_challenger(ev, a, claim_texts, bundle.llm.model, "Checked")
+            marks_b = await ev.marks("adversary_b", b.flaws, claim_texts)
+            auditor = notes.narrative_auditor_note(len(b.missing_perspectives))
+            await ev.note("adversary_b", b.public_note, auditor)
+            await ev.done("adversary_b", auditor.rstrip("."),
+                          {"missing_perspectives": len(b.missing_perspectives), "marks": marks_b},
+                          model=bundle.llm.model)
+            found = await ev.signals(nil_result, text, b.missing_perspectives)
+            await ev.note("nil_supervisor", None, notes.framing_note(found["loaded"], found["absolute"]))
+            await ev.done("nil_supervisor", f"Wording reads {nil_result.nil_verdict.replace('_', ' ')}",
+                          {"signals": 5}, model=bundle.llm.model)
 
             # ── Signals for the formulas ──────────────────────────────────
             nil_s = nil_result.sentiment.data
@@ -455,9 +508,11 @@ class CorePipeline:
                 dominant_frame = dominant_frame if dominant_frame != "neutral" else "alarm"
 
             # ── 7. Judge (Groq call 3, a second round only when asked) ────
-            await emit("agent_status", {"agent": "judge", "status": "running", "step": 7})
-            t0 = time.perf_counter()
             stage = "judge"
+            await ev.started("judge")
+            injected("judge")
+            await ev.action("judge", "llm_call", "Weighing the findings")
+            t0 = time.perf_counter()
             debate_round = 1
             judge, dropped, res = await self._judge.run(
                 mem.analysis, mem.adversary_a, mem.adversary_b, nil_result, mem.evidence, run_id=run_id)
@@ -467,16 +522,20 @@ class CorePipeline:
                    and judge.verdict_confidence < self.JUDGE_CONFIDENCE_THRESHOLD
                    and debate_round < self.MAX_DEBATE_ROUNDS):
                 debate_round += 1
-                await emit("agent_status", {"agent": "judge", "status": "re_debating", "round": debate_round,
-                                            "reason": judge.second_round_reason or ""})
+                await ev.debate_round(debate_round, judge.second_round_reason)
                 logger.info(f"[{run_id}] Judge asked for round {debate_round}: {judge.second_round_reason}")
                 stage = "analysis"
+                await ev.started("adversary_a", round=debate_round)
+                await ev.action("adversary_a", "llm_call", "Looking again at the sources")
                 bundle2 = await self._bundle.run(text, mem.analysis, mem.evidence, debate_round=debate_round,
                                                  judge_question=judge.second_round_reason, run_id=run_id)
                 mem.record_call("analysis", bundle2.llm)
                 mem.add_grounding(bundle2.grounding)
                 mem.adversary_a = bundle2.adversary_a
+                await self._emit_challenger(ev, mem.adversary_a, claim_texts, bundle2.llm.model, "Second look at")
                 stage = "judge"
+                await ev.started("judge", round=debate_round)
+                await ev.action("judge", "llm_call", "Weighing the second round")
                 judge, dropped, res = await self._judge.run(
                     mem.analysis, mem.adversary_a, mem.adversary_b, nil_result, mem.evidence, run_id=run_id)
                 mem.record_call("judge", res)
@@ -484,7 +543,10 @@ class CorePipeline:
             mem.judge = judge
             mem.models["judge"] = res.model
             latencies["judge"] = (time.perf_counter() - t0) * 1000
-            await emit("agent_status", {"agent": "judge", "status": "done", "verdict": judge.verdict})
+            labels = [c.get("label", "unverifiable") for c in judge.claims]
+            judge_summary = await ev.note("judge", judge.public_note, notes.judge_note(labels))
+            await ev.done("judge", notes.judge_note(labels).rstrip("."),
+                          {"parts": len(labels), "rounds": debate_round}, model=res.model)
         except LLMUnavailable as e:
             logger.error(f"[{run_id}] {stage} failed: {e}")
             raise PipelineError(stage, e.code, e.message, e.retryable) from e
@@ -512,6 +574,12 @@ class CorePipeline:
         latencies["security_post"] = (time.perf_counter() - t0) * 1000
         warnings.extend(post.warnings)
         total_latency = (time.perf_counter() - t_start) * 1000
+
+        await ev.verdict_final(
+            judge_verdict=judge.verdict, judge_confidence=judge.verdict_confidence, summary=judge_summary,
+            claims=judge.claims, challenger={c.claim_id: c.verdict for c in mem.adversary_a.challenges},
+            metrics={"CTS": CTS, "PCS": PCS, "BIS": BIS, "NSS": NSS, "EPS": EPS},
+        )
 
         a, b = mem.adversary_a, mem.adversary_b
         output = ACHPOutput(
@@ -575,18 +643,23 @@ class CorePipeline:
             claim_labels=judge.claims,
         )
 
-        await emit("pipeline_complete", {
-            "run_id":    run_id,
-            "verdict":   verdict,
-            "composite": composite,
-            "latency_ms": total_latency,
-        })
         logger.info(
             f"[{run_id}] DONE | {verdict} ({confidence:.0%}) | "
             f"CTS={CTS:.2f} PCS={PCS:.2f} BIS={BIS:.2f} NSS={NSS:.2f} EPS={EPS:.2f} | "
             f"{total_latency:.0f}ms | groq_calls={len(mem.llm_calls)} | rounds={debate_round}"
         )
         return output
+
+    @staticmethod
+    async def _emit_challenger(ev: Any, report: Any, claim_texts: Dict[str, str], model: str, verb: str) -> None:
+        from achp.events import notes
+        verdicts = [c.verdict for c in report.challenges]
+        held, failed = verdicts.count("supported"), verdicts.count("refuted")
+        marks = await ev.marks("adversary_a", report.flaws, claim_texts)
+        await ev.note("adversary_a", report.public_note,
+                      notes.fact_challenger_note(held, failed, len(verdicts) - held - failed))
+        await ev.done("adversary_a", f"{verb} {notes.plural(len(verdicts), 'part')} against the sources",
+                      {"parts": len(verdicts), "marks": marks}, model=model)
 
     def _blocked(self, run_id: str, text: str, reason: str) -> ACHPOutput:
         z = {"CTS": 0.0, "PCS": 0.0, "BIS": 1.0, "NSS": 0.0, "EPS": 0.0}
@@ -603,24 +676,6 @@ class CorePipeline:
                       "groq_calls": 0},
             security={"pre_safe": False, "post_safe": True, "warnings": [reason]},
         )
-
-    async def run_stream(self, text: str) -> AsyncGenerator[Dict, None]:
-        q: asyncio.Queue = asyncio.Queue()
-        sentinel = object()
-
-        async def _run():
-            try:
-                await self.run(text, sse_queue=q)
-            finally:
-                await q.put(sentinel)
-
-        task = asyncio.create_task(_run())
-        while True:
-            ev = await q.get()
-            if ev is sentinel:
-                break
-            yield ev
-        await task
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -20,7 +20,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from achp.cache.embeddings import encode, batch_cosine_similarity
 from achp.evidence.pack import EvidencePack
@@ -205,8 +205,10 @@ class RetrieverAgent:
         kb_chunks: Optional[List[Dict[str, Any]]] = None,
         kb_name: Optional[str] = None,
         extra_context: Optional[List[str]] = None,
+        on_action: Optional[Callable[[str, str, str], Awaitable[None]]] = None,
     ) -> RetrievalResult:
-        """Main retrieval entry point. `query` is the claim itself, never claim + library text."""
+        """Main retrieval entry point. `query` is the claim itself, never claim + library text.
+        `on_action(action, label, detail)` is awaited right before each real search (event log)."""
         t0 = time.perf_counter()
         from_cache = False
 
@@ -215,10 +217,14 @@ class RetrieverAgent:
             docs: List[Any] = cached
             from_cache = True
         else:
+            if on_action and self.bm25._corpus:
+                await on_action("search_kb", "Searching the local corpus", query)
             bm25_docs = self.bm25.search(query, top_k=self.top_k * 2)
             if bm25_docs:
                 found = await self._semantic_rerank(query, bm25_docs)
             elif self.use_web_fallback:
+                if on_action:
+                    await on_action("search_web", "Searching the web", query)
                 found = await _web_search(query, max_results=self.top_k)
             else:
                 found = []
