@@ -7,6 +7,11 @@ import { useEffect, useState } from 'react';
 // arrived. It ticks only while mounted for a working lane, so an idle page is fully still.
 
 export function formatSeconds(ms: number): string {
+  return ms < 100 ? '<0.1s' : `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** The live counter: "0.0s" at the start reads as a clock, not a result. */
+function liveSeconds(ms: number): string {
   return `${(Math.max(0, ms) / 1000).toFixed(1)}s`;
 }
 
@@ -34,5 +39,5 @@ export function Elapsed({
   }, [receivedAt]);
 
   const sinceEvent = receivedAt != null && now != null ? Math.max(0, now - receivedAt) * rate : 0;
-  return <span className="tabular-nums">{formatSeconds(lastTMs - startedAtMs + sinceEvent)}</span>;
+  return <span className="tabular-nums">{liveSeconds(lastTMs - startedAtMs + sinceEvent)}</span>;
 }

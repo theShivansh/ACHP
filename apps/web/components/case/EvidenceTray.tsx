@@ -34,6 +34,20 @@ const RULE_TONE: Record<EvidenceUse['relation'], string> = {
   unclear: 'border-ink-3',
 };
 
+/**
+ * Display-only: a quote that starts with an unmatched quotation mark (scraped mid-quotation) loses
+ * that one edge character, so it doesn't render as `“" To reduce…`. The body is untouched.
+ */
+function displayQuote(q: string): string {
+  let t = q.trim();
+  const opens = /^["“'‘]/.test(t);
+  const closes = /["”'’]$/.test(t);
+  if (opens && closes && t.length > 1) t = t.slice(1, -1);
+  else if (opens) t = t.slice(1);
+  else if (closes && !/["“]/.test(t.slice(0, -1))) t = t.slice(0, -1);
+  return t.trim();
+}
+
 const KIND_WORDS = { web: 'Web', kb: 'Your library', context: 'Text you added' } as const;
 
 function published(date: string | null | undefined): string | null {
@@ -65,7 +79,7 @@ export function EvidenceCard({ card, uses }: { card: Card; uses: EvidenceUse[] }
       {src.title && <h3 className="mt-1 type-ui font-semibold text-ink">{src.title}</h3>}
       <blockquote className={cn('mt-2 border-l-2 pl-3 font-display type-body text-ink', rule)}>
         {/* The quote is verbatim; it gets our quotation marks unless it already carries its own. */}
-        <p className="line-clamp-6">{/^["“'‘]/.test(card.quote) ? card.quote : `“${card.quote}”`}</p>
+        <p className="line-clamp-6">“{displayQuote(card.quote)}”</p>
       </blockquote>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         {uses.length > 0 ? (
@@ -105,6 +119,7 @@ export function EvidenceTray({
   className,
   headingId,
   emptyText,
+  inSheet = false,
 }: {
   cards: Card[];
   usesOf: (evidenceId: string) => EvidenceUse[];
@@ -115,11 +130,13 @@ export function EvidenceTray({
   headingId: string;
   /** What an empty tray says (while the Clipper works, or after a run that found nothing). */
   emptyText: string;
+  /** Inside a Sheet that already titles it "Evidence": the heading becomes screen-reader only. */
+  inSheet?: boolean;
 }) {
   const shown = filter ? cards.filter((c) => filter.ids.includes(c.evidence_id)) : cards;
   return (
     <section aria-labelledby={headingId} className={className}>
-      <header className="flex items-baseline justify-between gap-3 pb-3">
+      <header className={cn('flex items-baseline justify-between gap-3 pb-3', inSheet && 'sr-only')}>
         <h2 id={headingId} className="type-ui font-semibold text-surface-fg">
           Evidence
         </h2>

@@ -2,7 +2,7 @@
 
 import { cn } from 'cn';
 import type { MarkRect } from '@/lib/marks/measure';
-import type { Relation } from '@/lib/runs/types';
+import type { Label, Relation } from '@/lib/runs/types';
 
 // Span marks v1 (S3.5). One absolutely positioned SVG per line rect over the strip text. The shape
 // follows the relation (04 §3.3), the ink follows the agent that made the mark (04 §6):
@@ -24,7 +24,17 @@ const STROKE: Record<MarkInk, string> = {
   highlighter: 'stroke-highlighter',
 };
 
-export function markInk(agent: string | null, relation: Relation): MarkInk {
+/**
+ * The ink for a mark. Once the Judge has labelled the part, a challenger's red finding that the
+ * ruling didn't uphold (anything but Contradicted) is kept in graphite: the finding stays visible,
+ * but red, the error color, no longer contradicts the verdict.
+ */
+export function markInk(agent: string | null, relation: Relation, label: Label | null = null): MarkInk {
+  const ink = baseInk(agent, relation);
+  return ink === 'pencil-red' && label && label !== 'contradicted' ? 'graphite' : ink;
+}
+
+function baseInk(agent: string | null, relation: Relation): MarkInk {
   if (relation === 'framing' || agent === 'nil_supervisor') return 'highlighter';
   // Agreement is never drawn in a challenger's red or blue: red reads as a problem.
   if (relation === 'supports') return 'support';
@@ -47,10 +57,12 @@ function paths(relation: Relation, w: number, h: number, ruled: boolean, first: 
     case 'supports':
       return [`M1 ${h - 2} L${w - 1} ${h - 2.5}`];
     case 'missing_context':
-      // Brackets open on the span's first line and close on its last, like a pencil would.
+      // Brackets open on the span's first line and close on its last, like a pencil would. They
+      // sit in the gutter outside the words (the svg is widened by BRACKET_PAD on each side), so
+      // no letter is ever drawn over.
       return [
-        ...(first ? [`M6 1 L2 1 L2 ${h - 1} L6 ${h - 1}`] : []),
-        ...(last ? [`M${w - 6} 1 L${w - 2} 1 L${w - 2} ${h - 1} L${w - 6} ${h - 1}`] : []),
+        ...(first ? [`M5 1 L1.5 1 L1.5 ${h - 1} L5 ${h - 1}`] : []),
+        ...(last ? [`M${w - 5} 1 L${w - 1.5} 1 L${w - 1.5} ${h - 1} L${w - 5} ${h - 1}`] : []),
       ];
     case 'framing':
       return [`M0 ${h * 0.55} L${w} ${h * 0.55}`];
@@ -58,6 +70,9 @@ function paths(relation: Relation, w: number, h: number, ruled: boolean, first: 
       return [`M1 ${h - 2} L${w - 1} ${h - 2}`];
   }
 }
+
+/** How far outside the words a bracket sits (px). */
+const BRACKET_PAD = 6;
 
 export function Mark({
   rect,
@@ -82,7 +97,8 @@ export function Mark({
   first?: boolean;
   last?: boolean;
 }) {
-  const w = Math.max(4, rect.width);
+  const pad = relation === 'missing_context' ? BRACKET_PAD : 0;
+  const w = Math.max(4, rect.width) + pad * 2;
   const h = Math.max(4, rect.height);
   const highlight = relation === 'framing';
   return (
@@ -94,10 +110,11 @@ export function Mark({
       data-ruled={ruled || undefined}
       data-span={`${span[0]},${span[1]}`}
       data-mark-rect={`${rect.x},${rect.y},${rect.width},${rect.height}`}
+      data-pad={pad || undefined}
       width={w}
       height={h}
       viewBox={`0 0 ${w} ${h}`}
-      style={{ '--x': `${rect.x}px`, '--y': `${rect.y}px`, '--delay': `${line * 120}ms` } as React.CSSProperties}
+      style={{ '--x': `${rect.x - pad}px`, '--y': `${rect.y}px`, '--delay': `${line * 120}ms` } as React.CSSProperties}
     >
       {paths(relation, w, h, ruled, first, last).map((d, i) => (
         <path

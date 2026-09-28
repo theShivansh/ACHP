@@ -104,7 +104,8 @@ function activityLine(phase: CasePhase, state: RunState): string {
   const total = state.agentOrder.length;
   if (phase === 'completed') {
     const ran = laneCounts(state).done;
-    return ran === total ? `${total} agents · done` : `${ran} of ${total} agents ran · done`;
+    const secs = state.completed?.totalMs ? ` · ${(state.completed.totalMs / 1000).toFixed(1)}s` : ' · done';
+    return ran === total ? `${total} agents${secs}` : `${ran} of ${total} agents ran${secs}`;
   }
   return statusLine(phase, state);
 }
@@ -384,7 +385,9 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
         >
           <SheetHeader>
             <SheetTitle className="text-desk-ink">Evidence</SheetTitle>
-            <SheetDescription className="text-desk-ink-2">The sources the Clipper pinned for this case.</SheetDescription>
+            <SheetDescription className="text-desk-ink-2">
+              {cards.length === 1 ? '1 source' : `${cards.length} sources`} the Clipper pinned for this case.
+            </SheetDescription>
           </SheetHeader>
           <div className="overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <EvidenceTray
@@ -394,6 +397,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
               onClearFilter={() => setFilterClaim(null)}
               headingId={sheetTrayHeading}
               emptyText={emptyTray}
+              inSheet
             />
           </div>
         </SheetContent>

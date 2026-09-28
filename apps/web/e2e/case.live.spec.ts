@@ -76,12 +76,13 @@ test('strips appear in reading order, and marks sit over the exact characters', 
         const lines = [...r.getClientRects()].filter((x) => x.width > 0.5);
         const first = lines[0];
         const svgBox = svgs[0].getBoundingClientRect();
+        const pad = Number(svgs[0].getAttribute('data-pad') ?? 0); // brackets sit in the gutter
         const lineRight = Math.max(...lines.filter((l) => Math.abs(l.top - first.top) < 2).map((l) => l.right));
         out.push({
           claim: li.getAttribute('data-claim')!,
           span,
-          dx: Math.abs(svgBox.left - first.left),
-          dw: Math.abs(svgBox.right - lineRight),
+          dx: Math.abs(svgBox.left + pad - first.left),
+          dw: Math.abs(svgBox.right - pad - lineRight),
           dy: Math.abs(svgBox.top - first.top),
         });
       }
@@ -108,7 +109,8 @@ test('the tray holds one card per pinned source, and the counts agree', async ({
   for (const e of events) {
     if (e.type !== 'evidence.found') continue;
     await expect(tray.locator(`li[data-evidence="${e.data.evidence.evidence_id}"] blockquote`)).toContainText(
-      e.data.evidence.quote.slice(0, 60),
+      // Verbatim body; only an edge quotation mark is trimmed for display.
+      e.data.evidence.quote.trim().replace(/^["“'‘]/, '').trim().slice(0, 60),
     );
   }
 });
@@ -129,7 +131,7 @@ test('mobile: the lane strip opens every lane; a part opens its sources', async 
   await page.goto(`/case/fixture-${name}?speed=4`);
   await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
   const strip = page.getByRole('complementary', { name: 'Agents' });
-  await expect(strip).toContainText(/agents( ran)? · done/);
+  await expect(strip).toContainText(/agents( ran)? · (done|[0-9.]+s)/);
   await strip.getByRole('button').click();
   const sheet = page.getByRole('dialog', { name: 'The desk' });
   await expect(sheet.locator('li[data-agent]')).toHaveCount(Object.keys(finalLaneStates(events)).length);

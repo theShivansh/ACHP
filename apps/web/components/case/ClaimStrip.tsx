@@ -103,7 +103,7 @@ export function ClaimStrip({
                 key={`${m.seq}-${i}`}
                 rect={rect}
                 relation={m.relation}
-                ink={markInk(m.agent, m.relation)}
+                ink={markInk(m.agent, m.relation, label)}
                 line={i}
                 span={m.span}
                 ruled={label === 'contradicted'}
