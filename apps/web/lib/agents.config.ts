@@ -78,3 +78,17 @@ export const inkTextClass: Record<Exclude<Ink, 'verdict'>, string> = {
   ochre: 'text-ochre',
   support: 'text-support',
 };
+
+/**
+ * The same inks on the desk (04 §3.2 desk accents): the sheet inks fail AA on the dark desk.
+ * The Judge's `verdict` ink has no verdict yet while it works, so its lane glyph is plain desk ink.
+ */
+export const deskInkClass: Record<Ink, string> = {
+  ink: 'text-desk-ink',
+  graphite: 'text-desk-graphite',
+  'pencil-red': 'text-desk-red',
+  'pencil-blue': 'text-desk-blue',
+  ochre: 'text-desk-ochre',
+  support: 'text-desk-support',
+  verdict: 'text-desk-ink',
+};

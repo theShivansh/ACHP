@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { apiBase } from './api';
 import { RunConnection, type ConnectionOptions, type ConnectionStatus } from './connection';
-import { initialRunState, reduceRun, type RunState } from './reducer';
+import { initialRunState, isFinished, reduceAll, reduceRun, type RunState } from './reducer';
 import type { RunEvent } from './types';
 
 interface Batch {
@@ -19,40 +19,67 @@ function batchReducer(state: RunState, action: Batch): RunState {
   return action.events.reduce(reduceRun, base);
 }
 
+export interface UseRunEventsOptions extends Partial<ConnectionOptions> {
+  /** Events already fetched (server render of a stored run). The connection resumes after them. */
+  initialEvents?: readonly RunEvent[];
+}
+
 export interface UseRunEvents {
   state: RunState;
   connection: ConnectionStatus;
   retry: () => void;
+  /**
+   * `performance.now()` when the latest live batch arrived, for display clocks only
+   * ("Working · 3.2s" counts real time since the last real event). Null before any live event.
+   */
+  receivedAt: number | null;
+}
+
+function startState(runId: string | null, initial?: readonly RunEvent[]): RunState {
+  const base = initialRunState(runId);
+  return initial?.length ? reduceAll(initial, base) : base;
 }
 
 export function useRunEvents(
   runId: string | null,
-  options: Partial<ConnectionOptions> = {},
+  options: UseRunEventsOptions = {},
   onEvents?: (events: RunEvent[]) => void,
 ): UseRunEvents {
-  const [state, dispatch] = useReducer(batchReducer, runId, initialRunState);
+  const { initialEvents, ...connOptions } = options;
+  const [state, dispatch] = useReducer(batchReducer, undefined, () => startState(runId, initialEvents));
   const [conn, setConn] = useState<{ runId: string | null; status: ConnectionStatus }>({
     runId,
     status: 'idle',
   });
+  const [receivedAt, setReceivedAt] = useState<number | null>(null);
   const connRef = useRef<RunConnection | null>(null);
   const onEventsRef = useRef(onEvents);
-  const baseUrl = options.baseUrl ?? apiBase();
+  const stateRef = useRef(state);
+  const baseUrl = connOptions.baseUrl ?? apiBase();
 
   useEffect(() => {
     onEventsRef.current = onEvents;
-  }, [onEvents]);
+    stateRef.current = state;
+  });
 
   useEffect(() => {
     if (!runId) return;
+    const current = stateRef.current.runId === runId ? stateRef.current : null;
+    // A stored run that already ended needs no connection: its log is complete.
+    if (current && isFinished(current)) {
+      setConn({ runId, status: 'closed' });
+      return;
+    }
     const c = new RunConnection(
       runId,
-      { ...options, baseUrl },
+      { ...connOptions, baseUrl },
       (events) => {
+        setReceivedAt(performance.now());
         dispatch({ runId, events });
         onEventsRef.current?.(events);
       },
       (status) => setConn({ runId, status }),
+      current?.lastSeq ?? 0,
     );
     connRef.current = c;
     c.start();
@@ -70,5 +97,6 @@ export function useRunEvents(
     state: state.runId === runId ? state : initialRunState(runId),
     connection: conn.runId === runId ? conn.status : 'idle',
     retry,
+    receivedAt,
   };
 }

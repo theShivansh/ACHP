@@ -30,6 +30,21 @@ const STAGE_WORDS: Record<string, string> = {
   server: 'server',
 };
 
+/** A skip reason in words ("the answer came from a recent check"). */
+export function skipWords(reason: string): string {
+  return SKIP_WORDS[reason] ?? reason.replace(/_/g, ' ');
+}
+
+/** A failed stage in words ("source search"). */
+export function stageWords(stage: string): string {
+  return STAGE_WORDS[stage] ?? stage.replace(/_/g, ' ');
+}
+
+/** A label in words ("missing context"). */
+export function labelWords(label: string): string {
+  return LABEL_WORDS[label] ?? label.replace(/_/g, ' ');
+}
+
 export interface Announcement {
   text: string;
   priority: number;
@@ -63,7 +78,7 @@ export function describe(event: RunEvent, nameOf: NameOf): Announcement | null {
     case 'agent.skipped':
       return event.data.reason === 'blocked'
         ? null
-        : at(`${who} skipped: ${SKIP_WORDS[event.data.reason] ?? event.data.reason.replace(/_/g, ' ')}`, 1);
+        : at(`${who} skipped: ${skipWords(event.data.reason)}`, 1);
     case 'agent.failed':
       return at(`${who} could not finish. ${event.data.message}`, 2);
     case 'debate.round':
@@ -71,13 +86,13 @@ export function describe(event: RunEvent, nameOf: NameOf): Announcement | null {
     case 'verdict.final': {
       const o = event.data.overall;
       if (o.label === 'blocked') return at('Not checked: this message cannot be checked safely', 4);
-      return at(`Verdict: ${LABEL_WORDS[o.label] ?? o.label}. Confidence ${o.confidence_band}. ${o.confidence_reason}`, 4);
+      return at(`Verdict: ${labelWords(o.label)}. Confidence ${o.confidence_band}. ${o.confidence_reason}`, 4);
     }
     case 'run.completed':
       return at('Check complete', 3);
     case 'run.failed':
       return at(
-        `The check stopped at the ${STAGE_WORDS[event.data.stage] ?? event.data.stage.replace(/_/g, ' ')} step. No verdict was produced`,
+        `The check stopped at the ${stageWords(event.data.stage)} step. No verdict was produced`,
         4,
       );
     default:

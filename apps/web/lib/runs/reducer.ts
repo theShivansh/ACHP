@@ -378,3 +378,113 @@ export function laneCounts(state: RunState): Record<LaneState, number> {
   for (const l of lanes(state)) out[l.state] += 1;
   return out;
 }
+
+export interface LaneGroup {
+  group: string;
+  /** More than one agent shares the group, so they run side by side (S3.3). */
+  parallel: boolean;
+  lanes: Lane[];
+}
+
+/** Lanes in server order, with neighbours that share a `group` gathered together. */
+export function laneGroups(state: RunState): LaneGroup[] {
+  const out: LaneGroup[] = [];
+  for (const lane of lanes(state)) {
+    const last = out[out.length - 1];
+    if (last && last.group === lane.group) last.lanes.push(lane);
+    else out.push({ group: lane.group, parallel: false, lanes: [lane] });
+  }
+  for (const g of out) g.parallel = g.lanes.length > 1;
+  return out;
+}
+
+/** The lane whose work the page should name right now: the latest to start among those working. */
+export function currentLane(state: RunState): Lane | null {
+  const working = lanes(state).filter((l) => l.state === 'working' || l.state === 'waiting');
+  if (!working.length) return null;
+  return working.reduce((a, b) => ((b.startedAtMs ?? 0) >= (a.startedAtMs ?? 0) ? b : a));
+}
+
+/** How many agents have been handed the case so far ("step N" in the interrupted banner). */
+export function stepsReached(state: RunState): number {
+  return lanes(state).filter((l) => l.state !== 'queued' && l.state !== 'skipped').length;
+}
+
+/** Strips in reading order: by where they sit in the message, then by arrival. */
+export function orderedClaims(state: RunState): ClaimStrip[] {
+  return state.claimOrder
+    .map((id) => state.claims[id])
+    .filter(Boolean)
+    .sort((a, b) => a.source_span[0] - b.source_span[0] || a.seq - b.seq);
+}
+
+/** "Part n" numbers as the reader sees them (reading order, from 1). */
+export function partNumbers(state: RunState): Record<string, number> {
+  return Object.fromEntries(orderedClaims(state).map((c, i) => [c.claim_id, i + 1]));
+}
+
+export interface StripEvidence {
+  /** Logged evidence ids tied to this part, in tray order. */
+  ids: string[];
+  /** Of those, the ones a mark or the verdict says contradict it. */
+  disagree: number;
+}
+
+/**
+ * The sources tied to one part, only from what the log says: the evidence ids on its marks and
+ * the Judge's evidence_for / evidence_against. Ids not in the log are ignored.
+ */
+export function stripEvidence(state: RunState, claimId: string): StripEvidence {
+  const strip = state.claims[claimId];
+  const verdict = state.verdict?.claims.find((c) => c.claim_id === claimId);
+  const tied = new Set<string>();
+  const against = new Set<string>();
+  for (const m of strip?.marks ?? []) {
+    for (const id of m.evidence_ids ?? []) {
+      tied.add(id);
+      if (m.relation === 'contradicts') against.add(id);
+    }
+  }
+  for (const id of verdict?.evidence_for ?? []) tied.add(id);
+  for (const id of verdict?.evidence_against ?? []) {
+    tied.add(id);
+    against.add(id);
+  }
+  const ids = state.evidenceOrder.filter((id) => tied.has(id));
+  return { ids, disagree: ids.filter((id) => against.has(id)).length };
+}
+
+export interface EvidenceUse {
+  claimId: string;
+  part: number;
+  relation: 'supports' | 'contradicts' | 'missing_context' | 'framing' | 'unclear';
+}
+
+/**
+ * What the log says a source was used for ("Contradicts part 2"). Marks come first; the Judge's
+ * evidence_for / evidence_against add uses the marks didn't state. Nothing is inferred.
+ */
+export function evidenceUses(state: RunState, evidenceId: string): EvidenceUse[] {
+  const parts = partNumbers(state);
+  const out: EvidenceUse[] = [];
+  const seen = new Set<string>();
+  const add = (claimId: string, relation: EvidenceUse['relation']) => {
+    const key = `${claimId}:${relation}`;
+    if (seen.has(key) || parts[claimId] == null) return;
+    seen.add(key);
+    out.push({ claimId, part: parts[claimId], relation });
+  };
+  for (const c of orderedClaims(state)) {
+    for (const m of c.marks) if (m.evidence_ids?.includes(evidenceId)) add(c.claim_id, m.relation);
+  }
+  for (const v of state.verdict?.claims ?? []) {
+    if (v.evidence_for?.includes(evidenceId)) add(v.claim_id, 'supports');
+    if (v.evidence_against?.includes(evidenceId)) add(v.claim_id, 'contradicts');
+  }
+  return out.sort((a, b) => a.part - b.part);
+}
+
+/** The latest debate.round reason (the Judge's "second round" line). */
+export function debateReason(state: RunState): string | null {
+  return state.debateRounds[state.debateRounds.length - 1]?.reason ?? null;
+}
