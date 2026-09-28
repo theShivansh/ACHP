@@ -83,7 +83,9 @@ test('live regions speak at most once per 2 seconds', async ({ page }) => {
   await page.waitForTimeout(2500); // let the last queued sentence out
   const spoken = await page.evaluate(() => (window as unknown as { __spoken: { t: number; text: string }[] }).__spoken);
   expect(spoken.length).toBeGreaterThan(2);
-  // One paced voice: no two sentences within 2s (a small margin for timer jitter).
-  const close = spoken.filter((s, i) => i > 0 && s.t - spoken[i - 1].t < 1900);
+  // One paced voice: the announcer spaces sentences 2s apart on its own clock; the DOM shows each
+  // one after a React commit, which can lag ~100–300ms under load. Unpaced speech lands within
+  // milliseconds, so 1.7s still catches it.
+  const close = spoken.filter((s, i) => i > 0 && s.t - spoken[i - 1].t < 1700);
   expect(close, JSON.stringify(spoken, null, 1)).toEqual([]);
 });
