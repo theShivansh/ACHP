@@ -1,0 +1,52 @@
+[
+  {
+    "capture": "case-fixture-blocked-mobile-light",
+    "route": "/case/fixture-blocked",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-blocked-mobile-dark",
+    "route": "/case/fixture-blocked",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-blocked-desktop-light",
+    "route": "/case/fixture-blocked",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-blocked-desktop-dark",
+    "route": "/case/fixture-blocked",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-blocked-mobile-light-reduced",
+    "route": "/case/fixture-blocked",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-contradicted-strong-speed-4-mobile-light",
+    "route": "/case/fixture-contradicted-strong?speed=4",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-contradicted-strong-speed-4-mobile-dark",
+    "route": "/case/fixture-contradicted-strong?speed=4",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-contradicted-strong-speed-4-desktop-light",
+    "route": "/case/fixture-contradicted-strong?speed=4",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-contradicted-strong-speed-4-desktop-dark",
+    "route": "/case/fixture-contradicted-strong?speed=4",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-contradicted-strong-speed-4-mobile-light-reduced",
+    "route": "/case/fixture-contradicted-strong?speed=4",
+    "running": []
+  }
+]
