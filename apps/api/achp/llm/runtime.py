@@ -28,6 +28,7 @@ What it guarantees
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import os
@@ -152,6 +153,8 @@ class GroqTransport:
         except (groq.APIConnectionError, groq.APITimeoutError) as e:
             raise TransportError(None, _short(str(e))) from None
         completion = raw.parse()
+        if inspect.isawaitable(completion):  # groq ≥ 1.0: the async raw response parses asynchronously
+            completion = await completion
         choice = completion.choices[0]
         usage = completion.usage
         return TransportResponse(

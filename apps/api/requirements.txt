@@ -11,7 +11,7 @@ sse-starlette>=2.1.0              # Server-Sent Events for real-time UI
 python-multipart>=0.0.9
 
 # --- LLM Providers ---
-groq>=0.30.0                      # Groq SDK: the only LLM client (achp/llm/runtime.py)
+groq>=0.30.0,<2                   # Groq SDK: the only LLM client (achp/llm/runtime.py); tested on 0.30 and 1.7
 
 # --- Async & Orchestration ---
 aiohttp>=3.9.0
