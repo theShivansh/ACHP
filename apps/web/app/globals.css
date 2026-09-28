@@ -339,6 +339,16 @@ html[data-lowfx] .boil-once {
   filter: none;
 }
 
+/* ── Span marks v1 (P3, S3.5) — a smooth draw, once, as the mark's event arrives. ─────────── */
+/* Job: cause → effect (an agent's finding lands on the words it concerns). P8 makes it stepped. */
+@keyframes mark-draw { from { stroke-dashoffset: 1; } }
+.mark { left: var(--x); top: var(--y); }
+.mark path {
+  stroke-dashoffset: 0;
+  animation: mark-draw var(--dur-base) var(--ease-out) var(--delay, 0ms) backwards;
+}
+.mark[data-relation="unclear"] path { animation: fade-in var(--dur-base) var(--ease-out) var(--delay, 0ms) backwards; }
+
 /* ── Overlay enter/exit (dialog, sheet, tooltip, hover card) — Language B, 05 §1 ─────────── */
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes fade-out { to { opacity: 0; } }

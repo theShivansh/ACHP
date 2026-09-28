@@ -15,9 +15,9 @@ export default function DeskLayout({ children }: { children: React.ReactNode }) 
         Skip to content
       </a>
       <DeskHeader />
-      <main id="main" className="flex flex-1 flex-col">
-        {children}
-      </main>
+      {/* Each page renders its own <main id="main">, so a page's asides (the case's Agents and
+          Evidence) stay top-level landmarks beside it rather than inside it. */}
+      <div className="flex flex-1 flex-col">{children}</div>
     </div>
   );
 }
