@@ -6,7 +6,7 @@ test.describe('backend status chip', () => {
   test('reads "Waking the desk" while /health is in flight', async ({ page }) => {
     await page.route('**/health', () => {}); // never answered
     await page.goto('/case/chip-waking');
-    await expect(page.getByRole('status')).toHaveText('Backend: Waking the desk');
+    await expect(page.getByRole('status').filter({ hasText: 'Backend:' })).toHaveText('Backend: Waking the desk');
     await page.screenshot({ path: test.info().outputPath('chip-waking.png') });
   });
 
@@ -15,14 +15,14 @@ test.describe('backend status chip', () => {
       route.fulfill({ json: { status: 'ok', pipeline_mode: 'online', kb_count: 0 } }),
     );
     await page.goto('/case/chip-ready');
-    await expect(page.getByRole('status')).toHaveText('Backend: Ready');
+    await expect(page.getByRole('status').filter({ hasText: 'Backend:' })).toHaveText('Backend: Ready');
     await page.screenshot({ path: test.info().outputPath('chip-ready.png') });
   });
 
   test('reads "Unreachable" when /health fails', async ({ page }) => {
     await page.route('**/health', (route) => route.fulfill({ status: 503, body: '' }));
     await page.goto('/case/chip-down');
-    await expect(page.getByRole('status')).toHaveText('Backend: Unreachable');
+    await expect(page.getByRole('status').filter({ hasText: 'Backend:' })).toHaveText('Backend: Unreachable');
   });
 });
 
