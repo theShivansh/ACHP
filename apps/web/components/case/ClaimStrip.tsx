@@ -98,7 +98,7 @@ export function ClaimStrip({
           <span className="sr-only">Part {part}: </span>
           <span ref={textRef}>{strip.text}</span>
           {strip.marks.map((m) =>
-            (measured.find((x) => x.seq === m.seq)?.rects ?? []).map((rect, i) => (
+            (measured.find((x) => x.seq === m.seq)?.rects ?? []).map((rect, i, all) => (
               <Mark
                 key={`${m.seq}-${i}`}
                 rect={rect}
@@ -107,6 +107,8 @@ export function ClaimStrip({
                 line={i}
                 span={m.span}
                 ruled={label === 'contradicted'}
+                first={i === 0}
+                last={i === all.length - 1}
               />
             )),
           )}

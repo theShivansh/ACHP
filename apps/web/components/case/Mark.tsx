@@ -26,13 +26,13 @@ const STROKE: Record<MarkInk, string> = {
 
 export function markInk(agent: string | null, relation: Relation): MarkInk {
   if (relation === 'framing' || agent === 'nil_supervisor') return 'highlighter';
+  // Agreement is never drawn in a challenger's red or blue: red reads as a problem.
+  if (relation === 'supports') return 'support';
   if (agent === 'adversary_a') return 'pencil-red';
   if (agent === 'adversary_b') return 'pencil-blue';
   switch (relation) {
     case 'contradicts':
       return 'pencil-red';
-    case 'supports':
-      return 'support';
     case 'missing_context':
       return 'ochre';
     default:
@@ -40,14 +40,18 @@ export function markInk(agent: string | null, relation: Relation): MarkInk {
   }
 }
 
-function paths(relation: Relation, w: number, h: number, ruled: boolean): string[] {
+function paths(relation: Relation, w: number, h: number, ruled: boolean, first: boolean, last: boolean): string[] {
   switch (relation) {
     case 'contradicts':
       return ruled ? [`M1 ${h * 0.56} L${w - 1} ${h * 0.5}`] : [`M1 ${h - 2} L${w - 1} ${h - 2.5}`];
     case 'supports':
       return [`M1 ${h - 2} L${w - 1} ${h - 2.5}`];
     case 'missing_context':
-      return [`M6 1 L2 1 L2 ${h - 1} L6 ${h - 1}`, `M${w - 6} 1 L${w - 2} 1 L${w - 2} ${h - 1} L${w - 6} ${h - 1}`];
+      // Brackets open on the span's first line and close on its last, like a pencil would.
+      return [
+        ...(first ? [`M6 1 L2 1 L2 ${h - 1} L6 ${h - 1}`] : []),
+        ...(last ? [`M${w - 6} 1 L${w - 2} 1 L${w - 2} ${h - 1} L${w - 6} ${h - 1}`] : []),
+      ];
     case 'framing':
       return [`M0 ${h * 0.55} L${w} ${h * 0.55}`];
     default:
@@ -62,6 +66,8 @@ export function Mark({
   line,
   span,
   ruled = false,
+  first = true,
+  last = true,
 }: {
   rect: MarkRect;
   /** The [start, end) characters this mark covers (kept on the element for tests and tooling). */
@@ -72,6 +78,9 @@ export function Mark({
   line: number;
   /** The Judge ruled this part Contradicted (verdict.final): a contradicts mark becomes a strike. */
   ruled?: boolean;
+  /** This rect is the span's first / last line (a wrapped span has several). */
+  first?: boolean;
+  last?: boolean;
 }) {
   const w = Math.max(4, rect.width);
   const h = Math.max(4, rect.height);
@@ -90,7 +99,7 @@ export function Mark({
       viewBox={`0 0 ${w} ${h}`}
       style={{ '--x': `${rect.x}px`, '--y': `${rect.y}px`, '--delay': `${line * 120}ms` } as React.CSSProperties}
     >
-      {paths(relation, w, h, ruled).map((d, i) => (
+      {paths(relation, w, h, ruled, first, last).map((d, i) => (
         <path
           key={i}
           d={d}

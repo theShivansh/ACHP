@@ -53,7 +53,7 @@ const STATES = [
     wait: async (p, vp) => {
       await p.locator('[data-run-status="completed"]').waitFor({ timeout: 60000 });
       if (vp === 'desktop') return; // the tray is always open at ≥1280
-      await p.getByRole('button', { name: /sources?: open the evidence/ }).click();
+      await p.getByRole('button', { name: /open the evidence/ }).click();
       await p.getByRole('dialog', { name: 'Evidence' }).waitFor();
     },
   },
@@ -61,7 +61,9 @@ const STATES = [
 
 const browser = await chromium.launch();
 const shots = [];
+const only = process.env.ONLY_STATE;
 for (const s of STATES) {
+  if (only && s.name !== only) continue;
   for (const [vp, size] of Object.entries(VIEWPORTS)) {
     if (s.only && s.only !== vp) continue;
     for (const theme of ['light', 'dark']) {

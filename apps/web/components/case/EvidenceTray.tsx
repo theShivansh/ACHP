@@ -64,7 +64,8 @@ export function EvidenceCard({ card, uses }: { card: Card; uses: EvidenceUse[] }
       </p>
       {src.title && <h3 className="mt-1 type-ui font-semibold text-ink">{src.title}</h3>}
       <blockquote className={cn('mt-2 border-l-2 pl-3 font-display type-body text-ink', rule)}>
-        <p className="line-clamp-6">“{card.quote}”</p>
+        {/* The quote is verbatim; it gets our quotation marks unless it already carries its own. */}
+        <p className="line-clamp-6">{/^["“'‘]/.test(card.quote) ? card.quote : `“${card.quote}”`}</p>
       </blockquote>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         {uses.length > 0 ? (
