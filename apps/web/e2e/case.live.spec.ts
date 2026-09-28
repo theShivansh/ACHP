@@ -129,7 +129,7 @@ test('mobile: the lane strip opens every lane; a part opens its sources', async 
   await page.goto(`/case/fixture-${name}?speed=4`);
   await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
   const strip = page.getByRole('complementary', { name: 'Agents' });
-  await expect(strip).toContainText('agents · done');
+  await expect(strip).toContainText(/agents( ran)? · done/);
   await strip.getByRole('button').click();
   const sheet = page.getByRole('dialog', { name: 'The desk' });
   await expect(sheet.locator('li[data-agent]')).toHaveCount(Object.keys(finalLaneStates(events)).length);

@@ -101,7 +101,10 @@ function activityLine(phase: CasePhase, state: RunState): string {
     return lane.action ? `${name}: ${lane.action.label}` : `${name}: working`;
   }
   const total = state.agentOrder.length;
-  if (phase === 'completed') return `${total} agents · done`;
+  if (phase === 'completed') {
+    const ran = laneCounts(state).done;
+    return ran === total ? `${total} agents · done` : `${ran} of ${total} agents ran · done`;
+  }
   return statusLine(phase, state);
 }
 
