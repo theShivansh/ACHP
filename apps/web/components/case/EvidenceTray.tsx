@@ -47,7 +47,10 @@ export function EvidenceCard({ card, uses }: { card: Card; uses: EvidenceUse[] }
   const src = card.source;
   const where = src.domain ?? KIND_WORDS[src.kind];
   const date = published(src.published_at);
-  const rule = uses[0] ? RULE_TONE[uses[0].relation] : 'border-ink-3';
+  // One relation colors the quote's rule; a source used both ways gets a neutral rule and the
+  // labels below carry the colors.
+  const kinds = new Set(uses.map((u) => u.relation));
+  const rule = kinds.size === 1 ? RULE_TONE[uses[0].relation] : 'border-graphite';
   return (
     <li
       data-evidence={card.evidence_id}
@@ -56,7 +59,7 @@ export function EvidenceCard({ card, uses }: { card: Card; uses: EvidenceUse[] }
       <PaperclipGlyph aria-hidden="true" className="absolute -top-2 left-3 size-5 text-graphite" />
       <p className="flex flex-wrap items-baseline gap-x-2 type-meta text-ink-2">
         <span className="truncate">{where}</span>
-        {date && <span className="tabular-nums">· Published {date}</span>}
+        <span className={cn('tabular-nums', !date && 'text-ink-3')}>· {date ? `Published ${date}` : 'Date not given'}</span>
         <span className="sr-only">· source {card.evidence_id}</span>
       </p>
       {src.title && <h3 className="mt-1 type-ui font-semibold text-ink">{src.title}</h3>}

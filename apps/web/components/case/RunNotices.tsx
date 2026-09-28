@@ -101,6 +101,12 @@ export function FailedCard({
   );
 }
 
+/** The Gatekeeper's reason without the "Not checked:" the stamp and heading already say. */
+function plainReason(reason: string): string {
+  const r = reason.replace(/^not checked:\s*/i, '').trim();
+  return r.charAt(0).toUpperCase() + r.slice(1);
+}
+
 export function BlockedNotice({ reason }: { reason: string }) {
   return (
     <section aria-labelledby="blocked-title" data-blocked>
@@ -111,7 +117,7 @@ export function BlockedNotice({ reason }: { reason: string }) {
         <h2 id="blocked-title" className="mt-3 type-h2 text-ink">
           This message wasn&apos;t checked
         </h2>
-        <p className="mt-2 max-w-[60ch] type-body text-ink-2">{reason}</p>
+        <p className="mt-2 max-w-[60ch] type-body text-ink-2">{plainReason(reason)}</p>
         <p className="mt-2 type-meta text-ink-2">
           Only the Gatekeeper ran. No sources were searched and no scores were computed.
         </p>

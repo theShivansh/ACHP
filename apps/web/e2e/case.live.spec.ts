@@ -100,7 +100,7 @@ test('the tray holds one card per pinned source, and the counts agree', async ({
   await page.goto(`/case/fixture-${name}?speed=4`);
   await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
   const wide = (info.project.use.viewport?.width ?? 0) >= 1280;
-  if (!wide) await page.getByRole('button', { name: /^Evidence/ }).click();
+  if (!wide) await page.getByRole('button', { name: /open the evidence/ }).click();
   const tray = wide ? page.getByRole('complementary', { name: 'Evidence' }) : page.getByRole('dialog', { name: 'Evidence' });
   await expect(tray.locator('li[data-evidence]')).toHaveCount(evidenceCount);
   await expect(tray.getByText(evidenceCount === 1 ? '1 source' : `${evidenceCount} sources`, { exact: true })).toBeVisible();

@@ -133,7 +133,14 @@ export function AgentLane({
 
         {note && lane.state !== 'skipped' && (
           <>
-            <p aria-hidden="true" className="mt-1 font-note type-note text-desk-ink">
+            {/* 04 §4: Kalam is for short margin notes (≤6 words); a longer note is set as reading text. */}
+            <p
+              aria-hidden="true"
+              className={cn(
+                'mt-1 text-desk-ink',
+                note.text.trim().split(/\s+/).length <= 6 ? 'font-note type-note' : 'font-display text-[0.9375rem] leading-snug',
+              )}
+            >
               {note.text}
             </p>
             <p className="sr-only">{note.text}</p>

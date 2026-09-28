@@ -6,7 +6,9 @@ import type { Relation } from '@/lib/runs/types';
 
 // Span marks v1 (S3.5). One absolutely positioned SVG per line rect over the strip text. The shape
 // follows the relation (04 §3.3), the ink follows the agent that made the mark (04 §6):
-//   contradicts → strike-through · supports → underline · missing_context → brackets
+//   contradicts → red underline (a challenger's finding), and a strike-through only once the
+//     Judge has ruled the part Contradicted (the strike is the verdict's mark, 04 §3.3)
+//   supports → underline · missing_context → brackets
 //   framing → highlighter behind the words · unclear → dashed underline
 // Drawn with a smooth stroke-dashoffset (--dur-base). P8 swaps this for stepped + boil. Reduced
 // motion shows the finished mark (globals.css `.mark path`).
@@ -38,10 +40,10 @@ export function markInk(agent: string | null, relation: Relation): MarkInk {
   }
 }
 
-function paths(relation: Relation, w: number, h: number): string[] {
+function paths(relation: Relation, w: number, h: number, ruled: boolean): string[] {
   switch (relation) {
     case 'contradicts':
-      return [`M1 ${h * 0.56} L${w - 1} ${h * 0.5}`];
+      return ruled ? [`M1 ${h * 0.56} L${w - 1} ${h * 0.5}`] : [`M1 ${h - 2} L${w - 1} ${h - 2.5}`];
     case 'supports':
       return [`M1 ${h - 2} L${w - 1} ${h - 2.5}`];
     case 'missing_context':
@@ -59,6 +61,7 @@ export function Mark({
   ink,
   line,
   span,
+  ruled = false,
 }: {
   rect: MarkRect;
   /** The [start, end) characters this mark covers (kept on the element for tests and tooling). */
@@ -67,6 +70,8 @@ export function Mark({
   ink: MarkInk;
   /** Which line of a wrapped span (later lines start a little later, like a hand moving on). */
   line: number;
+  /** The Judge ruled this part Contradicted (verdict.final): a contradicts mark becomes a strike. */
+  ruled?: boolean;
 }) {
   const w = Math.max(4, rect.width);
   const h = Math.max(4, rect.height);
@@ -77,6 +82,7 @@ export function Mark({
       focusable="false"
       className={cn('mark pointer-events-none absolute overflow-visible', highlight && 'mix-blend-(--highlighter-blend)')}
       data-relation={relation}
+      data-ruled={ruled || undefined}
       data-span={`${span[0]},${span[1]}`}
       data-mark-rect={`${rect.x},${rect.y},${rect.width},${rect.height}`}
       width={w}
@@ -84,7 +90,7 @@ export function Mark({
       viewBox={`0 0 ${w} ${h}`}
       style={{ '--x': `${rect.x}px`, '--y': `${rect.y}px`, '--delay': `${line * 120}ms` } as React.CSSProperties}
     >
-      {paths(relation, w, h).map((d, i) => (
+      {paths(relation, w, h, ruled).map((d, i) => (
         <path
           key={i}
           d={d}

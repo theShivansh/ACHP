@@ -7,7 +7,25 @@ import { measureSpan, type MarkRect } from '@/lib/marks/measure';
 import { labelWords } from '@/lib/runs/announcer';
 import type { ClaimStrip as Strip, StripEvidence } from '@/lib/runs/reducer';
 import type { Label } from '@/lib/runs/types';
+import { agentIdentity } from '@/lib/agents.config';
+import type { Mark as StripMark } from '@/lib/runs/reducer';
 import { Mark, markInk } from './Mark';
+
+const MARK_WORDS: Record<StripMark['relation'], string> = {
+  contradicts: 'disputes',
+  supports: 'backs',
+  missing_context: 'says context is missing around',
+  framing: 'flags the wording',
+  unclear: 'questions',
+};
+
+/** A mark in words for screen readers ("Fact Challenger disputes "30 to 40 percent""). */
+function markWords(m: StripMark, text: string, label: Label | null): string {
+  const who = m.agent ? agentIdentity(m.agent).displayName : 'An agent';
+  const quoted = `"${text.slice(m.span[0], m.span[1])}"`;
+  if (m.relation === 'contradicts' && label === 'contradicted') return `Struck through as contradicted: ${quoted}`;
+  return `${who} ${MARK_WORDS[m.relation]} ${quoted}`;
+}
 
 // One checkable part of the message, cut into a strip (S3.4). The text is the part exactly as the
 // Decomposer extracted it; marks sit over the characters of their span (S3.5). The row reserves
@@ -63,6 +81,9 @@ export function ClaimStrip({
   }, [strip.marks, strip.text]);
 
   const notes = strip.marks.filter((m) => m.note);
+  // A challenger's finding the Judge hasn't ruled on (yet, or ever: a failed run) is said as such.
+  const disputes = label ? [] : strip.marks.filter((m) => m.relation === 'contradicts');
+  const disputers = [...new Set(disputes.map((m) => agentIdentity(m.agent ?? '', undefined).displayName))];
 
   return (
     <li
@@ -85,17 +106,14 @@ export function ClaimStrip({
                 ink={markInk(m.agent, m.relation)}
                 line={i}
                 span={m.span}
+                ruled={label === 'contradicted'}
               />
             )),
           )}
         </p>
         {strip.marks.length > 0 && (
           <p className="sr-only">
-            Marked:{' '}
-            {strip.marks
-              .map((m) => `${m.relation.replace(/_/g, ' ')} "${strip.text.slice(m.span[0], m.span[1])}"`)
-              .join('; ')}
-            .
+            {strip.marks.map((m) => markWords(m, strip.text, label)).join('; ')}.
           </p>
         )}
 
@@ -121,7 +139,17 @@ export function ClaimStrip({
       </div>
 
       {/* Margin column (inline under the strip on mobile): the markers' short notes. */}
-      <div className={cn('col-start-2 md:col-start-3', notes.length ? 'mt-2 md:mt-0' : 'hidden md:block')}>
+      <div
+        className={cn(
+          'col-start-2 md:col-start-3',
+          notes.length || disputers.length ? 'mt-2 md:mt-0' : 'hidden md:block',
+        )}
+      >
+        {disputers.map((name) => (
+          <p key={name} aria-hidden="true" className="type-meta text-pencil-red">
+            Disputed by the {name}
+          </p>
+        ))}
         {notes.map((m) => (
           <p key={m.seq} className={cn('line-clamp-3', m.relation === 'contradicts' ? 'text-pencil-red' : 'text-pencil-blue')}>
             <span aria-hidden="true" className="font-note type-note">

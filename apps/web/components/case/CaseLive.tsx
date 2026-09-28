@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useId, useMemo, useState, ViewTransition } from 'react';
 import { Chip } from '@/components/ui/chip';
+import { PaperclipGlyph } from '@/components/glyphs';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { agentIdentity } from '@/lib/agents.config';
 import { useHealth } from '@/lib/api';
@@ -198,6 +199,12 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
     };
   }, [fixture, text, state.kb?.id, router]);
 
+  const hasNotice =
+    phase === 'waking' ||
+    (phase === 'queued' && state.queuePosition != null) ||
+    (phase === 'failed' && !!state.failure) ||
+    (phase === 'completed' && !!state.verdict);
+
   const emptyTray =
     phase === 'completed' || phase === 'failed'
       ? 'No sources were pinned for this message.'
@@ -225,9 +232,25 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
               </>
             )}
           </p>
-          <p role="status" className="ml-auto type-meta text-desk-ink">
+          {/* On mobile the lane strip below says what's happening, so the line is for screen readers only. */}
+          <p role="status" className="type-meta text-desk-ink max-md:sr-only md:ml-auto">
             {statusLine(phase, state)}
           </p>
+          {(cards.length > 0 || claims.length > 0) && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilterClaim(null);
+                openTray();
+              }}
+              aria-haspopup="dialog"
+              className="ml-auto inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-button px-2 type-ui text-desk-ink hover:bg-desk-raised md:ml-0 xl:hidden"
+            >
+              <PaperclipGlyph aria-hidden="true" className="size-5 text-desk-graphite" />
+              <span className="tabular-nums">{cards.length === 1 ? '1 source' : `${cards.length} sources`}</span>
+              <span className="sr-only">: open the evidence</span>
+            </button>
+          )}
         </div>
       </section>
 
@@ -263,22 +286,6 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
             />
           )}
 
-          {cards.length > 0 || claims.length > 0 ? (
-            <div className="mx-auto mb-4 flex max-w-[760px] justify-end xl:hidden">
-              <button
-                type="button"
-                onClick={() => {
-                  setFilterClaim(null);
-                  openTray();
-                }}
-                aria-haspopup="dialog"
-                className="inline-flex min-h-11 cursor-pointer items-center rounded-button border-(length:--rule) border-desk-line px-3 type-ui text-desk-ink hover:bg-desk-raised"
-              >
-                Evidence · <span className="ml-1 tabular-nums">{cards.length}</span>
-              </button>
-            </div>
-          ) : null}
-
           <article className="paper mx-auto max-w-[760px] rounded-sheet px-5 py-8 shadow-lift-sheet md:px-12 md:py-12">
             {phase === 'expired' ? (
               <>
@@ -288,17 +295,19 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
             ) : (
               <>
                 <header>
-                  <p className="type-meta font-semibold text-ink-2">The message you were forwarded</p>
                   {text ? (
-                    <ViewTransition name="claim-text">
-                      <h1 className="mt-3 max-w-[68ch] font-display type-claim text-ink">{text}</h1>
-                    </ViewTransition>
+                    <>
+                      <p className="type-meta font-semibold text-ink-2">The message you were forwarded</p>
+                      <ViewTransition name="claim-text">
+                        <h1 className="mt-3 max-w-[68ch] font-display type-claim text-balance text-ink">{text}</h1>
+                      </ViewTransition>
+                    </>
                   ) : (
                     <h1 className="sr-only">Case {runId}</h1>
                   )}
                 </header>
 
-                <div className="mt-8 flex flex-col gap-6">
+                <div className={cn('flex flex-col gap-6', text && hasNotice && 'mt-8')}>
                   {phase === 'waking' && <WakingNotice />}
                   {phase === 'queued' && state.queuePosition != null && <QueuedNotice position={state.queuePosition} />}
                   {phase === 'failed' && state.failure && (
@@ -319,7 +328,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                       </Chip>
                       <p className="mt-3 type-meta font-semibold text-ink-2">ACHP&apos;s reading</p>
                       <p className="mt-1 max-w-[68ch] type-body text-ink-2">{state.verdict.overall.summary}</p>
-                      <p className="mt-2 type-meta text-ink-2">
+                      <p className="mt-2 max-w-[68ch] type-meta text-ink-2">
                         {BAND_WORDS[state.verdict.overall.confidence_band]}. {state.verdict.overall.confidence_reason}
                       </p>
                     </section>
