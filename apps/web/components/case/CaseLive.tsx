@@ -217,7 +217,13 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
           </Link>
           <p className="hidden type-meta text-desk-ink-2 md:block">
             Case <span className="tabular-nums">{runId}</span>
-            {fixture && <> · recorded run, replayed{fixture.speed !== 1 ? ` at ${fixture.speed}×` : ''}</>}
+            {fixture && (
+              <>
+                {' · '}
+                {fixture.name.startsWith('synthetic-') ? 'synthetic test log, not a real check' : 'recorded run'}, replayed
+                {fixture.speed !== 1 ? ` at ${fixture.speed}×` : ''}
+              </>
+            )}
           </p>
           <p role="status" className="ml-auto type-meta text-desk-ink">
             {statusLine(phase, state)}
