@@ -48,7 +48,8 @@ export function InterruptedBanner({
 }) {
   return (
     // On the desk, above the sheet: desk inks (the paper inks fail contrast here).
-    <div role="alert" className="mx-auto mb-6 max-w-[760px] border-y-(length:--rule) border-desk-ochre py-3">
+    // Reconnecting on its own is said once by the status line; only giving up is an alert.
+    <div data-interrupted role={gaveUp ? 'alert' : undefined} className="mx-auto mb-6 max-w-[760px] border-y-(length:--rule) border-desk-ochre py-3">
       <p className="type-body text-desk-ink">
         Lost connection{step > 0 ? ` at step ${step}` : ''}. {gaveUp ? 'The check may still be running.' : 'Reconnecting…'}
       </p>

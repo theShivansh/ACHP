@@ -45,6 +45,13 @@ export function labelWords(label: string): string {
   return LABEL_WORDS[label] ?? label.replace(/_/g, ' ');
 }
 
+/** The band as the page says it ("Strong evidence"), so the ear and the eye get the same words. */
+export const BAND_WORDS: Record<string, string> = {
+  strong: 'Strong evidence',
+  moderate: 'Moderate evidence',
+  weak: 'Weak evidence',
+};
+
 export interface Announcement {
   text: string;
   priority: number;
@@ -72,7 +79,8 @@ export function describe(event: RunEvent, nameOf: NameOf): Announcement | null {
     case 'agent.started':
       return event.data.round && event.data.round > 1 ? at(`${who} is taking a second look`, 1) : null;
     case 'agent.note':
-      return at(`${who}: ${event.data.note}`, 1);
+      // A template note restates the counts agent.done announces next; only model notes add news.
+      return event.data.source === 'model' ? at(`${who}: ${event.data.note}`, 1) : null;
     case 'agent.done':
       return at(`${who} finished. ${event.data.summary}`, 1);
     case 'agent.skipped':
@@ -80,13 +88,13 @@ export function describe(event: RunEvent, nameOf: NameOf): Announcement | null {
         ? null
         : at(`${who} skipped: ${skipWords(event.data.reason)}`, 1);
     case 'agent.failed':
-      return at(`${who} could not finish. ${event.data.message}`, 2);
+      return at(`${who} could not finish. ${event.data.message}`, 3);
     case 'debate.round':
       return at(`The judge asked for a second round. ${event.data.reason}`, 2);
     case 'verdict.final': {
       const o = event.data.overall;
       if (o.label === 'blocked') return at('Not checked: this message cannot be checked safely', 4);
-      return at(`Verdict: ${labelWords(o.label)}. Confidence ${o.confidence_band}. ${o.confidence_reason}`, 4);
+      return at(`Verdict: ${labelWords(o.label)}. ${BAND_WORDS[o.confidence_band] ?? o.confidence_band}. ${o.confidence_reason}`, 4);
     }
     case 'run.completed':
       return at('Check complete', 3);

@@ -99,7 +99,7 @@ export function EvidenceCard({ card, uses }: { card: Card; uses: EvidenceUse[] }
             href={src.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex min-h-6 items-center gap-1 type-meta text-pencil-blue underline decoration-(length:--rule) underline-offset-4 hover:decoration-2"
+            className="inline-flex min-h-6 items-center gap-1 type-meta text-pencil-blue pointer-coarse:min-h-11 underline decoration-(length:--rule) underline-offset-4 hover:decoration-2"
           >
             Open source
             <ExternalLink aria-hidden="true" className="size-3.5 stroke-[1.5]" />
@@ -137,7 +137,7 @@ export function EvidenceTray({
   return (
     <section aria-labelledby={headingId} className={className}>
       <header className={cn('flex items-baseline justify-between gap-3 pb-3', inSheet && 'sr-only')}>
-        <h2 id={headingId} className="type-ui font-semibold text-surface-fg">
+        <h2 id={headingId} tabIndex={-1} className="type-ui font-semibold text-surface-fg">
           Evidence
         </h2>
         <p className="type-meta text-surface-fg-2 tabular-nums">
@@ -149,7 +149,11 @@ export function EvidenceTray({
           <span>Showing the sources for part {filter.part}.</span>
           <button
             type="button"
-            onClick={onClearFilter}
+            onClick={() => {
+              onClearFilter();
+              // The button disappears with the filter; keep focus in the tray, on its heading.
+              requestAnimationFrame(() => document.getElementById(headingId)?.focus());
+            }}
             className="min-h-6 cursor-pointer text-surface-blue underline decoration-(length:--rule) underline-offset-4"
           >
             Show all

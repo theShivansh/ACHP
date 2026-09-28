@@ -21,7 +21,7 @@ test('a dropped stream resumes after the last applied event and finishes cleanly
 
   await page.goto(`/case/fixture-${name}?speed=4&drop=${dropAt}`);
   // The drop shows as a reconnect, in words, before the run finishes.
-  const banner = page.getByRole('alert').filter({ hasText: 'Lost connection' });
+  const banner = page.locator('[data-interrupted]').filter({ hasText: 'Lost connection' });
   await expect(banner).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[data-run-status="completed"]')).toBeVisible({ timeout: 60_000 });
   await expect(banner).toHaveCount(0);

@@ -119,7 +119,7 @@ test('the finished case has landmarks, a status line and no axe violations', asy
   await page.goto(`/case/fixture-${name}?speed=4`);
   await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole('main')).toHaveCount(1);
-  await expect(page.getByRole('status').filter({ hasText: /Checked/ })).toBeVisible();
+  await expect(page.locator('[data-status-line]')).toContainText('Checked');
   await expect(page.locator('[aria-live="polite"]')).toHaveCount(1);
   await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
   const axe = await new AxeBuilder({ page }).analyze();

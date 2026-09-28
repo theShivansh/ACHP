@@ -1,8 +1,7 @@
 'use client';
 
 import { cn } from 'cn';
-import { useState } from 'react';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { agentIdentity, deskInkClass } from '@/lib/agents.config';
 import type { Lane, LaneGroup, LaneState } from '@/lib/runs/reducer';
 import { LaneList, type LaneClock } from './AgentLane';
@@ -58,21 +57,21 @@ function StateDot({ state }: { state: LaneState }) {
   }
 }
 
+/** The lanes in a bottom sheet, opened by `trigger` (a SheetTrigger, so focus returns to it on close). */
 function LanesSheet({
-  open,
-  onOpenChange,
+  trigger,
   groups,
   clock,
   debateReason,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  trigger: React.ReactElement;
   groups: LaneGroup[];
   clock: LaneClock;
   debateReason: string | null;
 }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet>
+      <SheetTrigger asChild>{trigger}</SheetTrigger>
       <SheetContent side="bottom" surface="desk" className="max-h-[92dvh] rounded-t-sheet">
         <SheetHeader>
           <SheetTitle className="text-desk-ink">The desk</SheetTitle>
@@ -100,15 +99,17 @@ export function LaneStrip({
   clock: LaneClock;
   debateReason: string | null;
 }) {
-  const [open, setOpen] = useState(false);
   const summary = lanes.map((l) => `${agentIdentity(l.id, l.name).displayName} ${STATE_WORDS[l.state]}`).join(', ');
 
   return (
     <aside aria-label="Agents" className="sticky top-14 z-30 border-b-(length:--rule) border-desk-line bg-desk-raised md:hidden">
+      <LanesSheet
+        groups={groups}
+        clock={clock}
+        debateReason={debateReason}
+        trigger={
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        aria-haspopup="dialog"
         className="flex min-h-12 w-full cursor-pointer items-center gap-3 px-4 text-left"
       >
         <span className="flex items-center gap-1.5" aria-hidden="true">
@@ -119,7 +120,8 @@ export function LaneStrip({
         <span className="min-w-0 flex-1 truncate type-meta text-desk-ink">{activity}</span>
         <span className="sr-only">. Agents: {summary}. Show every agent.</span>
       </button>
-      <LanesSheet open={open} onOpenChange={setOpen} groups={groups} clock={clock} debateReason={debateReason} />
+        }
+      />
     </aside>
   );
 }
@@ -135,16 +137,18 @@ export function LaneRail({
   clock: LaneClock;
   debateReason: string | null;
 }) {
-  const [open, setOpen] = useState(false);
   return (
     <aside aria-label="Agents" className="hidden w-16 shrink-0 border-r-(length:--rule) border-desk-line md:block xl:hidden">
+      <LanesSheet
+        groups={groups}
+        clock={clock}
+        debateReason={debateReason}
+        trigger={
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        aria-haspopup="dialog"
         className="sticky top-14 flex w-full cursor-pointer flex-col items-center gap-4 py-4"
       >
-        <span className="sr-only">Show every agent</span>
+        <span className="sr-only">Show every agent. </span>
         {lanes.map((l) => {
           const id = agentIdentity(l.id, l.name);
           const Glyph = id.glyph;
@@ -167,7 +171,8 @@ export function LaneRail({
           );
         })}
       </button>
-      <LanesSheet open={open} onOpenChange={setOpen} groups={groups} clock={clock} debateReason={debateReason} />
+        }
+      />
     </aside>
   );
 }

@@ -4,13 +4,13 @@ import { cn } from 'cn';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useId, useMemo, useState, ViewTransition } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, ViewTransition } from 'react';
 import { Chip } from '@/components/ui/chip';
 import { PaperclipGlyph } from '@/components/glyphs';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { agentIdentity } from '@/lib/agents.config';
 import { useHealth } from '@/lib/api';
-import { createAnnouncer, labelWords, stageWords } from '@/lib/runs/announcer';
+import { BAND_WORDS, createAnnouncer, labelWords, stageWords } from '@/lib/runs/announcer';
 import { startRun } from '@/lib/runs/api';
 import type { ConnectionStatus } from '@/lib/runs/connection';
 import {
@@ -94,6 +94,15 @@ function statusLine(phase: CasePhase, state: RunState): string {
   }
 }
 
+/** What the status region says: only states no event announces (the connection, a cold start). */
+function connectionSentence(phase: CasePhase, connection: ConnectionStatus): string {
+  if (phase === 'waking') return 'Waking the desk. This can take up to a minute.';
+  if (phase === 'interrupted') {
+    return connection === 'interrupted' ? 'Lost connection. The check may still be running.' : 'Lost connection. Reconnecting.';
+  }
+  return '';
+}
+
 function activityLine(phase: CasePhase, state: RunState): string {
   const lane = currentLane(state);
   if (lane) {
@@ -119,7 +128,6 @@ const LABEL_TONE: Record<Label, 'support' | 'contradicted' | 'ochre' | 'graphite
   blocked: 'graphite',
 };
 
-const BAND_WORDS = { strong: 'Strong evidence', moderate: 'Moderate evidence', weak: 'Weak evidence' } as const;
 
 export interface CaseLiveProps {
   runId: string;
@@ -172,7 +180,10 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
   const [trayOpen, setTrayOpen] = useState(false);
   // Tablet: the tray is a right sheet; mobile: a bottom sheet (04 §5). Decided when it opens.
   const [traySide, setTraySide] = useState<'right' | 'bottom'>('right');
+  // The sheets open from buttons outside any SheetTrigger, so focus goes back by hand on close.
+  const returnTo = useRef<HTMLElement | null>(null);
   const openTray = () => {
+    returnTo.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setTraySide(window.matchMedia('(min-width: 48rem)').matches ? 'right' : 'bottom');
     setTrayOpen(true);
   };
@@ -185,7 +196,8 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
     setFilterClaim(claimId);
     if (window.matchMedia('(min-width: 80rem)').matches) {
       document.getElementById('evidence-tray')?.scrollIntoView({ block: 'start' });
-      document.getElementById('evidence-tray')?.focus({ preventScroll: true });
+      // Focus the tray's heading once the filtered list has rendered (a visible, named target).
+      requestAnimationFrame(() => document.getElementById(trayHeading)?.focus({ preventScroll: true }));
     } else {
       openTray();
     }
@@ -234,9 +246,15 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
             )}
           </p>
           {/* On mobile the lane strip below says what's happening, so the line is for screen readers only. */}
-          <p role="status" className="type-meta text-desk-ink max-md:sr-only md:ml-auto">
+          {/* The run line is read in place, not spoken: the paced announcer already says every
+              event-driven change (S9.1). The status region speaks only what no event carries:
+              waking, reconnecting, lost connection. */}
+          <p data-status-line className="type-meta text-desk-ink max-md:sr-only md:ml-auto">
             {statusLine(phase, state)}
           </p>
+          <span role="status" className="sr-only">
+            {connectionSentence(phase, connection)}
+          </span>
           {(cards.length > 0 || claims.length > 0) && (
             <button
               type="button"
@@ -277,7 +295,11 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
           )}
         </aside>
 
-        <main id="main" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 outline-none md:px-8">
+        <main
+          id="main"
+          tabIndex={-1}
+          className="min-w-0 flex-1 scroll-mt-14 px-4 py-6 outline-none max-md:scroll-mt-26 md:px-8"
+        >
           {phase === 'interrupted' && (
             <InterruptedBanner
               step={stepsReached(state)}
@@ -364,7 +386,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
           aria-label="Evidence"
           id="evidence-tray"
           tabIndex={-1}
-          className={cn('hidden w-[340px] shrink-0 border-l-(length:--rule) border-desk-line px-5 py-6 outline-none xl:block')}
+          className="hidden w-[340px] shrink-0 scroll-mt-16 border-l-(length:--rule) border-desk-line px-5 py-6 outline-none xl:block"
         >
           <EvidenceTray
             cards={cards}
@@ -379,6 +401,12 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
 
       <Sheet open={trayOpen} onOpenChange={setTrayOpen}>
         <SheetContent
+          onCloseAutoFocus={(e) => {
+            if (returnTo.current?.isConnected) {
+              e.preventDefault();
+              returnTo.current.focus();
+            }
+          }}
           side={traySide}
           surface="desk"
           className={traySide === 'bottom' ? 'max-h-[92dvh] rounded-t-sheet' : 'w-[min(90vw,380px)]'}

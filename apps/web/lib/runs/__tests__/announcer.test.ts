@@ -43,9 +43,11 @@ describe('announcer: event → sentence', () => {
 
   it('announces notes, completions and the verdict in plain sentences', () => {
     const texts = events.map((e) => describeEvent(e, names)?.text).filter(Boolean);
-    expect(texts).toContain('Clipper: Pinned 1 source: 1 from the web.');
+    expect(texts).not.toContain('Clipper: Pinned 1 source: 1 from the web.'); // template note: done says it
+    expect(texts).toContain('Clipper finished. Pinned 1 source: 1 from the web.');
+    expect(texts).toContain('Fact Challenger: A health agency puts the reduction at 20 to 35 percent.'); // model note
     expect(texts).toContain('Decomposer finished. Cut the message into 2 checkable parts.');
-    expect(texts.find((t) => t!.startsWith('Verdict: mixed. Confidence '))).toBeTruthy();
+    expect(texts.find((t) => t!.startsWith('Verdict: mixed. Moderate evidence. '))).toBeTruthy();
     expect(texts.at(-1)).toBe('Check complete.');
   });
 

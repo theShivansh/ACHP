@@ -125,7 +125,7 @@ export function ClaimStrip({
             <button
               type="button"
               onClick={() => onShowEvidence(strip.claim_id)}
-              className="inline-flex min-h-6 cursor-pointer items-center type-meta text-pencil-blue underline decoration-(length:--rule) underline-offset-4 hover:decoration-2"
+              className="inline-flex min-h-6 cursor-pointer items-center type-meta text-pencil-blue pointer-coarse:min-h-11 underline decoration-(length:--rule) underline-offset-4 hover:decoration-2"
             >
               {evidence.ids.length === 1 ? '1 source' : `${evidence.ids.length} sources`}
               {evidence.disagree > 0 && ` · ${evidence.disagree} disagree`}

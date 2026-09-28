@@ -372,6 +372,10 @@ html[data-lowfx] .boil-once {
     stroke-dashoffset: 0;
   }
   .stamp { animation: none; }
+  /* Strips and evidence cards appear in place (no rise or fade). */
+  li[data-claim],
+  li[data-evidence],
+  li[data-agent] p { animation: none; }
   /* Overlays and other chrome: final state at once. */
   [data-slot] {
     animation: none !important;

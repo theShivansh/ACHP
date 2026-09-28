@@ -33,7 +33,7 @@ test('a mid-run failure keeps the evidence, names the stage and shows no verdict
   expect(await page.locator('aside li[data-evidence]').count()).toBe(evidenceCount);
   // The lane that was working when the run died is shown as failed.
   await expect(page.locator('aside li[data-state="failed"]').first()).toBeAttached();
-  await expect(page.getByRole('status').filter({ hasText: 'No verdict' })).toBeVisible();
+  await expect(page.locator('[data-status-line]')).toContainText('No verdict');
 });
 
 test('a blocked message: "Not checked", only the Gatekeeper ran, no scores', async ({ page }) => {
