@@ -26,6 +26,14 @@ def test_claim_band(label, ev_for, ev_against, challenger, band):
     assert reason and "%" not in reason
 
 
+def test_mixed_sources_are_cited_not_said_to_agree():
+    # Sources on a mixed part point both ways; "agree" would read as backing the claim.
+    _, reason = claim_band("mixed", ["e1"], ["e2", "e3"], "contested")
+    assert "3 sources cited" in reason and "agree" not in reason
+    _, reason = claim_band("contradicted", [], ["e1", "e2"], "refuted")
+    assert "agree" in reason
+
+
 def test_overall_is_the_weakest_rated_part():
     parts = [("supported", "strong", "a"), ("contradicted", "moderate", "One source, and the fact challenger agreed.")]
     band, reason = overall_band("mixed", parts, 0.8)

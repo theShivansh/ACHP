@@ -6,8 +6,8 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { shareSummary } from '@/lib/report';
-import { BANDS, type BandKey } from '@/lib/verdict';
-import type { VerdictFinal } from '@/lib/runs/types';
+import { BANDS, excerpt, VERDICTS, type BandKey } from '@/lib/verdict';
+import type { Label, VerdictFinal } from '@/lib/runs/types';
 
 // The small, reusable pieces of the completed report (P4).
 
@@ -15,15 +15,19 @@ import type { VerdictFinal } from '@/lib/runs/types';
 export function ConfidenceBand({ band, reason, className }: { band: BandKey; reason: string; className?: string }) {
   const b = BANDS[band];
   return (
-    <div data-band={band} className={cn('flex items-start gap-3', className)}>
-      <span aria-hidden="true" className="mt-1.5 flex shrink-0 gap-1">
-        {[1, 2, 3].map((i) => (
-          <span key={i} className={cn('h-1.5 w-5 rounded-[1px]', i <= b.segments ? 'bg-ink-2' : 'bg-sheet-line')} />
-        ))}
-      </span>
-      <p className="max-w-[68ch] type-body text-ink-2">
-        <span className="font-semibold text-ink">{b.name}.</span> {reason}
-      </p>
+    <div data-band={band} className={cn('max-w-[68ch]', className)}>
+      {/* It says how firmly the sources hold this verdict, not that they back the claim. */}
+      <p className="type-meta font-semibold text-ink-2">Confidence in this verdict</p>
+      <div className="mt-1 flex items-start gap-3">
+        <span aria-hidden="true" className="mt-2 flex shrink-0 gap-1">
+          {[1, 2, 3].map((i) => (
+            <span key={i} className={cn('h-1.5 w-5 rounded-[1px]', i <= b.segments ? 'bg-ink-2' : 'border-(length:--rule) border-ink-3')} />
+          ))}
+        </span>
+        <p className="type-body text-ink-2">
+          <span className="font-semibold text-ink">{b.name}.</span> {reason}
+        </p>
+      </div>
     </div>
   );
 }
@@ -32,11 +36,73 @@ export function ConfidenceBand({ band, reason, className }: { band: BandKey; rea
  * ACHP's own reading of the evidence, set apart from the quotes: Public Sans in --ink-2, with a
  * label and no left rule (a rule is what marks a quotation). Interpretation is never in quote style.
  */
-export function InterpretationNote({ children, className }: { children: React.ReactNode; className?: string }) {
+export function InterpretationNote({
+  children,
+  sources = [],
+  onOpenSource,
+  className,
+}: {
+  children: React.ReactNode;
+  /** The sources the reading rests on, by their number in the Evidence tab. */
+  sources?: { id: string; n: number }[];
+  onOpenSource?: (evidenceId: string) => void;
+  className?: string;
+}) {
   return (
     <div data-interpretation className={cn('max-w-[68ch]', className)}>
       <p className="type-meta font-semibold text-ink-2">ACHP&apos;s reading</p>
       <p className="mt-1 type-body text-ink-2">{children}</p>
+      {sources.length > 0 && onOpenSource && (
+        <p data-cited className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 type-meta text-ink-2">
+          <span>From</span>
+          {sources.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => onOpenSource(s.id)}
+              className="inline-flex min-h-6 cursor-pointer items-center rounded-chip border-(length:--rule) border-sheet-line px-2 text-pencil-blue underline decoration-(length:--rule) underline-offset-4 hover:decoration-2 pointer-coarse:min-h-11"
+            >
+              Source {s.n}
+              <span className="sr-only"> in the Evidence tab</span>
+            </button>
+          ))}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Where the message goes wrong, pulled up beside the reading so a long report doesn't hide it: each
+ * part the Judge did not rule Supported, with its stamp word and a link down to the strip.
+ */
+export function PartsThatDontHold({
+  parts,
+}: {
+  parts: { claimId: string; part: number; label: Label; text: string }[];
+}) {
+  if (parts.length === 0) return null;
+  return (
+    <div data-not-holding className="mt-4 max-w-[68ch]">
+      <p className="type-meta font-semibold text-ink-2">
+        {parts.length === 1 ? 'The part that does not hold' : 'The parts that do not hold'}
+      </p>
+      <ul className="mt-1 flex flex-col gap-1">
+        {parts.map((p) => {
+          const info = VERDICTS[p.label];
+          return (
+            <li key={p.claimId} className="type-body text-ink">
+              <a
+                href={`#part-${p.claimId}`}
+                className="inline-block min-h-6 py-0.5 text-ink underline decoration-(length:--rule) decoration-ink-3 underline-offset-4 hover:decoration-2 pointer-coarse:min-h-11"
+              >
+                <span className={cn('type-meta mr-2 font-semibold', info.text)}>{info.name}</span>
+                Part {p.part}: {excerpt(p.text, 90)}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

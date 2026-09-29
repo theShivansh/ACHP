@@ -103,7 +103,8 @@ test('the tray holds one card per pinned source, and the counts agree', async ({
   await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
   const wide = (info.project.use.viewport?.width ?? 0) >= 1280;
   if (!wide) await page.getByRole('button', { name: /open the evidence/ }).click();
-  const tray = wide ? page.getByRole('complementary', { name: 'Evidence' }) : page.getByRole('dialog', { name: 'Evidence' });
+  // Under 1280px a finished case's sources button opens the Evidence tab; the tray is beside the page above.
+  const tray = wide ? page.getByRole('complementary', { name: 'Evidence' }) : page.getByRole('tabpanel');
   await expect(tray.locator('li[data-evidence]')).toHaveCount(evidenceCount);
   await expect(tray.getByText(evidenceCount === 1 ? '1 source' : `${evidenceCount} sources`, { exact: true })).toBeVisible();
   // Every quote on a card is the pinned text, verbatim.

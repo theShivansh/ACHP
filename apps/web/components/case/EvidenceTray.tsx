@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from 'cn';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Globe } from 'lucide-react';
 import { useState } from 'react';
 import { PaperclipGlyph } from '@/components/glyphs';
 import type { EvidenceCard as Card, EvidenceUse } from '@/lib/runs/reducer';
@@ -21,7 +21,8 @@ const USE_WORDS: Record<EvidenceUse['relation'], string> = {
   unclear: 'Mentions',
 };
 
-const USE_TONE: Record<EvidenceUse['relation'], string> = {
+const USE_TONE: Record<EvidenceUse['relation'] | 'graphite', string> = {
+  graphite: 'text-graphite',
   supports: 'text-support',
   contradicts: 'text-pencil-red',
   missing_context: 'text-ochre',
@@ -29,7 +30,8 @@ const USE_TONE: Record<EvidenceUse['relation'], string> = {
   unclear: 'text-ink-2',
 };
 
-const RULE_TONE: Record<EvidenceUse['relation'], string> = {
+const RULE_TONE: Record<EvidenceUse['relation'] | 'graphite', string> = {
+  graphite: 'border-graphite',
   supports: 'border-support',
   contradicts: 'border-pencil-red',
   missing_context: 'border-ochre',
@@ -68,7 +70,7 @@ export function strengthWords(strength: number | null | undefined): string | nul
 /** The site's icon, with the paperclip when it can't be loaded (offline, blocked, none). */
 function Favicon({ domain }: { domain: string | null | undefined }) {
   const [failed, setFailed] = useState(false);
-  if (!domain || failed) return <PaperclipGlyph aria-hidden="true" className="size-4 shrink-0 text-graphite" />;
+  if (!domain || failed) return <Globe aria-hidden="true" className="size-4 shrink-0 stroke-[1.5] text-graphite" />;
   return (
     // eslint-disable-next-line @next/next/no-img-element -- a 16px third-party icon with an onError fallback
     <img
@@ -84,14 +86,16 @@ function Favicon({ domain }: { domain: string | null | undefined }) {
   );
 }
 
-export function EvidenceCard({ card, uses }: { card: Card; uses: EvidenceUse[] }) {
+export function EvidenceCard({ card, uses, n, stopped = false }: { card: Card; uses: EvidenceUse[]; n?: number; stopped?: boolean }) {
   const src = card.source;
   const store = useLinkStore();
   const link = useLinkState('evidence', card.evidence_id);
   const where = src.domain ?? KIND_WORDS[src.kind];
   const date = published(src.published_at);
   const kinds = new Set(uses.map((u) => u.relation));
-  const rule = kinds.size === 1 ? RULE_TONE[uses[0].relation] : 'border-graphite';
+  // With no ruling (the run stopped), a challenger's "contradicts" is a finding, not an error: graphite.
+  const tone = (r: EvidenceUse['relation']) => (stopped && r === 'contradicts' ? 'graphite' : r);
+  const rule = kinds.size === 1 ? RULE_TONE[tone(uses[0].relation)] : 'border-graphite';
   const aged = card.freshness != null && card.freshness < 0.4;
   const strength = strengthWords(card.strength);
   const verifier = card.verifier_status === 'accepted' ? 'Verified' : card.verifier_status === 'rejected' ? 'Could not be verified' : null;
@@ -109,13 +113,14 @@ export function EvidenceCard({ card, uses }: { card: Card; uses: EvidenceUse[] }
       onFocus={lit}
       onBlur={off}
       className={cn(
-        'paper relative rounded-card px-4 pt-4 pb-3 shadow-lift-card transition-opacity duration-(--dur-quick) animate-[rise-in_var(--dur-base)_var(--ease-out)]',
+        'paper relative rounded-card border-(length:--rule) border-sheet-line px-4 pt-4 pb-3 shadow-lift-card transition-opacity duration-(--dur-quick) animate-[rise-in_var(--dur-base)_var(--ease-out)]',
         link === 'dimmed' && 'opacity-45',
         link === 'active' && 'outline-2 outline-pencil-blue',
       )}
     >
       <PaperclipGlyph aria-hidden="true" className="absolute -top-2 left-3 size-5 text-graphite" />
       <p className="flex flex-wrap items-center gap-x-2 type-meta text-ink-2">
+        {n != null && <span className="font-semibold text-ink tabular-nums">Source {n}</span>}
         <Favicon domain={src.domain} />
         <span className="truncate">{where}</span>
         <span className={cn('tabular-nums', !date && 'text-ink-3')}>· {date ? `Published ${date}` : 'Date not given'}</span>
@@ -132,7 +137,7 @@ export function EvidenceCard({ card, uses }: { card: Card; uses: EvidenceUse[] }
         {uses.length > 0 ? (
           <p className="type-meta font-semibold">
             {uses.map((u, i) => (
-              <span key={`${u.claimId}-${u.relation}`} className={USE_TONE[u.relation]}>
+              <span key={`${u.claimId}-${u.relation}`} className={USE_TONE[tone(u.relation)]}>
                 {i > 0 && ', '}
                 {USE_WORDS[u.relation]} part {u.part}
               </span>
@@ -170,6 +175,7 @@ export function EvidenceTray({
   headingId,
   emptyText,
   inSheet = false,
+  stopped = false,
   as: Wrapper = 'section',
 }: {
   cards: Card[];
@@ -183,6 +189,8 @@ export function EvidenceTray({
   emptyText: string;
   /** Inside a Sheet that already titles it "Evidence": the heading becomes screen-reader only. */
   inSheet?: boolean;
+  /** The run stopped without a verdict. */
+  stopped?: boolean;
   as?: 'section' | 'div';
 }) {
   const shown = filter ? cards.filter((c) => filter.ids.includes(c.evidence_id)) : cards;
@@ -217,7 +225,7 @@ export function EvidenceTray({
       ) : (
         <ol className="flex flex-col gap-4 pt-2">
           {shown.map((c) => (
-            <EvidenceCard key={c.evidence_id} card={c} uses={usesOf(c.evidence_id)} />
+            <EvidenceCard key={c.evidence_id} card={c} uses={usesOf(c.evidence_id)} n={cards.indexOf(c) + 1} stopped={stopped} />
           ))}
         </ol>
       )}

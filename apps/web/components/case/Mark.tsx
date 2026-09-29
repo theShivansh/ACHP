@@ -29,9 +29,16 @@ const STROKE: Record<MarkInk, string> = {
  * ruling didn't uphold (anything but Contradicted) is kept in graphite: the finding stays visible,
  * but red, the error color, no longer contradicts the verdict.
  */
-export function markInk(agent: string | null, relation: Relation, label: Label | null = null): MarkInk {
+export function markInk(
+  agent: string | null,
+  relation: Relation,
+  label: Label | null = null,
+  stopped = false,
+): MarkInk {
   const ink = baseInk(agent, relation);
-  return ink === 'pencil-red' && label && label !== 'contradicted' ? 'graphite' : ink;
+  if (ink !== 'pencil-red') return ink;
+  // A run that stopped has no ruling, so a challenger's finding stays a finding, not an error.
+  return stopped || (label && label !== 'contradicted') ? 'graphite' : ink;
 }
 
 function baseInk(agent: string | null, relation: Relation): MarkInk {

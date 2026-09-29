@@ -36,7 +36,7 @@ import { EvidenceTray } from './EvidenceTray';
 import { LaneRail, LaneStrip } from './LaneStrip';
 import { LinkProvider } from './linkStore';
 import { MethodDrawer } from './MethodDrawer';
-import { ConfidenceBand, EditorsDesk, InterpretationNote, ShareBar } from './ReportParts';
+import { ConfidenceBand, EditorsDesk, InterpretationNote, PartsThatDontHold, ShareBar } from './ReportParts';
 import { Stamp } from './Stamp';
 import { TraceTable } from './TraceTable';
 import {
@@ -216,11 +216,42 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
   const sheetTrayHeading = useId();
   const evidenceTabHeading = useId();
   const [lanesOpen, setLanesOpen] = useState(false);
+  // A source chip in the reading opens the Evidence tab; the card is focused once the tab has rendered.
+  const focusCard = useRef<string | null>(null);
+  useEffect(() => {
+    const id = focusCard.current;
+    if (tab !== 'evidence' || !id) return;
+    // The tab's content mounts a frame after the tab changes, so look for the card for a few frames.
+    let frame = 0;
+    let tries = 0;
+    const seek = () => {
+      const card = document.querySelector<HTMLElement>(`[role="tabpanel"] [data-evidence="${id}"]`);
+      if (card) {
+        focusCard.current = null;
+        card.scrollIntoView({ block: 'center' });
+        card.focus({ preventScroll: true });
+      } else if ((tries += 1) < 10) frame = requestAnimationFrame(seek);
+    };
+    seek();
+    return () => cancelAnimationFrame(frame);
+  }, [tab]);
   // Adversary B's missing perspectives, as the Judge recorded them per part (never invented).
   const parts = partNumbers(state);
   const voicesNotHeard = (state.verdict?.claims ?? []).flatMap((c) =>
     c.missing_context && parts[c.claim_id] ? [{ part: parts[c.claim_id], text: c.missing_context }] : [],
   );
+  // The reading's citations: the sources the Judge cited across the parts, by their number in the
+  // Evidence tab (order of arrival), and the parts it did not rule Supported.
+  const citedIds = new Set((state.verdict?.claims ?? []).flatMap((c) => [...(c.evidence_for ?? []), ...(c.evidence_against ?? [])]));
+  const cited = state.evidenceOrder.flatMap((id, i) => (citedIds.has(id) ? [{ id, n: i + 1 }] : []));
+  const notHolding = claims.flatMap((c, i) => {
+    const l = claimLabel(state, c.claim_id);
+    return l && l !== 'supported' && l !== 'blocked' ? [{ claimId: c.claim_id, part: i + 1, label: l, text: c.text }] : [];
+  });
+  const openSource = (evidenceId: string) => {
+    focusCard.current = evidenceId;
+    setTab('evidence');
+  };
   const filterPart = filterClaim ? claims.findIndex((c) => c.claim_id === filterClaim) + 1 : 0;
   const filter = filterClaim && filterPart ? { part: filterPart, ids: stripEvidence(state, filterClaim).ids } : null;
 
@@ -293,9 +324,11 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
               type="button"
               onClick={() => {
                 setFilterClaim(null);
-                openTray();
+                // A finished case has the list in its Evidence tab; a running one keeps the report and opens the sheet.
+                if (phase === 'completed') setTab('evidence');
+                else openTray();
               }}
-              aria-haspopup="dialog"
+              aria-haspopup={phase === 'completed' ? undefined : 'dialog'}
               className="ml-auto inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-button px-2 type-ui text-desk-ink hover:bg-desk-raised md:ml-0 xl:hidden"
             >
               <PaperclipGlyph aria-hidden="true" className="size-5 text-desk-graphite" />
@@ -416,7 +449,10 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                           <h2 id="verdict-title" className="sr-only">
                             Verdict
                           </h2>
-                          <InterpretationNote>{state.verdict.overall.summary}</InterpretationNote>
+                          <InterpretationNote sources={cited} onOpenSource={openSource}>
+                            {state.verdict.overall.summary}
+                          </InterpretationNote>
+                          <PartsThatDontHold parts={notHolding} />
                           <ConfidenceBand
                             className="mt-4"
                             band={state.verdict.overall.confidence_band as BandKey}
@@ -438,6 +474,8 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                               key={c.claim_id}
                               strip={c}
                               part={i + 1}
+                              stopped={phase === 'failed'}
+                              showStamp={claims.length > 1}
                               evidence={stripEvidence(state, c.claim_id)}
                               label={claimLabel(state, c.claim_id)}
                               onShowEvidence={showEvidence}
@@ -466,6 +504,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                       onClearFilter={() => {}}
                       headingId={evidenceTabHeading}
                       emptyText={emptyTray}
+                      stopped={phase === 'failed'}
                     />
                     {voicesNotHeard.length > 0 && (
                       <section aria-labelledby="voices-title" className="mt-8">
@@ -496,7 +535,10 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
           aria-label="Evidence"
           id="evidence-tray"
           tabIndex={-1}
-          className="hidden w-[340px] shrink-0 scroll-mt-16 border-l-(length:--rule) border-desk-line px-5 py-6 outline-none xl:block"
+          className={cn(
+            'hidden w-[340px] shrink-0 scroll-mt-16 border-l-(length:--rule) border-desk-line px-5 py-6 outline-none',
+            tab !== 'evidence' && 'xl:block',
+          )}
         >
           <EvidenceTray
             cards={cards}
@@ -505,6 +547,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
             onClearFilter={() => setFilterClaim(null)}
             headingId={trayHeading}
             emptyText={emptyTray}
+            stopped={phase === 'failed'}
           />
         </aside>
       </div>
@@ -535,6 +578,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
               onClearFilter={() => setFilterClaim(null)}
               headingId={sheetTrayHeading}
               emptyText={emptyTray}
+              stopped={phase === 'failed'}
               inSheet
             />
           </div>

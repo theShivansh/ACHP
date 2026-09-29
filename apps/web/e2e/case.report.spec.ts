@@ -36,10 +36,37 @@ test('stamps carry the labels, the summary and band are in words, and there is n
   await expect(band).toHaveAttribute('data-band', verdict.overall.confidence_band);
   await expect(band).toContainText(verdict.overall.confidence_reason);
   await expect(band).toContainText(/evidence\./);
+  await expect(band).toContainText('Confidence in this verdict');
 
   // No % anywhere in the Report tab (04 §2: no bare percentages).
   const text = await page.getByRole('tabpanel').innerText();
   expect(text).not.toContain('%');
+});
+
+test('the reading names its sources and the parts that do not hold, each a link to the place', async ({ page }) => {
+  await page.goto(url);
+  await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
+
+  // Each cited source is a chip that opens the Evidence tab on that card.
+  const chip = page.locator('[data-cited] button').first();
+  await expect(chip).toHaveText(/Source \d+/);
+  const n = (await chip.innerText()).match(/Source (\d+)/)![1];
+  await chip.click();
+  await expect(page).toHaveURL(/tab=evidence/);
+  const card = page.getByRole('tabpanel').locator('li[data-evidence]').nth(Number(n) - 1);
+  await expect(card).toBeFocused();
+  await expect(card).toContainText(`Source ${n}`);
+
+  // The parts the Judge did not rule Supported are listed beside the reading and link to their strips.
+  await page.goto(url);
+  await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
+  const unheld = verdict.claims.filter((c) => c.label !== 'supported' && c.label !== 'blocked');
+  const list = page.locator('[data-not-holding] a');
+  await expect(list).toHaveCount(unheld.length);
+  if (unheld.length) {
+    await expect(list.first()).toHaveAttribute('href', `#part-${unheld[0].claim_id}`);
+    await expect(page.locator(`li[data-claim="${unheld[0].claim_id}"]`)).toHaveAttribute('id', `part-${unheld[0].claim_id}`);
+  }
 });
 
 test('an evidence card shows where it came from, the verbatim quote and what it was used for', async ({ page }) => {

@@ -43,6 +43,8 @@ export function ClaimStrip({
   part,
   evidence,
   label,
+  stopped = false,
+  showStamp = true,
   onShowEvidence,
 }: {
   strip: Strip;
@@ -50,6 +52,10 @@ export function ClaimStrip({
   evidence: StripEvidence;
   /** The Judge's label for this part, once verdict.final has arrived. */
   label: Label | null;
+  /** The run stopped before a ruling: challengers' findings are shown in graphite and as unruled. */
+  stopped?: boolean;
+  /** False when the message has one part: the header stamp already is this part's verdict. */
+  showStamp?: boolean;
   onShowEvidence: (claimId: string) => void;
 }) {
   const boxRef = useRef<HTMLParagraphElement>(null);
@@ -89,6 +95,8 @@ export function ClaimStrip({
 
   return (
     <li
+      id={`part-${strip.claim_id}`}
+      tabIndex={-1}
       data-claim={strip.claim_id}
       data-link={link}
       onPointerEnter={lit}
@@ -96,7 +104,7 @@ export function ClaimStrip({
       onFocus={lit}
       onBlur={off}
       className={cn(
-        'grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-4 border-t-(length:--rule) border-sheet-line py-6 transition-opacity duration-(--dur-quick) md:grid-cols-[1.5rem_minmax(0,1fr)_120px] animate-[fade-in_var(--dur-base)_var(--ease-out)]',
+        'grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-4 border-t-(length:--rule) border-sheet-line py-6 transition-opacity duration-(--dur-quick) md:grid-cols-[1.5rem_minmax(0,1fr)_120px] animate-[fade-in_var(--dur-base)_var(--ease-out)] scroll-mt-16 outline-none',
         link === 'dimmed' && 'opacity-45',
       )}
     >
@@ -113,7 +121,7 @@ export function ClaimStrip({
                 key={`${m.seq}-${i}`}
                 rect={rect}
                 relation={m.relation}
-                ink={markInk(m.agent, m.relation, label)}
+                ink={markInk(m.agent, m.relation, label, stopped)}
                 line={i}
                 span={m.span}
                 ruled={label === 'contradicted'}
@@ -143,7 +151,7 @@ export function ClaimStrip({
               <span className="sr-only"> for part {part}</span>
             </button>
           )}
-          {info && <Stamp label={info.label} id={strip.claim_id} size="strip" />}
+          {info && showStamp && <Stamp label={info.label} id={strip.claim_id} size="strip" />}
         </div>
       </div>
 
@@ -163,12 +171,13 @@ export function ClaimStrip({
           </p>
         )}
         {disputers.map((name) => (
-          <p key={name} aria-hidden="true" className="type-meta text-pencil-red">
+          <p key={name} aria-hidden="true" className={cn('type-meta', stopped ? 'text-graphite' : 'text-pencil-red')}>
             Disputed by the {name}
+            {stopped && ', no ruling'}
           </p>
         ))}
         {notes.map((m) => (
-          <p key={m.seq} className={cn('line-clamp-3', m.relation === 'contradicts' ? 'text-pencil-red' : 'text-pencil-blue')}>
+          <p key={m.seq} className={cn('line-clamp-3', m.relation === 'contradicts' && !stopped ? 'text-pencil-red' : m.relation === 'contradicts' ? 'text-graphite' : 'text-pencil-blue')}>
             <span aria-hidden="true" className="font-note type-note">
               {m.note}
             </span>

@@ -4,12 +4,12 @@ import { seededTilt, verdictInfo } from '@/lib/verdict';
 
 // Stamp v1 (04 §7). An SVG rubber stamp: an irregular border, the verdict in Newsreader 600 caps
 // (the one place uppercase is allowed), and an ink texture from a static feTurbulence threshold, so
-// it looks pressed rather than printed. The tilt (−3°…+3°) is seeded from the id, so the same
+// it looks pressed rather than printed. The tilt (1.2° to 3° either way) is seeded from the id, so the same
 // claim always gets the same stamp. It simply appears; P8 adds the four-frame press.
 // `role="img"` + a written label: the stamp is never the only carrier of the verdict.
 
 const SIZES = {
-  overall: { font: 26, pad: 14, h: 52, stroke: 2.5 },
+  overall: { font: 34, pad: 18, h: 66, stroke: 3 },
   strip: { font: 15, pad: 9, h: 30, stroke: 1.75 },
 } as const;
 
@@ -81,7 +81,7 @@ export function Stamp({
         {/* Static ink texture: noise thresholded into speckled gaps, applied once, never animated. */}
         <filter id={filter} x="-5%" y="-10%" width="110%" height="120%">
           <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise" />
-          <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.3 1.85" result="alpha" />
+          <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.85" result="alpha" />
           <feComposite in="SourceGraphic" in2="alpha" operator="in" />
         </filter>
       </defs>

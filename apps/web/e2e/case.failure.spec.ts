@@ -34,6 +34,10 @@ test('a mid-run failure keeps the evidence, names the stage and shows no verdict
   // The lane that was working when the run died is shown as failed.
   await expect(page.locator('aside li[data-state="failed"]').first()).toBeAttached();
   await expect(page.locator('[data-status-line]')).toContainText('No verdict');
+  // A failure is not a finding: no red anywhere on the report (a challenger's mark stays graphite).
+  await expect(page.locator('[data-failed-stage] .border-pencil-red')).toHaveCount(0);
+  await expect(page.locator('li[data-claim] .stroke-pencil-red, li[data-claim] .text-pencil-red')).toHaveCount(0);
+  await expect(page.locator('li[data-evidence] .text-pencil-red, li[data-evidence] .border-pencil-red')).toHaveCount(0);
 });
 
 test('a blocked message: "Not checked", only the Gatekeeper ran, no scores', async ({ page }) => {

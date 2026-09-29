@@ -37,12 +37,12 @@ test('closing a sheet returns focus to the button that opened it', async ({ page
   await page.goto(`/case/fixture-${mixed}?speed=4`);
   await expect(page.locator('[data-run-status="completed"]')).toBeVisible({ timeout: 60_000 });
 
+  // On a finished case the case bar's sources button goes to the Evidence tab (no sheet).
   const opener = page.getByRole('button', { name: /open the evidence/ });
   await opener.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog', { name: 'Evidence' })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(opener).toBeFocused();
+  await expect(page.getByRole('tab', { name: /Evidence/ })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('tab', { name: 'Report' }).click();
 
   const part = page.locator('li[data-claim]').getByRole('button', { name: /source/ }).first();
   await part.focus();

@@ -48,10 +48,13 @@ def claim_band(label: str, evidence_for: Sequence[str], evidence_against: Sequen
     agrees = challenger_verdict in _AGREES.get(label, set())
     if conflict:
         return "weak", "The cited sources point in different directions."
+    # For mixed and missing-context parts the sources are meant to differ, so "agree" would read as
+    # backing the claim; say how many were cited and whether the challenger reached the same finding.
+    said = "agree" if label in ("supported", "contradicted") else "cited"
     if n >= 2 and agrees:
-        return "strong", f"{_n(n).capitalize()} agree and the fact challenger reached the same finding."
+        return "strong", f"{_n(n).capitalize()} {said} and the fact challenger reached the same finding."
     if n >= 2:
-        return "moderate", f"{_n(n).capitalize()} agree, but the fact challenger read it differently."
+        return "moderate", f"{_n(n).capitalize()} {said}, but the fact challenger read it differently."
     if n == 1 and agrees:
         return "moderate", "One source, and the fact challenger reached the same finding."
     if n == 1:

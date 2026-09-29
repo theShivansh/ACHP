@@ -29,10 +29,11 @@ describe('verdict vocabulary (04 §3.3)', () => {
     warn.mockRestore();
   });
 
-  it('tilts a stamp within ±3° and the same way for the same id', () => {
+  it('tilts a stamp 1.2° to 3° either way (never level) and the same way for the same id', () => {
     for (const id of ['C1', 'C2', 'r_0ab5a724e1', '']) {
       const t = seededTilt(id);
       expect(Math.abs(t)).toBeLessThanOrEqual(3);
+      expect(Math.abs(t)).toBeGreaterThanOrEqual(1.2);
       expect(seededTilt(id)).toBe(t);
     }
     expect(new Set(['C1', 'C2', 'C3', 'C4', 'C5'].map(seededTilt)).size).toBeGreaterThan(1);

@@ -8,8 +8,8 @@ import type { RunFailed } from '@/lib/runs/types';
 // System states on the sheet (07 §3.3). Plain words, no spinner, no percentage. The waking and
 // queued notices are derived from /health and run.queued; the rest from the connection and the log.
 
-function Ruled({ children, tone = 'graphite' }: { children: React.ReactNode; tone?: 'graphite' | 'ochre' | 'red' }) {
-  const border = tone === 'ochre' ? 'border-ochre' : tone === 'red' ? 'border-pencil-red' : 'border-sheet-line';
+function Ruled({ children, tone = 'graphite' }: { children: React.ReactNode; tone?: 'graphite' | 'ochre' }) {
+  const border = tone === 'ochre' ? 'border-ochre' : 'border-sheet-line';
   return <div className={`border-y-(length:--rule) ${border} py-4`}>{children}</div>;
 }
 
@@ -81,8 +81,8 @@ export function FailedCard({
   ].filter(Boolean);
   return (
     <section aria-labelledby="failed-title" data-failed-stage={failure.stage}>
-      <Ruled tone="red">
-        <h2 id="failed-title" className="type-h2 text-ink">
+      <Ruled tone="ochre">
+        <h2 id="failed-title" className="type-h2 text-balance text-ink">
           The check stopped at the {stageWords(failure.stage)} step
         </h2>
         <p className="mt-2 max-w-[60ch] type-body text-ink-2">{failure.message}</p>
@@ -91,7 +91,7 @@ export function FailedCard({
             ? `What was found before it stopped is kept below: ${keptWords.join(' and ')}. There is no verdict.`
             : 'Nothing was found before it stopped. There is no verdict.'}
         </p>
-        {failure.retryable && onRerun && (
+        {onRerun && (
           <Button className="mt-3" onClick={onRerun}>
             Run it again
           </Button>
@@ -111,7 +111,7 @@ export function BlockedNotice({ reason }: { reason: string }) {
   return (
     <section aria-labelledby="blocked-title" data-blocked>
       <Ruled>
-        <h2 id="blocked-title" className="type-h2 text-ink">
+        <h2 id="blocked-title" className="type-h2 text-balance text-ink">
           This message wasn&apos;t checked
         </h2>
         <p className="mt-2 max-w-[60ch] type-body text-ink-2">{plainReason(reason)}</p>

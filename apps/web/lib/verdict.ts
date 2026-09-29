@@ -122,7 +122,7 @@ export const BANDS = {
 
 export type BandKey = keyof typeof BANDS;
 
-/** A stamp's tilt in degrees, −3…+3, the same for the same id every time (04 §7). */
+/** A stamp's tilt in degrees, 1.2 to 3 either way (never level), the same for the same id every time (04 §7). */
 export function seededTilt(id: string): number {
   let h = 2166136261;
   for (let i = 0; i < id.length; i += 1) {
@@ -130,7 +130,8 @@ export function seededTilt(id: string): number {
     h = Math.imul(h, 16777619);
   }
   const unit = ((h >>> 0) % 10001) / 10000; // 0..1
-  return Math.round((unit * 6 - 3) * 10) / 10;
+  const t = Math.round((unit * 6 - 3) * 10) / 10;
+  return Math.abs(t) < 1.2 ? (t < 0 ? -1.2 : 1.2) : t;
 }
 
 /** A claim excerpt for titles and share text: whole words, an ellipsis only when something was cut. */
