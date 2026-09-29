@@ -1,17 +1,17 @@
 'use client';
 
 import { cn } from 'cn';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, ViewTransition } from 'react';
-import { Chip } from '@/components/ui/chip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PaperclipGlyph } from '@/components/glyphs';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { agentIdentity } from '@/lib/agents.config';
 import { useHealth } from '@/lib/api';
-import { BAND_WORDS, createAnnouncer, labelWords, stageWords } from '@/lib/runs/announcer';
-import { startRun } from '@/lib/runs/api';
+import { createAnnouncer, stageWords } from '@/lib/runs/announcer';
+import { apiBase, startRun } from '@/lib/runs/api';
 import type { ConnectionStatus } from '@/lib/runs/connection';
 import {
   claimLabel,
@@ -22,16 +22,23 @@ import {
   laneGroups,
   lanes as selectLanes,
   orderedClaims,
+  partNumbers,
   stepsReached,
   stripEvidence,
   type RunState,
 } from '@/lib/runs/reducer';
-import type { Label, RunEvent } from '@/lib/runs/types';
+import type { RunEvent } from '@/lib/runs/types';
+import type { BandKey } from '@/lib/verdict';
 import { useRunEvents } from '@/lib/runs/useRunEvents';
 import { LaneList, type LaneClock } from './AgentLane';
 import { ClaimStrip } from './ClaimStrip';
 import { EvidenceTray } from './EvidenceTray';
 import { LaneRail, LaneStrip } from './LaneStrip';
+import { LinkProvider } from './linkStore';
+import { MethodDrawer } from './MethodDrawer';
+import { ConfidenceBand, EditorsDesk, InterpretationNote, ShareBar } from './ReportParts';
+import { Stamp } from './Stamp';
+import { TraceTable } from './TraceTable';
 import {
   BlockedNotice,
   ExpiredNotice,
@@ -103,6 +110,17 @@ function connectionSentence(phase: CasePhase, connection: ConnectionStatus): str
   return '';
 }
 
+/** "7 agents · 18.2s · 1 debate round": the folded lanes of a finished case (07 §3.1). */
+function laneSummary(state: RunState): string {
+  const total = state.agentOrder.length;
+  const ran = laneCounts(state).done;
+  const parts = [ran === total ? `${total} agents` : `${ran} of ${total} agents ran`];
+  if (state.completed?.totalMs) parts.push(`${(state.completed.totalMs / 1000).toFixed(1)}s`);
+  const rounds = state.debateRounds.length;
+  if (rounds > 0) parts.push(`${rounds} debate round${rounds === 1 ? '' : 's'}`);
+  return parts.join(' · ');
+}
+
 function activityLine(phase: CasePhase, state: RunState): string {
   const lane = currentLane(state);
   if (lane) {
@@ -119,15 +137,10 @@ function activityLine(phase: CasePhase, state: RunState): string {
   return statusLine(phase, state);
 }
 
-const LABEL_TONE: Record<Label, 'support' | 'contradicted' | 'ochre' | 'graphite'> = {
-  supported: 'support',
-  contradicted: 'contradicted',
-  mixed: 'ochre',
-  missing_context: 'ochre',
-  unverifiable: 'graphite',
-  blocked: 'graphite',
-};
 
+
+const TABS = ['report', 'evidence', 'trace'] as const;
+type TabId = (typeof TABS)[number];
 
 export interface CaseLiveProps {
   runId: string;
@@ -138,9 +151,11 @@ export interface CaseLiveProps {
   expired?: boolean;
   /** Dev fixture replay: no /health gating, no re-run against the real backend. */
   fixture?: { name: string; speed: number } | null;
+  /** Text of EVALUATION.md, when the repo has one (read on the server, never written here). */
+  benchmark?: string | null;
 }
 
-export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixture = null }: CaseLiveProps) {
+export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixture = null, benchmark = null }: CaseLiveProps) {
   const router = useRouter();
   const [announcement, setAnnouncement] = useState('');
   // Only live events are announced; a stored log that was already there on load stays quiet.
@@ -162,6 +177,16 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
     onEvents,
   );
   const health = useHealth();
+  const pathname = usePathname();
+  const search = useSearchParams();
+  const tab: TabId = TABS.includes(search.get('tab') as TabId) ? (search.get('tab') as TabId) : 'report';
+  const setTab = (next: string) => {
+    const q = new URLSearchParams(search.toString());
+    if (next === 'report') q.delete('tab');
+    else q.set('tab', next);
+    router.replace(q.size ? `${pathname}?${q}` : pathname, { scroll: false });
+  };
+  const apiUrl = baseUrl ?? apiBase();
   const phase = casePhase(state, connection, {
     expired,
     healthPending: !fixture && !health.isSuccess && !health.isError,
@@ -189,6 +214,13 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
   };
   const trayHeading = useId();
   const sheetTrayHeading = useId();
+  const evidenceTabHeading = useId();
+  const [lanesOpen, setLanesOpen] = useState(false);
+  // Adversary B's missing perspectives, as the Judge recorded them per part (never invented).
+  const parts = partNumbers(state);
+  const voicesNotHeard = (state.verdict?.claims ?? []).flatMap((c) =>
+    c.missing_context && parts[c.claim_id] ? [{ part: parts[c.claim_id], text: c.missing_context }] : [],
+  );
   const filterPart = filterClaim ? claims.findIndex((c) => c.claim_id === filterClaim) + 1 : 0;
   const filter = filterClaim && filterPart ? { part: filterPart, ids: stripEvidence(state, filterClaim).ids } : null;
 
@@ -224,6 +256,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
       : 'Sources appear here as the Clipper pins them.';
 
   return (
+    <LinkProvider>
     <div data-run-status={phase} data-run-id={runId} className="flex flex-1 flex-col">
       {/* Case bar: where you are and what the run is doing, in words (role=status, changes on events only). */}
       <section aria-label="Case" className="border-b-(length:--rule) border-desk-line">
@@ -289,8 +322,29 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
           {laneList.length === 0 ? (
             <p className="mt-3 type-meta text-desk-ink-2">The agents appear when the check starts.</p>
           ) : (
+            // Done: the lanes fold into one summary line (07 §3.1); the details stay one click away.
+            // A real disclosure (display: none), not <details>: a closed <details> skips style
+            // updates, which left a finished lane's boil animation running.
             <div className="mt-2">
-              <LaneList groups={groups} clock={clock} debateReason={reason} />
+              {phase === 'completed' && (
+                <button
+                  type="button"
+                  data-lane-summary
+                  aria-expanded={lanesOpen}
+                  aria-controls="lane-list"
+                  onClick={() => setLanesOpen((o) => !o)}
+                  className="flex min-h-11 w-full cursor-pointer items-center text-left type-meta text-desk-ink-2 hover:text-desk-ink"
+                >
+                  <ChevronRight
+                    aria-hidden="true"
+                    className={cn('mr-1 size-4 stroke-[1.5] transition-transform duration-(--dur-quick)', lanesOpen && 'rotate-90')}
+                  />
+                  {laneSummary(state)}
+                </button>
+              )}
+              <div id="lane-list" hidden={phase === 'completed' && !lanesOpen}>
+                <LaneList groups={groups} clock={clock} debateReason={reason} />
+              </div>
             </div>
           )}
         </aside>
@@ -309,77 +363,133 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
             />
           )}
 
-          <article className="paper mx-auto max-w-[760px] rounded-sheet px-5 py-8 shadow-lift-sheet md:px-12 md:py-12">
-            {phase === 'expired' ? (
-              <>
-                <h1 className="sr-only">Case {runId}</h1>
-                <ExpiredNotice />
-              </>
-            ) : (
-              <>
-                <header>
-                  {text ? (
-                    <>
-                      <p className="type-meta font-semibold text-ink-2">The message you were forwarded</p>
-                      <ViewTransition name="claim-text">
-                        <h1 className="mt-3 max-w-[68ch] font-display type-claim text-balance text-ink">{text}</h1>
-                      </ViewTransition>
-                    </>
-                  ) : (
-                    <h1 className="sr-only">Case {runId}</h1>
-                  )}
-                </header>
-
-                <div className={cn('flex flex-col gap-6', text && hasNotice && 'mt-8')}>
-                  {phase === 'waking' && <WakingNotice />}
-                  {phase === 'queued' && state.queuePosition != null && <QueuedNotice position={state.queuePosition} />}
-                  {phase === 'failed' && state.failure && (
-                    <FailedCard
-                      failure={state.failure}
-                      kept={{ sources: cards.length, parts: claims.length }}
-                      onRerun={rerun}
-                    />
-                  )}
-                  {blocked && state.verdict && <BlockedNotice reason={state.verdict.overall.summary} />}
-                  {phase === 'completed' && state.verdict && !blocked && (
-                    <section aria-labelledby="verdict-title" data-verdict={state.verdict.overall.label}>
-                      <h2 id="verdict-title" className="sr-only">
-                        Verdict
-                      </h2>
-                      <Chip tone={LABEL_TONE[state.verdict.overall.label]}>
-                        {labelWords(state.verdict.overall.label).replace(/^./, (c) => c.toUpperCase())}
-                      </Chip>
-                      <p className="mt-3 type-meta font-semibold text-ink-2">ACHP&apos;s reading</p>
-                      <p className="mt-1 max-w-[68ch] type-body text-ink-2">{state.verdict.overall.summary}</p>
-                      <p className="mt-2 max-w-[68ch] type-meta text-ink-2">
-                        {BAND_WORDS[state.verdict.overall.confidence_band]}. {state.verdict.overall.confidence_reason}
-                      </p>
-                    </section>
-                  )}
-                </div>
-
-                {claims.length > 0 && (
-                  <section aria-labelledby="parts-title" className="mt-8">
-                    <h2 id="parts-title" className="type-meta font-semibold text-ink-2">
-                      {claims.length === 1 ? 'The checkable part' : `${claims.length} checkable parts`}
-                    </h2>
-                    <ol className="mt-3">
-                      {claims.map((c, i) => (
-                        <ClaimStrip
-                          key={c.claim_id}
-                          strip={c}
-                          part={i + 1}
-                          evidence={stripEvidence(state, c.claim_id)}
-                          label={claimLabel(state, c.claim_id)}
-                          onShowEvidence={showEvidence}
-                        />
-                      ))}
-                    </ol>
-                  </section>
-                )}
-              </>
+          <Tabs value={tab} onValueChange={setTab} className="mx-auto max-w-[760px]">
+            {phase !== 'expired' && (
+              <TabsList aria-label="Case sections">
+                <TabsTrigger value="report">Report</TabsTrigger>
+                <TabsTrigger value="evidence">
+                  Evidence <span className="tabular-nums">({cards.length})</span>
+                </TabsTrigger>
+                <TabsTrigger value="trace">Trace</TabsTrigger>
+              </TabsList>
             )}
-          </article>
+            <article className="paper rounded-sheet px-5 py-8 shadow-lift-sheet md:px-12 md:py-12">
+              {phase === 'expired' ? (
+                <>
+                  <h1 className="sr-only">Case {runId}</h1>
+                  <ExpiredNotice />
+                </>
+              ) : (
+                <>
+                  <header>
+                    {text ? (
+                      <>
+                        <p className="type-meta font-semibold text-ink-2">The message you were forwarded</p>
+                        <ViewTransition name="claim-text">
+                          <h1 className="mt-3 max-w-[68ch] font-display type-claim text-balance text-ink">{text}</h1>
+                        </ViewTransition>
+                      </>
+                    ) : (
+                      <h1 className="sr-only">Case {runId}</h1>
+                    )}
+                    {phase === 'completed' && state.verdict && (
+                      <div className="mt-5">
+                        <Stamp label={state.verdict.overall.label} id={runId} size="overall" />
+                      </div>
+                    )}
+                  </header>
+
+                  <TabsContent value="report">
+                    <div className={cn('flex flex-col gap-6', text && hasNotice && 'mt-8')}>
+                      {phase === 'waking' && <WakingNotice />}
+                      {phase === 'queued' && state.queuePosition != null && <QueuedNotice position={state.queuePosition} />}
+                      {phase === 'failed' && state.failure && (
+                        <FailedCard
+                          failure={state.failure}
+                          kept={{ sources: cards.length, parts: claims.length }}
+                          onRerun={rerun}
+                        />
+                      )}
+                      {blocked && state.verdict && <BlockedNotice reason={state.verdict.overall.summary} />}
+                      {phase === 'completed' && state.verdict && !blocked && (
+                        <section aria-labelledby="verdict-title" data-verdict={state.verdict.overall.label}>
+                          <h2 id="verdict-title" className="sr-only">
+                            Verdict
+                          </h2>
+                          <InterpretationNote>{state.verdict.overall.summary}</InterpretationNote>
+                          <ConfidenceBand
+                            className="mt-4"
+                            band={state.verdict.overall.confidence_band as BandKey}
+                            reason={state.verdict.overall.confidence_reason}
+                          />
+                          <EditorsDesk band={state.verdict.overall.confidence_band as BandKey} />
+                        </section>
+                      )}
+                    </div>
+
+                    {claims.length > 0 && (
+                      <section aria-labelledby="parts-title" className="mt-8">
+                        <h2 id="parts-title" className="type-meta font-semibold text-ink-2">
+                          {claims.length === 1 ? 'The checkable part' : `${claims.length} checkable parts`}
+                        </h2>
+                        <ol className="mt-3">
+                          {claims.map((c, i) => (
+                            <ClaimStrip
+                              key={c.claim_id}
+                              strip={c}
+                              part={i + 1}
+                              evidence={stripEvidence(state, c.claim_id)}
+                              label={claimLabel(state, c.claim_id)}
+                              onShowEvidence={showEvidence}
+                            />
+                          ))}
+                        </ol>
+                      </section>
+                    )}
+
+                    {phase === 'completed' && state.verdict && !blocked && text && (
+                      <>
+                        <ShareBar runId={runId} claim={text} verdict={state.verdict} fixture={!!fixture} />
+                        <div className="mt-4">
+                          <MethodDrawer benchmark={benchmark} />
+                        </div>
+                      </>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="evidence" className="mt-8">
+                    <EvidenceTray
+                      as="div"
+                      cards={cards}
+                      usesOf={usesOf}
+                      filter={null}
+                      onClearFilter={() => {}}
+                      headingId={evidenceTabHeading}
+                      emptyText={emptyTray}
+                    />
+                    {voicesNotHeard.length > 0 && (
+                      <section aria-labelledby="voices-title" className="mt-8">
+                        <h2 id="voices-title" className="type-ui font-semibold text-ink">
+                          Voices not heard
+                        </h2>
+                        <ul className="mt-3 list-disc pl-5 marker:text-ink-3">
+                          {voicesNotHeard.map((v) => (
+                            <li key={`${v.part}-${v.text}`} className="max-w-[68ch] type-body text-ink-2">
+                              Part {v.part}: {v.text}
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="trace" className="mt-8">
+                    <TraceTable state={state} runId={runId} baseUrl={apiUrl} />
+                  </TabsContent>
+                </>
+              )}
+            </article>
+          </Tabs>
         </main>
 
         <aside
@@ -432,9 +542,10 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
       </Sheet>
 
       {/* Paced announcements (S9.1): at most one sentence every 2s, most important first. */}
-      <p aria-live="polite" aria-atomic="true" className="sr-only">
+      <p data-announcer aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}
       </p>
     </div>
+    </LinkProvider>
   );
 }

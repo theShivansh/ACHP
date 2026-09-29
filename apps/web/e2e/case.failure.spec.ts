@@ -40,7 +40,8 @@ test('a blocked message: "Not checked", only the Gatekeeper ran, no scores', asy
   const { name } = pickFixture('blocked', 'synthetic-blocked');
   await page.goto(`/case/fixture-${name}?speed=4`);
   await expect(page.locator('[data-run-status="completed"]')).toBeVisible({ timeout: 60_000 });
-  await expect(page.locator('[data-blocked]')).toContainText('Not checked');
+  await expect(page.locator('[data-slot="stamp"][data-label="blocked"]')).toBeVisible();
+  await expect(page.locator('[data-blocked]')).toContainText("wasn't checked");
   await expect(page.locator('[data-verdict]')).toHaveCount(0);
   await expect(page.locator('li[data-claim]')).toHaveCount(0);
   await expect(page.getByText(/\b(CTS|PCS|BIS|NSS|EPS)\b/)).toHaveCount(0);

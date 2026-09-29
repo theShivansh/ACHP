@@ -41,6 +41,7 @@ test('lanes change state in event order and end where the log ends', async ({ pa
     await expect(lanes.and(page.locator(`[data-agent="${agent}"]`))).toHaveAttribute('data-state', state);
   }
   // The parallel group is labelled.
+  await page.locator('[data-lane-summary]').click(); // the lanes fold into one line once done
   await expect(page.getByText('In parallel')).toBeVisible();
 });
 
@@ -64,7 +65,7 @@ test('strips appear in reading order, and marks sit over the exact characters', 
       const text = box?.querySelector('span:not(.sr-only)')?.firstChild;
       if (!box || !(text instanceof Text)) continue;
       const byLine = new Map<string, SVGElement[]>();
-      li.querySelectorAll<SVGElement>('svg.mark').forEach((svg) => {
+      li.querySelectorAll<SVGElement>('svg.mark[data-span]').forEach((svg) => {
         const k = svg.getAttribute('data-span')!;
         byLine.set(k, [...(byLine.get(k) ?? []), svg]);
       });
@@ -120,7 +121,7 @@ test('the finished case has landmarks, a status line and no axe violations', asy
   await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole('main')).toHaveCount(1);
   await expect(page.locator('[data-status-line]')).toContainText('Checked');
-  await expect(page.locator('[aria-live="polite"]')).toHaveCount(1);
+  await expect(page.locator('[data-announcer]')).toHaveCount(1);
   await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([]);

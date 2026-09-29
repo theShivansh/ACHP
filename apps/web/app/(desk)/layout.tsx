@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { Toaster } from '@/components/ui/sonner';
 import { DeskHeader } from './_components/DeskHeader';
 
 // The Fact-Checker's Desk shell. It only exists behind NEXT_PUBLIC_FF_DESK=1; without the flag
@@ -18,6 +19,7 @@ export default function DeskLayout({ children }: { children: React.ReactNode }) 
       {/* Each page renders its own <main id="main">, so a page's asides (the case's Agents and
           Evidence) stay top-level landmarks beside it rather than inside it. */}
       <div className="flex flex-1 flex-col">{children}</div>
+      <Toaster />
     </div>
   );
 }

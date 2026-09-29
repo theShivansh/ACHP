@@ -349,6 +349,10 @@ html[data-lowfx] .boil-once {
 }
 .mark[data-relation="unclear"] path { animation: fade-in var(--dur-base) var(--ease-out) var(--delay, 0ms) backwards; }
 
+/* An older source's card takes a faint yellow shift of the paper (a ΔE of about 4), the "evidence
+   aging" cue. It is always paired with the words "older source". */
+.paper[data-aged] { background-color: color-mix(in oklab, var(--sheet), var(--highlighter) 10%); }
+
 /* ── Overlay enter/exit (dialog, sheet, tooltip, hover card) — Language B, 05 §1 ─────────── */
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes fade-out { to { opacity: 0; } }

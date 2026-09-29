@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { notFound } from 'next/navigation';
 import { CaseLive } from '@/components/case/CaseLive';
 import { apiBase } from '@/lib/runs/api';
@@ -42,6 +44,18 @@ async function storedEvents(runId: string): Promise<{ events: RunEvent[]; expire
   }
 }
 
+/** The repo's EVALUATION.md, if it exists (audit 01 G5: the benchmark is read, never written here). */
+function readBenchmark(): string | null {
+  try {
+    const raw = readFileSync(path.resolve(process.cwd(), '..', '..', 'EVALUATION.md'), 'utf8').trim();
+    if (!raw) return null;
+    const firstParagraph = raw.replace(/^#[^\n]*\n+/, '').split(/\n{2,}/)[0];
+    return firstParagraph.slice(0, 600);
+  } catch {
+    return null;
+  }
+}
+
 export default async function CasePage({ params, searchParams }: Props) {
   const { id } = await params;
   const sp = await searchParams;
@@ -61,11 +75,12 @@ export default async function CasePage({ params, searchParams }: Props) {
         runId={events[0].run_id}
         baseUrl={`/api/dev/fixture/${name}/${replayOptionsSegment(opts)}`}
         fixture={{ name, speed: opts.speed }}
+        benchmark={readBenchmark()}
       />
     );
   }
 
   if (!RUN_ID.test(id)) notFound();
   const { events, expired } = await storedEvents(id);
-  return <CaseLive key={id} runId={id} initialEvents={events} expired={expired} />;
+  return <CaseLive key={id} runId={id} initialEvents={events} expired={expired} benchmark={readBenchmark()} />;
 }

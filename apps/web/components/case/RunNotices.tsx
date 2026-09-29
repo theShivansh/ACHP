@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Chip } from '@/components/ui/chip';
 import { stageWords } from '@/lib/runs/announcer';
 import type { RunFailed } from '@/lib/runs/types';
 
@@ -112,10 +111,7 @@ export function BlockedNotice({ reason }: { reason: string }) {
   return (
     <section aria-labelledby="blocked-title" data-blocked>
       <Ruled>
-        <Chip tone="graphite" className="font-display tracking-normal uppercase">
-          Not checked
-        </Chip>
-        <h2 id="blocked-title" className="mt-3 type-h2 text-ink">
+        <h2 id="blocked-title" className="type-h2 text-ink">
           This message wasn&apos;t checked
         </h2>
         <p className="mt-2 max-w-[60ch] type-body text-ink-2">{plainReason(reason)}</p>
