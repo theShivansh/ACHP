@@ -174,9 +174,31 @@ Decisions:
 
 Intentional differences from the prototype (`prototype-screens/case-live-light.png`): no Report/Evidence/Assay/Trace tabs yet (P4); per-strip verdicts are chips, not stamps (P4/P8); marks draw smoothly, not stepped (P8); the evidence card's relation label appears only once a mark or the verdict states it (the prototype shows it from the start).
 
-## P4 — Verdict, evidence, share
-- [ ] S4.1 · [ ] S4.2 · [ ] S4.3 · [ ] S4.4 · [ ] S4.5 · [ ] S5.1 · [ ] S5.2 · [ ] S5.3 · [ ] S5.4 · [ ] S6.1 · [ ] S6.2 · [ ] S6.3
-- Gate: `/impeccable critique case` + `design-critic` clean · no `%` in the Sharer view
+## P4 — Verdict, evidence, share  ✅ 2026-09-29
+- [x] S4.1 verdict vocabulary in one place (`lib/verdict.ts`; legacy TRUE…FALSE mapped explicitly) · [x] S4.2 stamps (`Stamp`: seeded tilt, wobbly border, ink mask, `role="img"` + written label) · [x] S4.3 confidence band (words + 3 segments, never a %) · [x] S4.4 "ACHP's reading" set apart from quotes, with the sources it rests on · [x] S4.5 the Judge's own mark per strip (tick, half-underline, caret, dashed box)
+- [x] S5.1 final evidence cards (favicon, domain, verbatim quote in Newsreader, locator, "Date not given", strength/verifier only when present) · [x] S5.2 span ↔ card linking (`linkStore`, pointer + focus) · [x] S5.3 Report / Evidence / Trace tabs in `?tab=` · [x] S5.4 method drawer (benchmark text only from `EVALUATION.md`, else "no benchmark yet") · Trace: windowed table, expandable raw JSON, "Download events.json"
+- [x] S6.1 share bar (Copy summary ≤400 chars ending in the link, Copy link, Share where offered, Replay link hidden for fixtures) · [x] S6.2 title "ACHP · <Verdict>: <excerpt>" + og/twitter · [x] S6.3 1200×630 OG image (stamp, claim excerpt, no score; a stored test log is watermarked)
+- Commits: 89c98ca, e6c0ed5, b815153 (build) · 610fbe1 (design review round 1) · a11y fixes (see log)
+- Design review fixes (610fbe1): the band is titled "Confidence in this verdict" and, on mixed/missing-context parts, the server now says sources were *cited* rather than *agree* (`events/confidence.py`, tested); the reading lists its sources as chips that open the Evidence tab on that card; "The part that does not hold" sits beside the reading with a link to the strip (long reports no longer hide it below the fold); a stopped run has no red anywhere (challenger marks, "Disputed by … no ruling", card rules, failed card are graphite/ochre); "Run it again" whenever the page can re-run; stamp tilt never level (1.2°–3°), overall stamp larger, heavier ink; evidence cards numbered ("Source N"), one paperclip, a border; sources button goes to the Evidence tab once done; the tray is hidden on the Evidence tab; a single-part message shows one stamp
+- a11y audit: 0 P0/P1. Fixed the P2s: named evidence cards (`aria-label` on the `li`; `role="group"` on an `li` broke the list, caught by axe), visible focus on the strip that "does not hold" links land on, disputes/context spoken (no `aria-hidden`), labelled trace JSON, 44px clear-filter on touch
+
+Gate evidence: typecheck ✓ · lint ✓ (0 errors; 15 legacy warnings) · vitest **167/167** · pytest events **88 + 1 new** (confidence wording) · e2e desktop-light + desktop-dark + mobile-reduced: **73 passed, 7 skipped** (viewport-specific) plus one first-compile flake re-run green; axe on all three tabs in both desktop themes and mobile ✓ · honesty greps (09 §5): clean · anti-slop `--strict` on the changed files: 0 · no `%` in the report tab (rendered-text test) ✓ · stillness: pass · screenshots `docs/upgrade/screens/P4/` (curated set committed; full-page, the reading, strips, share bar and the open method drawer at 390/1440 × light/dark; recorded runs: exercise-mixed, contradicted-strong, missing-context, blocked; failed: synthetic) · `design-critic`: 0 P0, 5 P1 (fixed above), P2/P3 logged below · `a11y-auditor`: 0 P0/P1
+
+Decisions:
+- Decision: the Judge's stamp is the headline and the composite never appears in the report or the OG image, because Truth-first (11 §4); the Assay itself is P5.
+- Decision: the case page's title and OG image are built on the server from the stored log via one cached `loadCase`, so a shared link previews the verdict without JavaScript.
+- Decision: "Confidence in this verdict" is server text (`confidence_reason`); recorded fixtures keep the older wording ("4 sources agree") because a fixture is a recording; new runs say "cited" where sources differ.
+- Decision: the OG image bundles Newsreader from `@fontsource` (Node fetch has no route to the font), and omits `fonts` if the file can't be read.
+- Decision: the source chips focus the card after the tab has rendered (an effect that seeks the card for a few frames) because Radix mounts tab content a frame after the value changes.
+- Decision: the sources button in the case bar opens a sheet while a run is live and the Evidence tab once it is done.
+
+Deferred:
+- Recorded fixtures never produced a Missing-context or Unverifiable *verdict* (the `unverifiable` claim came back Contradicted; `missing-context` came back Mixed); both are covered by unit and component tests only. Record a claim that reliably yields each when a key is at hand.
+- Design P2/P3: show only the Judge's marks in the final view (adversary marks are the shown work, kept for now) · tighter mobile top chrome (merge "New check" into the lane strip) · a chevron on Trace rows · a larger overall stamp only from 1280px (it is larger everywhere now).
+- a11y P3: keep a focused Trace row rendered when it scrolls out of the window · confirm Next `<Link href="#…">`-style jumps move focus (they are plain anchors; the target strip is focusable).
+- `failed-midway` still needs a backend with `ACHP_ALLOW_FAULT_INJECTION=1` and a key; the failed captures use the synthetic log.
+- OG image font-file tracing in a production (standalone/Vercel) build is unverified; check at P10.
+- WebKit and Firefox are not installed; install before P6. `EVALUATION.md` (the benchmark) is generated in P9.
 
 ## P5 — The Assay
 - [ ] S10.1 Hallmark (replaces radar, OG) · [ ] S10.2 Two-Key · [ ] S10.3 masking notice + Truth-first · [ ] S10.4 Integrity Ledger · [ ] S10.5 Tipping Point · [ ] S10.6 Lineage · [ ] S10.7 Agreement Dial · [ ] S10.8 Bench · [ ] S10.10 Leverage Lint in CI
