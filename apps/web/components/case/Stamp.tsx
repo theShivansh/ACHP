@@ -81,7 +81,7 @@ export function Stamp({
         {/* Static ink texture: noise thresholded into speckled gaps, applied once, never animated. */}
         <filter id={filter} x="-5%" y="-10%" width="110%" height="120%">
           <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise" />
-          <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.55" result="alpha" />
+          <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.3 1.85" result="alpha" />
           <feComposite in="SourceGraphic" in2="alpha" operator="in" />
         </filter>
       </defs>
