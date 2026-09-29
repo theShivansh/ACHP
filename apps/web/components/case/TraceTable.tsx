@@ -164,6 +164,8 @@ export function TraceTable({ state, runId, baseUrl }: { state: RunState; runId: 
                     <td colSpan={4} className="py-2">
                       <pre
                         id={`trace-json-${e.seq}`}
+                        role="region"
+                        aria-label={`Event ${e.seq} as JSON`}
                         tabIndex={0}
                         className="h-56 overflow-auto rounded-card bg-surface-tint p-3 font-code text-[0.8125rem] leading-snug whitespace-pre-wrap text-ink"
                       >

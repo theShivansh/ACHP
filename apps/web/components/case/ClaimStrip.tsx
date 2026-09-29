@@ -104,7 +104,7 @@ export function ClaimStrip({
       onFocus={lit}
       onBlur={off}
       className={cn(
-        'grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-4 border-t-(length:--rule) border-sheet-line py-6 transition-opacity duration-(--dur-quick) md:grid-cols-[1.5rem_minmax(0,1fr)_120px] animate-[fade-in_var(--dur-base)_var(--ease-out)] scroll-mt-16 outline-none',
+        'grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-4 border-t-(length:--rule) border-sheet-line py-6 transition-opacity duration-(--dur-quick) md:grid-cols-[1.5rem_minmax(0,1fr)_120px] animate-[fade-in_var(--dur-base)_var(--ease-out)] scroll-mt-16 focus-visible:outline-2 focus-visible:outline-offset-4',
         link === 'dimmed' && 'opacity-45',
       )}
     >
@@ -166,12 +166,12 @@ export function ClaimStrip({
       >
         {label === 'supported' && <Tick className="mb-1" />}
         {label === 'missing_context' && (
-          <p aria-hidden="true" className="type-meta text-ochre">
-            ^ context
+          <p className="type-meta text-ochre">
+            <span aria-hidden="true">^ </span>context is missing
           </p>
         )}
         {disputers.map((name) => (
-          <p key={name} aria-hidden="true" className={cn('type-meta', stopped ? 'text-graphite' : 'text-pencil-red')}>
+          <p key={name} className={cn('type-meta', stopped ? 'text-graphite' : 'text-pencil-red')}>
             Disputed by the {name}
             {stopped && ', no ruling'}
           </p>

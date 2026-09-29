@@ -104,6 +104,7 @@ export function EvidenceCard({ card, uses, n, stopped = false }: { card: Card; u
 
   return (
     <li
+      aria-label={`Source ${n ?? card.evidence_id}${src.title ? `: ${src.title}` : ''}`}
       data-evidence={card.evidence_id}
       data-link={link}
       data-aged={aged || undefined}
@@ -214,7 +215,7 @@ export function EvidenceTray({
               // The button disappears with the filter; keep focus in the tray, on its heading.
               requestAnimationFrame(() => document.getElementById(headingId)?.focus());
             }}
-            className="min-h-6 cursor-pointer text-surface-blue underline decoration-(length:--rule) underline-offset-4"
+            className="min-h-6 cursor-pointer text-surface-blue underline decoration-(length:--rule) underline-offset-4 pointer-coarse:min-h-11"
           >
             Show all
           </button>
