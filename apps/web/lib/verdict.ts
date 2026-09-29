@@ -132,3 +132,12 @@ export function seededTilt(id: string): number {
   const unit = ((h >>> 0) % 10001) / 10000; // 0..1
   return Math.round((unit * 6 - 3) * 10) / 10;
 }
+
+/** A claim excerpt for titles and share text: whole words, an ellipsis only when something was cut. */
+export function excerpt(text: string, limit: number): string {
+  const t = text.replace(/\s+/g, ' ').trim();
+  if (t.length <= limit) return t;
+  const cut = t.slice(0, limit - 1);
+  const at = cut.lastIndexOf(' ');
+  return `${(at > limit * 0.6 ? cut.slice(0, at) : cut).replace(/[\s,;:.]+$/, '')}…`;
+}

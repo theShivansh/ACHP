@@ -123,3 +123,15 @@ test('the report has no axe violations on any tab', async ({ page }) => {
     expect(axe.violations.map((v) => `${tab} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([]);
   }
 });
+
+test('the page title and the share image name the verdict', async ({ page, request }) => {
+  await page.goto(url);
+  const info = VERDICTS[verdict.overall.label];
+  await expect(page).toHaveTitle(new RegExp(`^ACHP · ${info.name}: `));
+  const ogUrl = await page.locator('meta[property="og:image"]').getAttribute('content');
+  expect(ogUrl).toBeTruthy();
+  const res = await request.get(ogUrl!);
+  expect(res.status()).toBe(200);
+  expect(res.headers()['content-type']).toBe('image/png');
+  expect((await res.body()).length).toBeGreaterThan(10_000);
+});
