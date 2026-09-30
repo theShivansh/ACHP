@@ -362,6 +362,41 @@ html[data-lowfx] .boil-once {
 @keyframes slide-in-bottom { from { translate: 0 100%; } }
 @keyframes slide-out-bottom { to { translate: 0 100%; } }
 
+/* ── Replay story (P6, Language A, 05 §2) ─────────────────────────────────────────────────────
+   Friction is a longer scroll track, never a hijacked wheel: the stage pins (position: sticky) inside a
+   220vh container (180vh on a phone) while its lines reveal across the `contain` range. Without
+   scroll-driven animations (stock Firefox) the normal steps just show their content and the gate's lines
+   are driven by Motion's useScroll (GateLine). Nothing here listens to wheel or touch events. */
+@keyframes reveal-up { from { opacity: 0; translate: 0 16px; } to { opacity: 1; translate: 0 0; } }
+
+.story-step { view-timeline: --step block; }
+.story-friction { height: 220vh; view-timeline: --gate block; }
+.story-friction > .stage { position: sticky; top: 10vh; min-height: 80vh; }
+@media (max-width: 47.99rem) {
+  .story-friction { height: 180vh; }
+}
+/* The story shows finished marks; only a gate draws them, with the scroll. */
+.story .mark path { animation: none; stroke-dashoffset: 0; }
+.story [data-claim],
+.story [data-evidence] { animation: none; }
+
+@supports (animation-timeline: view()) {
+  .story-step .reveal {
+    animation: reveal-up linear both;
+    animation-timeline: --step;
+    animation-range: entry 10% cover 35%;
+  }
+  .story-friction .line { animation: reveal-up linear both; animation-timeline: --gate; }
+  .story-friction .line:nth-of-type(1) { animation-range: contain 0% contain 25%; }
+  .story-friction .line:nth-of-type(2) { animation-range: contain 25% contain 50%; }
+  .story-friction .line:nth-of-type(3) { animation-range: contain 50% contain 75%; }
+  .story-friction .mark path {
+    animation: mark-draw linear both;
+    animation-timeline: --gate;
+    animation-range: contain 10% contain 45%;
+  }
+}
+
 /* ── Reduced motion, transparency, contrast — 05 §6 ───────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -380,6 +415,18 @@ html[data-lowfx] .boil-once {
   li[data-claim],
   li[data-evidence],
   li[data-agent] p { animation: none; }
+  /* The replay story is a normal document: no pin, no reveal, marks fully drawn, gates at their natural height. */
+  .story-friction { height: auto; }
+  .story-friction > .stage { position: static; min-height: 0; }
+  .story-step .reveal,
+  .story-friction .line,
+  .story .mark path,
+  .story-friction .mark path {
+    animation: none;
+    opacity: 1;
+    translate: none;
+    stroke-dashoffset: 0;
+  }
   /* Overlays and other chrome: final state at once. */
   [data-slot] {
     animation: none !important;

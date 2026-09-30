@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { notFound } from 'next/navigation';
 import { CaseLive } from '@/components/case/CaseLive';
+import { ReplayStory } from '@/components/story/ReplayStory';
 import { parseReplayOptions, replayOptionsSegment } from '@/lib/runs/fixtures';
 import { FIXTURE_PREFIX, loadCase } from '@/lib/runs/loadCase';
 import { excerpt, verdictInfo } from '@/lib/verdict';
@@ -46,6 +47,22 @@ export default async function CasePage({ params, searchParams }: Props) {
   const sp = await searchParams;
   const loaded = await loadCase(id);
   if (!loaded) notFound();
+
+  // ?replay=1: a finished case as a scroll story (P6). Decision: same route and the same server load (no
+  // second page), so the case's title, OG image and SSR stay one code path; a run still in progress
+  // isn't a story yet and falls through to the live board.
+  const finished = loaded.events.some((e) => e.type === 'run.completed' || e.type === 'run.failed');
+  if (one(sp.replay) === '1' && finished && !loaded.expired) {
+    const report =
+      id.startsWith(FIXTURE_PREFIX) && loaded.fixture
+        ? `/case/${id}${one(sp.speed) ? `?speed=${one(sp.speed)}` : ''}`
+        : `/case/${id}`;
+    return (
+      <main id="main" tabIndex={-1} className="flex-1 outline-none">
+        <ReplayStory events={loaded.events} reportHref={report} />
+      </main>
+    );
+  }
 
   if (id.startsWith(FIXTURE_PREFIX) && loaded.fixture) {
     // Dev/test replay of a recorded log (P3). Never served in production.
