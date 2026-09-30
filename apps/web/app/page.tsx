@@ -12,7 +12,7 @@ import TopBar from '@/components/TopBar';
 import Sidebar from '@/components/Sidebar';
 import QueryInput from '@/components/QueryInput';
 import VerdictCard from '@/components/VerdictCard';
-import MetricsRadar from '@/components/MetricsRadar';
+import { Hallmark } from '@/components/assay/Hallmark';
 import TransparencyReport from '@/components/TransparencyReport';
 import AtomicClaims from '@/components/AtomicClaims';
 import PerspectivePanel from '@/components/PerspectivePanel';
@@ -300,7 +300,11 @@ function AnalyzedState({ result, onNewQuery, isRunning }: { result: ACHPOutput; 
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <MetricsRadar metrics={result.metrics} />
+          {/* The radar hid direction, reuse and disagreement (11 §2.5); the Hallmark replaces it. This legacy view
+              is retired in P9; the new report is /case/[id]. */}
+          <div className="paper rounded-sheet p-4">
+            <Hallmark metrics={result.metrics} size={28} />
+          </div>
           <TransparencyReport result={result} />
         </div>
       </div>

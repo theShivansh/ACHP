@@ -9,7 +9,6 @@ const legacyUi = [
   "app/page.tsx",
   "components/AtomicClaims.tsx",
   "components/KBManager.tsx",
-  "components/MetricsRadar.tsx",
   "components/PerspectivePanel.tsx",
   "components/PipelineProgress.tsx",
   "components/PipelineTimeline.tsx",
@@ -21,9 +20,14 @@ const legacyUi = [
   "components/VerdictCard.tsx",
 ];
 
+// lib/assay/assay.ts is a byte copy of reference/assay/assay.ts (a parity test enforces it), so it is
+// linted by the reference's rules, not ours: it can't be edited here to satisfy no-explicit-any.
+const referenceCopy = ["lib/assay/assay.ts"];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  { files: referenceCopy, rules: { "@typescript-eslint/no-explicit-any": "off" } },
   {
     files: legacyUi,
     rules: {

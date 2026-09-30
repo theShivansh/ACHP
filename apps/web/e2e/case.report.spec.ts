@@ -117,6 +117,9 @@ test('the tabs work by keyboard, live in the URL, and the Trace lists every even
   await expect(tabs.getByRole('tab', { name: /Evidence/ })).toHaveAttribute('aria-selected', 'true');
   await expect(page).toHaveURL(/tab=evidence/);
   await page.keyboard.press('ArrowRight');
+  await expect(tabs.getByRole('tab', { name: 'The Assay' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page).toHaveURL(/tab=assay/);
+  await page.keyboard.press('ArrowRight');
   await expect(tabs.getByRole('tab', { name: 'Trace' })).toHaveAttribute('aria-selected', 'true');
   await expect(page).toHaveURL(/tab=trace/);
 
@@ -142,7 +145,7 @@ test('"Copy summary" is at most 400 characters and ends with the case link', asy
 
 test('the report has no axe violations on any tab', async ({ page }) => {
   const { default: AxeBuilder } = await import('@axe-core/playwright');
-  for (const tab of ['report', 'evidence', 'trace']) {
+  for (const tab of ['report', 'evidence', 'assay', 'trace']) {
     await page.goto(`${url}&tab=${tab}`);
     await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
     await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));

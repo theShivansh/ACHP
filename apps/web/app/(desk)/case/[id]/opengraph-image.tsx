@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ImageResponse } from 'next/og';
+import { GEOMETRY, W } from '@/components/assay/hallmarkGeometry';
+import { fillLevel, METRIC_INFO, METRICS } from '@/lib/assay/present';
 import { loadCase } from '@/lib/runs/loadCase';
 import { excerpt, seededTilt, verdictInfo } from '@/lib/verdict';
 
@@ -17,6 +19,32 @@ const SHEET = '#F3F5F6';
 const INK = '#14181C';
 const INK_2 = '#4B545D';
 const RULE = '#D6DCE1';
+const HATCH = '#B42F28';
+
+/** One cartouche, drawn as the Hallmark draws it (shape, rising ink, hatched for bias). No letters: an image has no font. */
+function Cartouche({ code, value }: { code: (typeof METRICS)[number]; value: number }) {
+  const info = METRIC_INFO[code];
+  const g = GEOMETRY[info.shape];
+  const top = g.bottom - (g.bottom - g.top) * fillLevel(value);
+  return (
+    <svg width={62} height={62} viewBox={`0 0 ${W} ${W}`}>
+      <defs>
+        <clipPath id={`c-${code}`}>
+          <path d={g.path} />
+        </clipPath>
+        <pattern id={`h-${code}`} width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="3" stroke={HATCH} strokeWidth="1.25" />
+        </pattern>
+      </defs>
+      <g clipPath={`url(#c-${code})`}>
+        <rect x="0" y={top} width={W} height={W} fill={code === 'BIS' ? `url(#h-${code})` : INK_2} fillOpacity={code === 'BIS' ? 1 : 0.55} />
+      </g>
+      <path d={g.path} fill="none" stroke={INK} strokeWidth={info.fine ? 1 : 1.5} strokeLinejoin="round" />
+      {g.extra && <path d={g.extra} fill="none" stroke={INK} strokeWidth={info.fine ? 1 : 1.5} />}
+    </svg>
+  );
+}
+
 const TONE = { support: '#23713F', red: '#B42F28', ochre: '#8A5A00', graphite: '#59636C' } as const;
 
 /**
@@ -47,6 +75,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
       : 'A recorded check, replayed'
     : 'Every statement in the report traces to a quoted source.';
 
+  const metrics = label && label !== 'blocked' ? loaded?.state.assay?.metrics : undefined;
   const stamp = info?.stamp ?? 'ACHP';
   const line = claim ? `“${excerpt(claim, 150)}”` : 'A claim checked by seven agents against the sources.';
   const tone = info ? TONE[info.tone] : INK_2;
@@ -79,7 +108,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
           <div style={{ display: 'flex', fontSize: 58, lineHeight: 1.18, fontWeight: 500 }}>{line}</div>
-          <div style={{ display: 'flex' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
             <div
               style={{
                 display: 'flex',
@@ -89,12 +118,21 @@ export default async function Image({ params }: { params: Promise<{ id: string }
                 fontSize: 62,
                 fontWeight: 600,
                 letterSpacing: 2,
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
                 padding: '10px 32px',
                 transform: `rotate(${info ? seededTilt(id) : 0}deg)`,
               }}
             >
               {stamp}
             </div>
+            {metrics && (
+              <div style={{ display: 'flex', gap: 10 }}>
+                {METRICS.map((m) => (
+                  <Cartouche key={m} code={m} value={metrics[m]} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

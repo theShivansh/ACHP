@@ -1,14 +1,14 @@
 'use client';
 
 import { Info } from 'lucide-react';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { CONFIDENCE_RULES, CONFIDENCE_SOURCE, LIMITATIONS, METRICS, OVERALL } from '@/lib/method';
 
 // "How we decided": the metrics with their full forms, definitions and formulas, the
 // confidence-band rules, the benchmark and the limits. Reference material, on paper. No radar.
-// The Assay tab (P5) and /method (P9) go deeper; until they exist there is no link to them.
+// The Assay tab goes deeper for this case; /method (P9) will for the whole method.
 
-export function MethodDrawer({ benchmark }: { benchmark: string | null }) {
+export function MethodDrawer({ benchmark, onOpenAssay }: { benchmark: string | null; onOpenAssay?: () => void }) {
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -77,6 +77,18 @@ export function MethodDrawer({ benchmark }: { benchmark: string | null }) {
                 'No benchmark is published yet. The comparison with human raters will appear here once the evaluation report is generated; ACHP does not quote figures it cannot point to.'}
             </p>
           </section>
+
+          {onOpenAssay && (
+            <SheetClose asChild>
+              <button
+                type="button"
+                onClick={onOpenAssay}
+                className="inline-flex min-h-6 w-fit cursor-pointer items-center type-ui text-pencil-blue underline decoration-(length:--rule) underline-offset-4 hover:decoration-2 pointer-coarse:min-h-11"
+              >
+                See how this case&apos;s scores were reached (the Assay tab)
+              </button>
+            </SheetClose>
+          )}
 
           <section aria-labelledby="m-limits">
             <h3 id="m-limits" className="type-ui font-semibold text-ink">

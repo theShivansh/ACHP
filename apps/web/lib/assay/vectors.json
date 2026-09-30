@@ -1,0 +1,595 @@
+{
+ "formula_version": "achp-metrics/1.0",
+ "cases": [
+  {
+   "name": "exercise_mixed",
+   "mode": "code",
+   "signals": {
+    "fA": 0.62,
+    "jCTS": 0.55,
+    "s_nil": 0.22,
+    "s_fr": 0.18,
+    "pol": 0.3,
+    "frame": "neutral",
+    "fB": 0.45,
+    "s_pcs": 0.5,
+    "n_miss": 3,
+    "v_eps": 0.4,
+    "hr": 0.05,
+    "a_narr": null,
+    "jNSS": null
+   },
+   "judge": "MIXED",
+   "metrics": {
+    "CTS": 0.6061,
+    "PCS": 0.515,
+    "BIS": 0.202,
+    "NSS": 0.8167,
+    "EPS": 0.459
+   },
+   "composite": 0.639,
+   "formula_verdict": "MIXED",
+   "two_key": "agree",
+   "ledger": {
+    "s_fr": 0.08928,
+    "s_nil": 0.04004,
+    "v_eps": -0.0154,
+    "fA": 0.0096,
+    "n_miss": 0.008,
+    "hr": -0.0077,
+    "pol": 0.00624,
+    "fB": -0.005,
+    "jCTS": 0.0035,
+    "frame": 0.0,
+    "s_pcs": 0.0
+   },
+   "opening": 0.5104,
+   "tipping_min": 0.3960714285714292,
+   "tipping_first": "v_eps",
+   "masking": {
+    "calm": 0.6912,
+    "narrative_lift": 0.0329,
+    "qfi": 0.2723,
+    "masking": false,
+    "quiet_falsehood": false
+   },
+   "map": {
+    "x": 0.6061,
+    "y": 0.6912,
+    "quadrant": "sound"
+   }
+  },
+  {
+   "name": "exercise_mixed",
+   "mode": "paper",
+   "signals": {
+    "fA": 0.62,
+    "jCTS": 0.55,
+    "s_nil": 0.22,
+    "s_fr": 0.18,
+    "pol": 0.3,
+    "frame": "neutral",
+    "fB": 0.45,
+    "s_pcs": 0.5,
+    "n_miss": 3,
+    "v_eps": 0.4,
+    "hr": 0.05,
+    "a_narr": 0.82,
+    "jNSS": 0.6
+   },
+   "judge": "MIXED",
+   "metrics": {
+    "CTS": 0.6061,
+    "PCS": 0.515,
+    "BIS": 0.202,
+    "NSS": 0.765,
+    "EPS": 0.459
+   },
+   "composite": 0.6286,
+   "formula_verdict": "MIXED",
+   "two_key": "agree",
+   "ledger": {
+    "s_fr": 0.05808,
+    "s_nil": 0.03542,
+    "a_narr": 0.0224,
+    "v_eps": -0.0154,
+    "fA": 0.0096,
+    "n_miss": 0.008,
+    "hr": -0.0077,
+    "pol": 0.00552,
+    "fB": -0.005,
+    "jNSS": 0.005,
+    "jCTS": 0.0035,
+    "frame": 0.0,
+    "s_pcs": 0.0
+   },
+   "opening": 0.5092,
+   "tipping_min": 0.463214285714286,
+   "tipping_first": "v_eps",
+   "masking": {
+    "calm": 0.674,
+    "narrative_lift": 0.0225,
+    "qfi": 0.2655,
+    "masking": false,
+    "quiet_falsehood": false
+   },
+   "map": {
+    "x": 0.6061,
+    "y": 0.674,
+    "quadrant": "sound"
+   }
+  },
+  {
+   "name": "quiet_falsehood",
+   "mode": "code",
+   "signals": {
+    "fA": 0.08,
+    "jCTS": 0.12,
+    "s_nil": 0.1,
+    "s_fr": 0.08,
+    "pol": 0.05,
+    "frame": "neutral",
+    "fB": 0.7,
+    "s_pcs": 0.65,
+    "n_miss": 1,
+    "v_eps": 0.72,
+    "hr": 0.2,
+    "a_narr": null,
+    "jNSS": null
+   },
+   "judge": "FALSE",
+   "metrics": {
+    "CTS": 0.2866,
+    "PCS": 0.725,
+    "BIS": 0.081,
+    "NSS": 0.9199,
+    "EPS": 0.748
+   },
+   "composite": 0.7197,
+   "formula_verdict": "MOSTLY_TRUE",
+   "two_key": "split",
+   "ledger": {
+    "s_fr": 0.11718,
+    "s_nil": 0.0572,
+    "v_eps": 0.03388,
+    "fA": -0.0336,
+    "jCTS": -0.0266,
+    "fB": 0.02,
+    "n_miss": 0.016,
+    "pol": 0.01404,
+    "s_pcs": 0.009,
+    "hr": 0.0022,
+    "frame": 0.0
+   },
+   "opening": 0.5104,
+   "tipping_min": 0.07076666666666735,
+   "tipping_first": "s_fr",
+   "masking": {
+    "calm": 0.8623,
+    "narrative_lift": 0.4331,
+    "qfi": 0.6152,
+    "masking": true,
+    "quiet_falsehood": true
+   },
+   "map": {
+    "x": 0.2866,
+    "y": 0.8623,
+    "quadrant": "quiet_falsehood"
+   }
+  },
+  {
+   "name": "quiet_falsehood",
+   "mode": "paper",
+   "signals": {
+    "fA": 0.08,
+    "jCTS": 0.12,
+    "s_nil": 0.1,
+    "s_fr": 0.08,
+    "pol": 0.05,
+    "frame": "neutral",
+    "fB": 0.7,
+    "s_pcs": 0.65,
+    "n_miss": 1,
+    "v_eps": 0.72,
+    "hr": 0.2,
+    "a_narr": 0.92,
+    "jNSS": 0.6
+   },
+   "judge": "FALSE",
+   "metrics": {
+    "CTS": 0.2866,
+    "PCS": 0.725,
+    "BIS": 0.081,
+    "NSS": 0.84,
+    "EPS": 0.748
+   },
+   "composite": 0.7037,
+   "formula_verdict": "MOSTLY_TRUE",
+   "two_key": "split",
+   "ledger": {
+    "s_fr": 0.07623,
+    "s_nil": 0.0506,
+    "v_eps": 0.03388,
+    "fA": -0.0336,
+    "a_narr": 0.0294,
+    "jCTS": -0.0266,
+    "fB": 0.02,
+    "n_miss": 0.016,
+    "pol": 0.01242,
+    "s_pcs": 0.009,
+    "jNSS": 0.005,
+    "hr": 0.0022,
+    "frame": 0.0
+   },
+   "opening": 0.5092,
+   "tipping_min": 0.02075000000000092,
+   "tipping_first": "s_fr",
+   "masking": {
+    "calm": 0.8357,
+    "narrative_lift": 0.4171,
+    "qfi": 0.5962,
+    "masking": true,
+    "quiet_falsehood": true
+   },
+   "map": {
+    "x": 0.2866,
+    "y": 0.8357,
+    "quadrant": "quiet_falsehood"
+   }
+  },
+  {
+   "name": "loud_falsehood",
+   "mode": "code",
+   "signals": {
+    "fA": 0.1,
+    "jCTS": 0.1,
+    "s_nil": 0.8,
+    "s_fr": 0.7,
+    "pol": 0.85,
+    "frame": "delegitimize",
+    "fB": 0.3,
+    "s_pcs": 0.25,
+    "n_miss": 6,
+    "v_eps": 0.2,
+    "hr": 0.0,
+    "a_narr": null,
+    "jNSS": null
+   },
+   "judge": "FALSE",
+   "metrics": {
+    "CTS": 0.115,
+    "PCS": 0.305,
+    "BIS": 0.867,
+    "NSS": 0.275,
+    "EPS": 0.2
+   },
+   "composite": 0.2056,
+   "formula_verdict": "FALSE",
+   "two_key": "agree",
+   "ledger": {
+    "s_fr": -0.0558,
+    "v_eps": -0.0462,
+    "s_nil": -0.0429,
+    "frame": -0.039,
+    "fA": -0.032,
+    "jCTS": -0.028,
+    "fB": -0.02,
+    "s_pcs": -0.015,
+    "hr": -0.011,
+    "pol": -0.01092,
+    "n_miss": -0.004
+   },
+   "opening": 0.5104,
+   "tipping_min": 0.3382333333333335,
+   "tipping_first": "s_fr",
+   "masking": {
+    "calm": 0.2027,
+    "narrative_lift": 0.0906,
+    "qfi": 0.1794,
+    "masking": false,
+    "quiet_falsehood": false
+   },
+   "map": {
+    "x": 0.115,
+    "y": 0.2027,
+    "quadrant": "loud_falsehood"
+   }
+  },
+  {
+   "name": "loud_falsehood",
+   "mode": "paper",
+   "signals": {
+    "fA": 0.1,
+    "jCTS": 0.1,
+    "s_nil": 0.8,
+    "s_fr": 0.7,
+    "pol": 0.85,
+    "frame": "delegitimize",
+    "fB": 0.3,
+    "s_pcs": 0.25,
+    "n_miss": 6,
+    "v_eps": 0.2,
+    "hr": 0.0,
+    "a_narr": 0.3,
+    "jNSS": 0.6
+   },
+   "judge": "FALSE",
+   "metrics": {
+    "CTS": 0.115,
+    "PCS": 0.305,
+    "BIS": 0.867,
+    "NSS": 0.375,
+    "EPS": 0.2
+   },
+   "composite": 0.2256,
+   "formula_verdict": "FALSE",
+   "two_key": "agree",
+   "ledger": {
+    "v_eps": -0.0462,
+    "s_nil": -0.03795,
+    "s_fr": -0.0363,
+    "frame": -0.0345,
+    "fA": -0.032,
+    "jCTS": -0.028,
+    "fB": -0.02,
+    "s_pcs": -0.015,
+    "a_narr": -0.014,
+    "hr": -0.011,
+    "pol": -0.00966,
+    "jNSS": 0.005,
+    "n_miss": -0.004
+   },
+   "opening": 0.5092,
+   "tipping_min": 0.40975000000000084,
+   "tipping_first": "s_fr",
+   "masking": {
+    "calm": 0.236,
+    "narrative_lift": 0.1106,
+    "qfi": 0.2089,
+    "masking": false,
+    "quiet_falsehood": false
+   },
+   "map": {
+    "x": 0.115,
+    "y": 0.236,
+    "quadrant": "loud_falsehood"
+   }
+  },
+  {
+   "name": "sound_true",
+   "mode": "code",
+   "signals": {
+    "fA": 0.9,
+    "jCTS": 0.88,
+    "s_nil": 0.1,
+    "s_fr": 0.1,
+    "pol": 0.1,
+    "frame": "neutral",
+    "fB": 0.8,
+    "s_pcs": 0.75,
+    "n_miss": 1,
+    "v_eps": 0.7,
+    "hr": 0.15,
+    "a_narr": null,
+    "jNSS": null
+   },
+   "judge": "TRUE",
+   "metrics": {
+    "CTS": 0.8757,
+    "PCS": 0.805,
+    "BIS": 0.092,
+    "NSS": 0.9012,
+    "EPS": 0.715
+   },
+   "composite": 0.841,
+   "formula_verdict": "MOSTLY_TRUE",
+   "two_key": "adjacent",
+   "ledger": {
+    "s_fr": 0.1116,
+    "s_nil": 0.0572,
+    "fA": 0.032,
+    "v_eps": 0.0308,
+    "fB": 0.03,
+    "jCTS": 0.0266,
+    "n_miss": 0.016,
+    "s_pcs": 0.015,
+    "pol": 0.01248,
+    "hr": -0.0011,
+    "frame": 0.0
+   },
+   "opening": 0.5104,
+   "tipping_min": 0.032200000000000756,
+   "tipping_first": "s_fr",
+   "masking": {
+    "calm": 0.8414,
+    "narrative_lift": -0.0347,
+    "qfi": 0.1046,
+    "masking": false,
+    "quiet_falsehood": false
+   },
+   "map": {
+    "x": 0.8757,
+    "y": 0.8414,
+    "quadrant": "sound"
+   }
+  },
+  {
+   "name": "sound_true",
+   "mode": "paper",
+   "signals": {
+    "fA": 0.9,
+    "jCTS": 0.88,
+    "s_nil": 0.1,
+    "s_fr": 0.1,
+    "pol": 0.1,
+    "frame": "neutral",
+    "fB": 0.8,
+    "s_pcs": 0.75,
+    "n_miss": 1,
+    "v_eps": 0.7,
+    "hr": 0.15,
+    "a_narr": 0.9,
+    "jNSS": 0.6
+   },
+   "judge": "TRUE",
+   "metrics": {
+    "CTS": 0.8757,
+    "PCS": 0.805,
+    "BIS": 0.092,
+    "NSS": 0.825,
+    "EPS": 0.715
+   },
+   "composite": 0.8257,
+   "formula_verdict": "MOSTLY_TRUE",
+   "two_key": "adjacent",
+   "ledger": {
+    "s_fr": 0.0726,
+    "s_nil": 0.0506,
+    "fA": 0.032,
+    "v_eps": 0.0308,
+    "fB": 0.03,
+    "a_narr": 0.028,
+    "jCTS": 0.0266,
+    "n_miss": 0.016,
+    "s_pcs": 0.015,
+    "pol": 0.01104,
+    "jNSS": 0.005,
+    "hr": -0.0011,
+    "frame": 0.0
+   },
+   "opening": 0.5092,
+   "tipping_min": 0.15721428571428608,
+   "tipping_first": "v_eps",
+   "masking": {
+    "calm": 0.816,
+    "narrative_lift": -0.05,
+    "qfi": 0.1014,
+    "masking": false,
+    "quiet_falsehood": false
+   },
+   "map": {
+    "x": 0.8757,
+    "y": 0.816,
+    "quadrant": "sound"
+   }
+  },
+  {
+   "name": "true_but_loaded",
+   "mode": "code",
+   "signals": {
+    "fA": 0.85,
+    "jCTS": 0.8,
+    "s_nil": 0.7,
+    "s_fr": 0.6,
+    "pol": 0.8,
+    "frame": "alarm",
+    "fB": 0.4,
+    "s_pcs": 0.35,
+    "n_miss": 5,
+    "v_eps": 0.25,
+    "hr": 0.0,
+    "a_narr": null,
+    "jNSS": null
+   },
+   "judge": "MOSTLY_TRUE",
+   "metrics": {
+    "CTS": 0.6933,
+    "PCS": 0.405,
+    "BIS": 0.681,
+    "NSS": 0.3879,
+    "EPS": 0.255
+   },
+   "composite": 0.412,
+   "formula_verdict": "MOSTLY_FALSE",
+   "two_key": "split",
+   "ledger": {
+    "v_eps": -0.0385,
+    "s_nil": -0.0286,
+    "fA": 0.028,
+    "s_fr": -0.0279,
+    "jCTS": 0.021,
+    "frame": -0.013,
+    "hr": -0.011,
+    "fB": -0.01,
+    "pol": -0.00936,
+    "s_pcs": -0.009,
+    "n_miss": 0.0
+   },
+   "opening": 0.5104,
+   "tipping_min": 0.3150333333333337,
+   "tipping_first": "s_fr",
+   "masking": {
+    "calm": 0.3206,
+    "narrative_lift": -0.2813,
+    "qfi": 0.0983,
+    "masking": false,
+    "quiet_falsehood": false
+   },
+   "map": {
+    "x": 0.6933,
+    "y": 0.3206,
+    "quadrant": "true_but_loaded"
+   }
+  },
+  {
+   "name": "true_but_loaded",
+   "mode": "paper",
+   "signals": {
+    "fA": 0.85,
+    "jCTS": 0.8,
+    "s_nil": 0.7,
+    "s_fr": 0.6,
+    "pol": 0.8,
+    "frame": "alarm",
+    "fB": 0.4,
+    "s_pcs": 0.35,
+    "n_miss": 5,
+    "v_eps": 0.25,
+    "hr": 0.0,
+    "a_narr": 0.4,
+    "jNSS": 0.6
+   },
+   "judge": "MOSTLY_TRUE",
+   "metrics": {
+    "CTS": 0.6933,
+    "PCS": 0.405,
+    "BIS": 0.681,
+    "NSS": 0.45,
+    "EPS": 0.255
+   },
+   "composite": 0.4245,
+   "formula_verdict": "MOSTLY_FALSE",
+   "two_key": "split",
+   "ledger": {
+    "v_eps": -0.0385,
+    "fA": 0.028,
+    "s_nil": -0.0253,
+    "jCTS": 0.021,
+    "s_fr": -0.01815,
+    "frame": -0.0115,
+    "hr": -0.011,
+    "fB": -0.01,
+    "s_pcs": -0.009,
+    "pol": -0.00828,
+    "a_narr": -0.007,
+    "jNSS": 0.005,
+    "n_miss": 0.0
+   },
+   "opening": 0.5092,
+   "tipping_min": 0.41580000000000017,
+   "tipping_first": "s_fr",
+   "masking": {
+    "calm": 0.3413,
+    "narrative_lift": -0.2688,
+    "qfi": 0.1047,
+    "masking": false,
+    "quiet_falsehood": false
+   },
+   "map": {
+    "x": 0.6933,
+    "y": 0.3413,
+    "quadrant": "true_but_loaded"
+   }
+  }
+ ]
+}

@@ -186,19 +186,65 @@ export interface VerdictFinal {
   claims: ClaimVerdict[];
   metrics?: Metrics | null;
 }
+export interface AssayTwoKey {
+  state: 'agree' | 'adjacent' | 'split' | 'not_applicable';
+  steps?: number | null;
+  judge: string;
+  formula: string;
+}
+export interface AssayLedgerEntry {
+  signal: string;
+  label: string;
+  value: number | string | null;
+  reference: number | string | null;
+  amount: number;
+}
+export interface AssayLedger {
+  mode: string;
+  opening_balance: number;
+  entries: AssayLedgerEntry[];
+  closing_balance: number;
+  check: number;
+}
+export interface AssayFlip {
+  signal: string;
+  label: string;
+  from: number | string;
+  to: number | string;
+  distance: number;
+  new_verdict: string;
+}
+export interface AssayTippingPoint {
+  verdict: string;
+  composite: number;
+  flips: AssayFlip[];
+  min_distance?: number | null;
+  band: 'fragile' | 'firm' | 'settled';
+}
+export interface AssayMasking {
+  calm: number;
+  narrative_lift: number;
+  qfi: number;
+  masking: boolean;
+  quiet_falsehood: boolean;
+}
+/**
+ * The Assay's readout (11_THE_ASSAY.md). `metrics_only` is a test log built from published figures
+ * (the paper's Fig. 9): no raw signals, so no ledger and no tipping point.
+ */
 export interface AssayComputed {
   formula_version: string;
-  mode: 'code';
-  signals: Record<string, unknown>;
+  mode: 'code' | 'metrics_only';
+  signals: Record<string, number | string | null>;
   metrics: Metrics;
   composite: number;
   formula_verdict: string;
   judge_verdict: string;
-  two_key: Record<string, unknown>;
-  ledger: Record<string, unknown>;
-  tipping_point: Record<string, unknown>;
-  masking: Record<string, unknown>;
-  integrity_map: Record<string, unknown>;
+  two_key: AssayTwoKey;
+  ledger?: AssayLedger | null;
+  tipping_point?: AssayTippingPoint | null;
+  masking: AssayMasking;
+  integrity_map: { x: number; y: number; quadrant: 'sound' | 'true_but_loaded' | 'quiet_falsehood' | 'loud_falsehood' };
 }
 
 export interface PayloadMap {

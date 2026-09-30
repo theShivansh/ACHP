@@ -6,6 +6,10 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, ViewTransition } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AssayTab } from '@/components/assay/AssayTab';
+import { Hallmark } from '@/components/assay/Hallmark';
+import { MaskingNotice } from '@/components/assay/MaskingNotice';
+import { TwoKey } from '@/components/assay/TwoKey';
 import { PaperclipGlyph } from '@/components/glyphs';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { agentIdentity } from '@/lib/agents.config';
@@ -28,6 +32,7 @@ import {
   type RunState,
 } from '@/lib/runs/reducer';
 import type { RunEvent } from '@/lib/runs/types';
+import { tippingSentence } from '@/lib/assay/present';
 import type { BandKey } from '@/lib/verdict';
 import { useRunEvents } from '@/lib/runs/useRunEvents';
 import { LaneList, type LaneClock } from './AgentLane';
@@ -139,7 +144,7 @@ function activityLine(phase: CasePhase, state: RunState): string {
 
 
 
-const TABS = ['report', 'evidence', 'trace'] as const;
+const TABS = ['report', 'evidence', 'assay', 'trace'] as const;
 type TabId = (typeof TABS)[number];
 
 export interface CaseLiveProps {
@@ -403,6 +408,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                 <TabsTrigger value="evidence">
                   Evidence <span className="tabular-nums">({cards.length})</span>
                 </TabsTrigger>
+                {phase === 'completed' && !blocked && <TabsTrigger value="assay">The Assay</TabsTrigger>}
                 <TabsTrigger value="trace">Trace</TabsTrigger>
               </TabsList>
             )}
@@ -426,9 +432,13 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                       <h1 className="sr-only">Case {runId}</h1>
                     )}
                     {phase === 'completed' && state.verdict && (
-                      <div className="mt-5">
+                      <div className="mt-5 flex flex-wrap items-center gap-x-8 gap-y-4">
                         <Stamp label={state.verdict.overall.label} id={runId} size="overall" />
+                        {state.assay && !blocked && tab === 'report' && <Hallmark metrics={state.assay.metrics} size={28} />}
                       </div>
+                    )}
+                    {phase === 'completed' && state.assay && !blocked && tab === 'report' && (
+                      <TwoKey assay={state.assay} className="mt-4" />
                     )}
                   </header>
 
@@ -453,11 +463,17 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                             {state.verdict.overall.summary}
                           </InterpretationNote>
                           <PartsThatDontHold parts={notHolding} />
+                          {state.assay && <MaskingNotice assay={state.assay} className="mt-4 max-w-[68ch]" />}
                           <ConfidenceBand
                             className="mt-4"
                             band={state.verdict.overall.confidence_band as BandKey}
                             reason={state.verdict.overall.confidence_reason}
                           />
+                          {state.assay?.tipping_point && (
+                            <p data-tipping-sentence className="mt-3 max-w-[68ch] type-body text-ink-2">
+                              {tippingSentence(state.assay.tipping_point)}
+                            </p>
+                          )}
                           <EditorsDesk band={state.verdict.overall.confidence_band as BandKey} />
                         </section>
                       )}
@@ -489,7 +505,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                       <>
                         <ShareBar runId={runId} claim={text} verdict={state.verdict} fixture={!!fixture} />
                         <div className="mt-4">
-                          <MethodDrawer benchmark={benchmark} />
+                          <MethodDrawer benchmark={benchmark} onOpenAssay={() => setTab('assay')} />
                         </div>
                       </>
                     )}
@@ -520,6 +536,10 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                         </ul>
                       </section>
                     )}
+                  </TabsContent>
+
+                  <TabsContent value="assay" className="mt-8">
+                    <AssayTab assay={state.assay} />
                   </TabsContent>
 
                   <TabsContent value="trace" className="mt-8">
