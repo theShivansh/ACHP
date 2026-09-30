@@ -28,6 +28,7 @@ SUMMARY = {
     "quiet-falsehood": "Synthetic log: the sources refute the claim, but its wording is calm.",
     "true-but-loaded": "Synthetic log: the sources back the claim, but its wording is loaded.",
     "paper-fig9-metrics": "Synthetic log: the five published figures from the paper's Fig. 9.",
+    "loud-falsehood": "Synthetic log: the sources refute the claim and its wording is loaded.",
 }
 
 
@@ -59,6 +60,9 @@ def build(name: str, sample: str) -> None:
             for c in d["claims"]:
                 c["label"] = label
                 c["evidence_for"], c["evidence_against"] = (["e1"], []) if label == "supported" else ([], ["e1"])
+        if e["type"] == "claim.marked" and label == "supported" and e["data"].get("relation") == "contradicts":
+            e["data"]["relation"] = "supports"      # no dissent left on a part the log now says is supported
+            e["data"].pop("note", None)
         if e["type"] == "assay.computed":
             e["data"] = payload
         out.append(e)
@@ -74,3 +78,4 @@ if __name__ == "__main__":
     build("quiet-falsehood", "quiet_falsehood")
     build("true-but-loaded", "true_but_loaded")
     build("paper-fig9-metrics", "paper_fig9")
+    build("loud-falsehood", "loud_falsehood")

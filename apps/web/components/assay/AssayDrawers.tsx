@@ -1,5 +1,6 @@
 'use client';
 
+import { cn } from 'cn';
 import { ChevronRight } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import type { AssayComputed } from '@/lib/runs/types';
@@ -34,7 +35,7 @@ function Drawer({
           {label}
         </button>
       </SheetTrigger>
-      <SheetContent side="right" className={wide ? 'w-[min(94vw,760px)] overflow-y-auto' : 'w-[min(92vw,600px)] overflow-y-auto'}>
+      <SheetContent side="right" className={cn('overflow-y-auto border-l-(length:--rule) border-ink-3', wide ? 'w-[min(94vw,760px)]' : 'w-[min(92vw,600px)]')}>
         <SheetHeader>
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>

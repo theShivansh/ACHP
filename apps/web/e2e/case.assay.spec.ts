@@ -25,8 +25,10 @@ test('a quiet falsehood: the Judge says False, the formula says Mostly true, and
   await expect(notice).toContainText('The overall score (0.72) is lifted by tone, not evidence.');
   await expect(notice).toContainText('Quiet Falsehood Index');
   await expect(notice).toContainText('experimental');
-  await expect(page.locator('[data-tipping-sentence]')).toContainText(/^Fragile: if the framing of the wording moved from 0\.08 to 0\.15/);
+  await expect(page.locator('[data-tipping-sentence]')).toContainText(/Fragile: if the framing of the wording were raised from 0\.08 to 0\.15/);
   await expect(page.locator('[data-hallmark]').first().getByRole('img')).toHaveCount(5);
+  await expect(page.locator('[data-stands]').first()).toContainText("The stamp is the Judge's verdict.");
+  await expect(page.locator('[data-hallmark-legend]')).toContainText('Bias Impact Score (lower is better)');
   // Truth-first: the composite is never a heading.
   for (const h of await page.locator('h1, h2, h3').allInnerTexts()) expect(h).not.toMatch(/\d\.\d\d/);
 });
@@ -36,7 +38,7 @@ test('the Assay tab: five scores in full, the ledger balances, the tipping line 
   await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
   const tab = page.getByRole('tabpanel');
 
-  await expect(tab.getByText('formula achp-metrics/1.0')).toBeVisible();
+  await expect(tab.getByText('Formula version achp-metrics/1.0')).toBeVisible();
   for (const full of [
     'Consensus Truth Score (CTS)',
     'Perspective Completeness Score (PCS)',
@@ -53,14 +55,41 @@ test('the Assay tab: five scores in full, the ledger balances, the tipping line 
   await expect(ledger.locator('[data-closing]')).toHaveText('0.720');
   // Facts first, and the books balance: the opening balance plus every printed line is the closing balance.
   await expect(ledger.locator('tbody th[scope="rowgroup"]').first()).toHaveText('Facts');
-  const opening = Number((await ledger.locator('tbody tr').first().locator('td').first().innerText()).trim());
+  const opening = Number((await ledger.locator('tbody tr').first().locator('td').first().innerText()).match(/\d\.\d{3}/)![0]);
   let sum = 0;
   for (const cell of await ledger.locator('tr[data-signal] td:nth-child(3), tr[data-signal] td:nth-child(4)').allInnerTexts()) {
-    if (cell.trim()) sum += Number(cell.replace('−', '-').replace('+', ''));
+    const n = cell.match(/[+-]\d\.\d{3}/)?.[0];
+    if (n) sum += Number(n);
   }
   expect(Math.abs(opening + sum - 0.72)).toBeLessThan(0.008);
 
   await expect(tab.locator('[data-tipping="fragile"]')).toBeVisible();
+});
+
+test('the Hallmark tooltip names the score in full, can be hovered and is dismissed with Escape', async ({ page }, info) => {
+  test.skip(info.project.name.includes('mobile'), 'hover and keyboard focus are the desktop path');
+  await page.goto(at('quiet-falsehood'));
+  await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
+  const bis = page.getByRole('img', { name: /^Bias Impact Score \(BIS\)/ }).first();
+  await bis.focus();
+  const tip = bis.locator('span[aria-hidden="true"]').last();
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText('lower is better');
+  await tip.hover(); // hoverable: moving onto the tooltip keeps it open
+  await expect(tip).toBeVisible();
+  await bis.focus();
+  await page.keyboard.press('Escape');
+  await expect(tip).toBeHidden();
+});
+
+test('Judge and formula agree: the keys both turn and there is no caveat line', async ({ page }) => {
+  await page.goto(at('loud-falsehood'));
+  await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
+  const two = page.locator('[data-two-key="agree"]').first();
+  await expect(two).toContainText('Judge and formula agree');
+  await expect(two.locator('[data-key="formula"]')).toHaveAttribute('data-turn', '90');
+  await expect(page.locator('[data-stands]')).toHaveCount(0);
+  await expect(page.locator('[data-masking]')).toHaveCount(0);
 });
 
 test('true but loaded: a split the other way, with no masking notice', async ({ page }) => {
@@ -126,14 +155,17 @@ test('under 768px the Hallmark stays one row and the tipping scale is a list of 
   await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
   const ys = await page.getByRole('tabpanel').locator('[data-hallmark] [role="img"]').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
   expect(new Set(ys).size).toBe(1);
-  await expect(page.getByRole('tabpanel').getByRole('list', { name: 'Where the overall score sits on the verdict scale' })).toBeVisible();
+  const zones = page.getByRole('tabpanel').getByRole('list', { name: 'Where the overall score sits on the verdict scale' });
+  await expect(zones).toBeVisible();
+  await expect(zones.locator('li[aria-current="true"]')).toContainText('Mostly true');
+  await expect(page.getByRole('tabpanel').locator('[data-edge]')).toContainText('The overall score is 0.72; the nearest edge is 0.70.');
   // The ledger drops the margin bars and keeps signed amounts.
-  await expect(page.getByRole('tabpanel').locator('[data-ledger] tr[data-signal]').first()).toContainText(/[+−]0\.\d{3}/);
+  await expect(page.getByRole('tabpanel').locator('[data-ledger] tr[data-signal]').first()).toContainText(/[+-]0\.\d{3}/);
 });
 
 test('the Assay tab has no axe violations, on any of the three logs', async ({ page }) => {
   const { default: AxeBuilder } = await import('@axe-core/playwright');
-  for (const name of ['quiet-falsehood', 'true-but-loaded', 'paper-fig9-metrics']) {
+  for (const name of ['quiet-falsehood', 'true-but-loaded', 'paper-fig9-metrics', 'loud-falsehood']) {
     for (const tab of ['', 'assay']) {
       await page.goto(at(name, tab));
       await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
@@ -141,5 +173,37 @@ test('the Assay tab has no axe violations, on any of the three logs', async ({ p
       const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
       expect(axe.violations.map((v) => `${name}/${tab || 'report'} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([]);
     }
+  }
+});
+
+test('the Bench, lineage and agreement drawers have no axe violations (open, and with the Bench moved)', async ({ page }) => {
+  const { default: AxeBuilder } = await import('@axe-core/playwright');
+  await page.goto(at('quiet-falsehood', 'assay'));
+  await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
+  const scan = async (label: string) => {
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
+    const axe = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    expect(axe.violations.map((v) => `${label} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([]);
+  };
+  for (const [opener, label] of [
+    ['Where the numbers come from', 'lineage'],
+    ['How much humans agreed', 'agreement'],
+    ['Try the formula', 'bench'],
+  ] as const) {
+    await page.getByRole('button', { name: opener }).click();
+    await page.getByRole('dialog').waitFor();
+    if (label === 'lineage') {
+      await scan('lineage production');
+      await page.getByRole('button', { name: 'Paper formulas' }).click();
+      await scan('lineage paper');
+    } else if (label === 'bench') {
+      await scan('bench');
+      await page.locator('#bench-fA').fill('0.95');
+      await page.locator('#bench-s_fr').fill('0.6');
+      await scan('bench moved');
+    } else {
+      await scan(label);
+    }
+    await page.keyboard.press('Escape');
   }
 });

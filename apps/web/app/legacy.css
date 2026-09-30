@@ -164,15 +164,6 @@
 .delay-4 { animation-delay: 0.4s; }
 .delay-5 { animation-delay: 0.5s; }
 
-/* ── SVG Radar Draw Animation ───────────────────────────────────────────── */
-@keyframes radar-draw {
-  from { stroke-dasharray: 0 600; opacity: 0; }
-  to   { stroke-dasharray: 600 600; opacity: 1; }
-}
-.animate-radar {
-  animation: radar-draw 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
 /* ── Verdict Colours ────────────────────────────────────────────────────── */
 .verdict-TRUE        { color: #00F0FF; }
 .verdict-MOSTLY_TRUE { color: #7df4ff; }

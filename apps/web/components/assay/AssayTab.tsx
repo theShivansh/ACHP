@@ -28,7 +28,7 @@ function Legend({ assay }: { assay: AssayComputed }) {
           <th scope="col" className="hidden py-1 pr-3 font-semibold md:table-cell">
             Measures
           </th>
-          <th scope="col" className="py-1 text-right font-semibold">
+          <th scope="col" className="w-24 py-1 text-right font-semibold">
             <span className="sr-only">Human </span>Agreement
           </th>
         </tr>
@@ -75,20 +75,20 @@ export function AssayTab({ assay }: { assay: AssayComputed | null }) {
             How the five scores were reached, and whether they agree with the verdict.
           </p>
         </div>
-        <p className="type-meta text-ink-3">formula {assay.formula_version}</p>
+        <p className="type-meta text-ink-3">Formula version {assay.formula_version}</p>
       </header>
 
+      <Hallmark metrics={assay.metrics} size={40} />
+      <TwoKey assay={assay} />
+      <MaskingNotice assay={assay} />
+
       <div>
-        <Hallmark metrics={assay.metrics} size={28} />
         <Legend assay={assay} />
         <p className="mt-2 max-w-[68ch] type-meta text-ink-3">
           Agreement is how closely the score tracked 200 human-annotated claims (Pearson r). It is agreement, not accuracy or
           confidence. The finer outline marks the scores humans agreed with least.
         </p>
       </div>
-
-      <TwoKey assay={assay} />
-      <MaskingNotice assay={assay} />
 
       {metricsOnly ? (
         <p data-assay-note className="max-w-[60ch] type-body text-ink-2">

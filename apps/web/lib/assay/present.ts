@@ -117,6 +117,9 @@ export function twoKeyCopy(tk: AssayTwoKey, composite: number): TwoKeyCopy | nul
   }
 }
 
+/** One calm line under a disagreement: which verdict stands (the Judge's stamp) and what the formula is. */
+export const TWO_KEY_STANDS = "The stamp is the Judge's verdict. The formula is a second opinion, not the answer.";
+
 // ── Masking ───────────────────────────────────────────────────────────────────
 
 export interface MaskingCopy {
@@ -131,7 +134,7 @@ export function maskingCopy(a: AssayComputed): MaskingCopy | null {
   return {
     lead: "The wording is calm and balanced, but the facts didn't hold up.",
     body: `The overall score (${a.composite.toFixed(2)}) is lifted by tone, not evidence.`,
-    index: `Quiet Falsehood Index ${a.masking.qfi.toFixed(2)} · experimental`,
+    index: `Quiet Falsehood Index ${a.masking.qfi.toFixed(2)} (out of 1) · experimental`,
   };
 }
 
@@ -190,7 +193,8 @@ export function ledgerSplit(entries: AssayLedgerEntry[]): { facts: number; other
   return { facts, other };
 }
 
-export const signed = (n: number, digits = 3): string => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(digits)}`;
+/** A signed amount. A plain hyphen-minus, which screen readers voice as "minus" (U+2212 is skipped by some). */
+export const signed = (n: number, digits = 3): string => `${n >= 0 ? '+' : '-'}${Math.abs(n).toFixed(digits)}`;
 
 // ── Tipping point ─────────────────────────────────────────────────────────────
 
@@ -207,7 +211,7 @@ export function nearestFlip(tp: AssayTippingPoint) {
 }
 
 /**
- * "Fragile: if the framing of the wording moved from 0.08 to 0.15, the formula would read Mixed."
+ * "Fragile: if the framing of the wording were raised from 0.08 to 0.15, the formula would read Mixed."
  * One sentence, in signal units; it names the lever, never a percentage.
  */
 export function tippingSentence(tp: AssayTippingPoint): string {
@@ -223,9 +227,10 @@ export function tippingSentence(tp: AssayTippingPoint): string {
       ? `${band}: the nearest change is if ${change}, which would read ${reads}.`
       : `${band}: if ${change}, the formula would read ${reads}.`;
   }
-  const move = `${lever} moved from ${shown(flip.from)} to ${shown(flip.to)}`;
+  const down = typeof flip.to === 'number' && typeof flip.from === 'number' && flip.to < flip.from;
+  const move = `${lever} were ${down ? 'lowered' : 'raised'} from ${shown(flip.from)} to ${shown(flip.to)}`;
   return tp.band === 'settled'
-    ? `${band}: no small change flips it. The nearest is the ${move}, which would read ${reads}.`
+    ? `${band}: no small change flips it. The nearest is if the ${move}, which would read ${reads}.`
     : `${band}: if the ${move}, the formula would read ${reads}.`;
 }
 

@@ -1,0 +1,252 @@
+[
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-50-mobile-light",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-50-mobile-dark",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-50-desktop-light",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-50-desktop-dark",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-50-mobile-light-reduced",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-50-tab-assay-mobile-light",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-50-tab-assay-mobile-dark",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-50-tab-assay-desktop-light",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-50-tab-assay-desktop-dark",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-50-tab-assay-mobile-light-reduced",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-true-but-loaded-speed-50-mobile-light",
+    "route": "/case/fixture-synthetic-true-but-loaded?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-true-but-loaded-speed-50-mobile-dark",
+    "route": "/case/fixture-synthetic-true-but-loaded?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-true-but-loaded-speed-50-desktop-light",
+    "route": "/case/fixture-synthetic-true-but-loaded?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-true-but-loaded-speed-50-desktop-dark",
+    "route": "/case/fixture-synthetic-true-but-loaded?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-true-but-loaded-speed-50-mobile-light-reduced",
+    "route": "/case/fixture-synthetic-true-but-loaded?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-true-but-loaded-speed-50-tab-assay-mobile-light",
+    "route": "/case/fixture-synthetic-true-but-loaded?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-true-but-loaded-speed-50-tab-assay-mobile-dark",
+    "route": "/case/fixture-synthetic-true-but-loaded?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-true-but-loaded-speed-50-tab-assay-desktop-light",
+    "route": "/case/fixture-synthetic-true-but-loaded?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-true-but-loaded-speed-50-tab-assay-desktop-dark",
+    "route": "/case/fixture-synthetic-true-but-loaded?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-true-but-loaded-speed-50-tab-assay-mobile-light-reduced",
+    "route": "/case/fixture-synthetic-true-but-loaded?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-paper-fig9-metrics-speed-50-mobile-light",
+    "route": "/case/fixture-synthetic-paper-fig9-metrics?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-paper-fig9-metrics-speed-50-mobile-dark",
+    "route": "/case/fixture-synthetic-paper-fig9-metrics?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-paper-fig9-metrics-speed-50-desktop-light",
+    "route": "/case/fixture-synthetic-paper-fig9-metrics?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-paper-fig9-metrics-speed-50-desktop-dark",
+    "route": "/case/fixture-synthetic-paper-fig9-metrics?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-paper-fig9-metrics-speed-50-mobile-light-reduced",
+    "route": "/case/fixture-synthetic-paper-fig9-metrics?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-paper-fig9-metrics-speed-50-tab-assay-mobile-light",
+    "route": "/case/fixture-synthetic-paper-fig9-metrics?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-paper-fig9-metrics-speed-50-tab-assay-mobile-dark",
+    "route": "/case/fixture-synthetic-paper-fig9-metrics?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-paper-fig9-metrics-speed-50-tab-assay-desktop-light",
+    "route": "/case/fixture-synthetic-paper-fig9-metrics?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-paper-fig9-metrics-speed-50-tab-assay-desktop-dark",
+    "route": "/case/fixture-synthetic-paper-fig9-metrics?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-paper-fig9-metrics-speed-50-tab-assay-mobile-light-reduced",
+    "route": "/case/fixture-synthetic-paper-fig9-metrics?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-loud-falsehood-speed-50-mobile-light",
+    "route": "/case/fixture-synthetic-loud-falsehood?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-loud-falsehood-speed-50-mobile-dark",
+    "route": "/case/fixture-synthetic-loud-falsehood?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-loud-falsehood-speed-50-desktop-light",
+    "route": "/case/fixture-synthetic-loud-falsehood?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-loud-falsehood-speed-50-desktop-dark",
+    "route": "/case/fixture-synthetic-loud-falsehood?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-loud-falsehood-speed-50-mobile-light-reduced",
+    "route": "/case/fixture-synthetic-loud-falsehood?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-loud-falsehood-speed-50-tab-assay-mobile-light",
+    "route": "/case/fixture-synthetic-loud-falsehood?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-loud-falsehood-speed-50-tab-assay-mobile-dark",
+    "route": "/case/fixture-synthetic-loud-falsehood?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-loud-falsehood-speed-50-tab-assay-desktop-light",
+    "route": "/case/fixture-synthetic-loud-falsehood?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-loud-falsehood-speed-50-tab-assay-desktop-dark",
+    "route": "/case/fixture-synthetic-loud-falsehood?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-loud-falsehood-speed-50-tab-assay-mobile-light-reduced",
+    "route": "/case/fixture-synthetic-loud-falsehood?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-mixed-speed-50-mobile-light",
+    "route": "/case/fixture-synthetic-mixed?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-mixed-speed-50-mobile-dark",
+    "route": "/case/fixture-synthetic-mixed?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-mixed-speed-50-desktop-light",
+    "route": "/case/fixture-synthetic-mixed?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-mixed-speed-50-desktop-dark",
+    "route": "/case/fixture-synthetic-mixed?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-mixed-speed-50-mobile-light-reduced",
+    "route": "/case/fixture-synthetic-mixed?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-mixed-speed-50-tab-assay-mobile-light",
+    "route": "/case/fixture-synthetic-mixed?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-mixed-speed-50-tab-assay-mobile-dark",
+    "route": "/case/fixture-synthetic-mixed?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-mixed-speed-50-tab-assay-desktop-light",
+    "route": "/case/fixture-synthetic-mixed?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-mixed-speed-50-tab-assay-desktop-dark",
+    "route": "/case/fixture-synthetic-mixed?speed=50&tab=assay",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-mixed-speed-50-tab-assay-mobile-light-reduced",
+    "route": "/case/fixture-synthetic-mixed?speed=50&tab=assay",
+    "running": []
+  }
+]

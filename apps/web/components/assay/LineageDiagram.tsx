@@ -60,6 +60,10 @@ export function LineageDiagram({ judgeNss = true }: { judgeNss?: boolean }) {
   const nodeY = (id: string) => (signals.includes(id) ? ySig(signals.indexOf(id)) : yMet(id));
   const on = (from: string) => picked == null || picked === from;
 
+  // The first row that reaches each score spells it out (a drawer is its own view); later rows use the acronym.
+  const firstUse = new Map<string, string>();
+  for (const s of signals) for (const m of reaches(edges, s)) if (!firstUse.has(m)) firstUse.set(m, s);
+
   const detail = picked
     ? `${signalWords(picked)} feeds ${counts[picked] ?? 0} ${counts[picked] === 1 ? 'path' : 'paths'}, reaching ${reaches(edges, picked).join(', ')}.`
     : `${signalWords(SHARED)} is the most reused signal: ${counts[SHARED]} direct paths into the scores in the ${mode === 'code' ? 'production code' : 'paper'}.`;
@@ -80,8 +84,8 @@ export function LineageDiagram({ judgeNss = true }: { judgeNss?: boolean }) {
 
       <svg
         viewBox={`0 0 640 ${height}`}
-        role="group"
-        aria-label="Signal lineage: signals to scores to the overall score"
+        aria-hidden="true"
+        focusable="false"
         className="mt-4 hidden h-auto w-full md:block"
       >
         {edges.map((e, i) => {
@@ -114,18 +118,13 @@ export function LineageDiagram({ judgeNss = true }: { judgeNss?: boolean }) {
         {signals.map((s, i) => (
           <g
             key={s}
-            tabIndex={0}
-            role="img"
-            aria-label={`${signalWords(s)}: ${counts[s] ?? 0} paths`}
             data-signal={s}
-            onFocus={() => setPicked(s)}
-            onBlur={() => setPicked(null)}
             onPointerEnter={() => setPicked(s)}
             onPointerLeave={() => setPicked(null)}
-            className="cursor-default outline-offset-2"
+            className="cursor-default"
           >
             <rect x="0" y={ySig(i) - ROW / 2 + 1} width={X_SIG} height={ROW - 2} className="fill-transparent" />
-            <text x={X_SIG - 8} y={ySig(i) + 4} textAnchor="end" className={cn('font-sans text-[11px]', s === SHARED ? 'fill-ochre font-semibold' : 'fill-ink')}>
+            <text x={X_SIG - 8} y={ySig(i) + 4} textAnchor="end" className={cn('font-sans text-[12px]', s === SHARED ? 'fill-ochre font-semibold' : 'fill-ink')}>
               {signalWords(s)}
               {s === SHARED ? ` · ${counts[s]} paths` : ''}
             </text>
@@ -147,7 +146,8 @@ export function LineageDiagram({ judgeNss = true }: { judgeNss?: boolean }) {
           </text>
         </g>
       </svg>
-      <p aria-live="polite" data-lineage-detail className="mt-2 max-w-[68ch] type-meta text-ink-2">
+      {/* The drawing is for sight and the pointer; the table below is the keyboard and screen-reader twin. */}
+      <p data-lineage-detail className="mt-2 hidden max-w-[68ch] type-meta text-ink-2 md:block">
         {detail}
       </p>
 
@@ -176,7 +176,7 @@ export function LineageDiagram({ judgeNss = true }: { judgeNss?: boolean }) {
                 {reaches(edges, s).map((m, i) => (
                   <span key={m}>
                     {i > 0 && ', '}
-                    <MetricTerm code={m} />
+                    <MetricTerm code={m} full={firstUse.get(m) === s} />
                   </span>
                 ))}
               </td>
@@ -187,8 +187,9 @@ export function LineageDiagram({ judgeNss = true }: { judgeNss?: boolean }) {
       </table>
       {mode === 'code' && (
         <p className="mt-2 max-w-[68ch] type-meta text-ink-3">
-          In the production code the framing score also serves as narrative alignment (1 − framing)
-          {judgeNss ? '.' : ', and again through the estimated stance score, because the Judge gave none.'}
+          The paper names 13 signals. The code derives one of them, narrative alignment, from the framing score (1 -
+          framing), so it lists 12{judgeNss ? '' : ', or 11 when the Judge gives no stance score, as here'}
+          {judgeNss ? '.' : ', and then estimates that stance score from bias and framing.'}
         </p>
       )}
     </section>

@@ -62,8 +62,8 @@ export function IntegrityLedger({ ledger, className }: { ledger: AssayLedger; cl
             <th scope="col" className="py-1 text-right font-semibold">
               Credit
             </th>
-            <th scope="col" className="hidden w-32 py-1 pl-3 md:table-cell">
-              <span className="sr-only">Bar</span>
+            <th scope="col" className="hidden w-32 py-1 pl-3 font-semibold md:table-cell">
+              Effect
             </th>
           </tr>
         </thead>
@@ -72,19 +72,22 @@ export function IntegrityLedger({ ledger, className }: { ledger: AssayLedger; cl
             <th scope="row" colSpan={3} className="py-2 pr-3 text-left font-normal text-ink">
               Opening balance <span className="text-ink-2">(a claim with every signal at its midpoint)</span>
             </th>
-            <td className="py-2 text-right tabular-nums text-ink">{three(ledger.opening_balance)}</td>
+            <td className="py-2 text-right tabular-nums text-ink">
+              <span className="sr-only">balance </span>
+              {three(ledger.opening_balance)}
+            </td>
             <td className="hidden md:table-cell" />
           </tr>
-          {groups.map((g) => (
-            <GroupRows key={g.group} group={g.group} rows={g.rows} max={max} />
-          ))}
         </tbody>
+        {groups.map((g) => (
+          <GroupRows key={g.group} group={g.group} rows={g.rows} max={max} />
+        ))}
         <tfoot>
           <tr className="border-t-[3px] border-double border-ink">
             <th scope="row" colSpan={3} className="py-2 pr-3 text-left font-semibold text-ink">
               Closing balance <span className="font-normal text-ink-2">= the overall score</span>
             </th>
-            <td className="py-2 text-right font-semibold tabular-nums text-ink" data-closing>
+            <td className="py-2 text-right tabular-nums text-ink" data-closing>
               {three(ledger.closing_balance)}
             </td>
             <td className="hidden md:table-cell" />
@@ -109,7 +112,7 @@ function GroupRows({
   max: number;
 }) {
   return (
-    <>
+    <tbody>
       <tr>
         <th scope="rowgroup" colSpan={5} className="pt-3 pb-1 text-left font-semibold text-ink">
           {group}
@@ -121,13 +124,17 @@ function GroupRows({
             {signalWords(e.signal)}
           </th>
           <td className="py-1 pr-3 text-right tabular-nums text-ink-2">{signalValue(e.signal, e.value)}</td>
-          <td className="py-1 pr-3 text-right tabular-nums text-ink">{e.amount < 0 ? signed(e.amount) : ''}</td>
-          <td className="py-1 text-right tabular-nums text-ink">{e.amount >= 0 ? signed(e.amount) : ''}</td>
+          <td className="py-1 pr-3 text-right tabular-nums text-ink">
+            {e.amount < 0 ? signed(e.amount) : <span className="sr-only">none</span>}
+          </td>
+          <td className="py-1 text-right tabular-nums text-ink">
+            {e.amount >= 0 ? signed(e.amount) : <span className="sr-only">none</span>}
+          </td>
           <td className="hidden py-1 pl-3 md:table-cell">
             <Bar amount={e.amount} max={max} />
           </td>
         </tr>
       ))}
-    </>
+    </tbody>
   );
 }

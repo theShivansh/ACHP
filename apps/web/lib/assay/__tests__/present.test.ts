@@ -66,7 +66,7 @@ describe('masking', () => {
     const m = maskingCopy(assayOf('quiet-falsehood'))!;
     expect(m.lead).toBe("The wording is calm and balanced, but the facts didn't hold up.");
     expect(m.body).toBe('The overall score (0.72) is lifted by tone, not evidence.');
-    expect(m.index).toMatch(/^Quiet Falsehood Index 0\.\d\d · experimental$/);
+    expect(m.index).toMatch(/^Quiet Falsehood Index 0\.\d\d \(out of 1\) · experimental$/);
   });
 
   it('stays quiet when nothing was lifted', () => {
@@ -102,7 +102,7 @@ describe('the tipping sentence', () => {
     const a = assayOf('quiet-falsehood');
     const s = tippingSentence(a.tipping_point!);
     expect(a.tipping_point!.band).toBe('fragile');
-    expect(s).toMatch(/^Fragile: if the .+ moved from \d\.\d\d to \d\.\d\d, the formula would read .+\.$/);
+    expect(s).toMatch(/^Fragile: if the .+ were (raised|lowered) from \d\.\d\d to \d\.\d\d, the formula would read .+\.$/);
     expect(s).not.toContain('%');
   });
 

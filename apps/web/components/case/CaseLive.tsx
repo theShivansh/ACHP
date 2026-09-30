@@ -32,7 +32,7 @@ import {
   type RunState,
 } from '@/lib/runs/reducer';
 import type { RunEvent } from '@/lib/runs/types';
-import { tippingSentence } from '@/lib/assay/present';
+import { METRIC_INFO, METRICS, tippingSentence } from '@/lib/assay/present';
 import type { BandKey } from '@/lib/verdict';
 import { useRunEvents } from '@/lib/runs/useRunEvents';
 import { LaneList, type LaneClock } from './AgentLane';
@@ -434,11 +434,32 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                     {phase === 'completed' && state.verdict && (
                       <div className="mt-5 flex flex-wrap items-center gap-x-8 gap-y-4">
                         <Stamp label={state.verdict.overall.label} id={runId} size="overall" />
-                        {state.assay && !blocked && tab === 'report' && <Hallmark metrics={state.assay.metrics} size={28} />}
+                        {state.assay && !blocked && tab === 'report' && <Hallmark metrics={state.assay.metrics} size={40} />}
                       </div>
                     )}
                     {phase === 'completed' && state.assay && !blocked && tab === 'report' && (
-                      <TwoKey assay={state.assay} className="mt-4" />
+                      <>
+                        {/* Touch readers never see the tooltips, so the five scores are named here, in full, once. */}
+                        <p data-hallmark-legend className="mt-2 max-w-[68ch] type-meta text-ink-2">
+                          The five scores, left to right:{' '}
+                          {METRICS.map((m, i) => (
+                            <span key={m}>
+                              {i > 0 && ' · '}
+                              {METRIC_INFO[m].full}
+                              {METRIC_INFO[m].lowerIsBetter && ' (lower is better)'}
+                            </span>
+                          ))}
+                          .{' '}
+                          <button
+                            type="button"
+                            onClick={() => setTab('assay')}
+                            className="inline-flex min-h-6 cursor-pointer items-center text-pencil-blue underline decoration-(length:--rule) underline-offset-4 hover:decoration-2 pointer-coarse:min-h-11"
+                          >
+                            What they mean, on The Assay tab
+                          </button>
+                        </p>
+                        <TwoKey assay={state.assay} className="mt-4" />
+                      </>
                     )}
                   </header>
 
@@ -470,7 +491,8 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                             reason={state.verdict.overall.confidence_reason}
                           />
                           {state.assay?.tipping_point && (
-                            <p data-tipping-sentence className="mt-3 max-w-[68ch] type-body text-ink-2">
+                            <p data-tipping-sentence className="mt-3 max-w-[68ch] type-body text-pretty text-ink-2">
+                              <span className="font-semibold text-ink">About the formula. </span>
                               {tippingSentence(state.assay.tipping_point)}
                             </p>
                           )}

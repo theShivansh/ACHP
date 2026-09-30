@@ -123,14 +123,14 @@ function Slider({
   const max = control.kind === 'count' ? 10 : 1;
   const at = Number(real) / max;
   return (
-    <div>
-      <label htmlFor={id} className="flex items-baseline justify-between gap-3 type-meta text-ink">
-        <span>{label}</span>
-        <span className="tabular-nums" data-value>
+    <div className="scroll-mt-80">
+      <div className="flex items-baseline justify-between gap-3 type-meta text-ink">
+        <label htmlFor={id}>{label}</label>
+        <span id={`${id}-value`} className="tabular-nums" data-value>
           {signalValue(control.key, value as number)}
           <span className="text-ink-3"> (the case: {signalValue(control.key, real as number)})</span>
         </span>
-      </label>
+      </div>
       <div className="relative mt-1 flex min-h-6 items-center pointer-coarse:min-h-11">
         <input
           id={id}
@@ -139,14 +139,16 @@ function Slider({
           max={max}
           step={control.kind === 'count' ? 1 : 0.01}
           value={Number(value)}
+          aria-valuetext={signalValue(control.key, value as number)}
+          aria-describedby={`${id}-value`}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="relative z-10 h-1 w-full cursor-pointer accent-ink"
+          className="relative z-10 h-6 w-full cursor-pointer accent-ink"
         />
         <span
           aria-hidden="true"
           data-real-tick
           style={{ '--at': at } as React.CSSProperties}
-          className="pointer-events-none absolute top-1/2 left-[calc(8px+(100%-16px)*var(--at))] h-3 w-0.5 -translate-y-1/2 bg-pencil-blue"
+          className="pointer-events-none absolute top-1/2 z-20 left-[calc(8px+(100%-16px)*var(--at))] h-3 w-0.5 -translate-y-1/2 bg-pencil-blue"
         />
       </div>
     </div>
@@ -187,14 +189,15 @@ export function AssayBench({ assay }: { assay: AssayComputed }) {
         <h3 id="bench-title" className="type-ui font-semibold text-ink">
           Try the formula
         </h3>
-        <p data-whatif className="mt-1 border-y-(length:--rule) border-ochre py-2 type-body text-ink">
-          What-if. This doesn&apos;t re-run the agents.
-        </p>
       </div>
 
-      <div data-bench-result className="flex flex-col gap-3 border-b-(length:--rule) border-sheet-line pb-4 md:sticky md:top-0 md:z-10 md:bg-sheet">
+      <div data-bench-result className="flex flex-col gap-3 border-b-(length:--rule) border-sheet-line pb-4 [@media(min-width:48rem)_and_(min-height:46rem)]:sticky [@media(min-width:48rem)_and_(min-height:46rem)]:top-0 [@media(min-width:48rem)_and_(min-height:46rem)]:z-30 [@media(min-width:48rem)_and_(min-height:46rem)]:bg-sheet">
+        {/* Inside the sticky block: whatever live numbers are on screen, the label is too (11 §4.5). */}
+        <p data-whatif className="border-y-(length:--rule) border-ochre py-2 type-body text-ink">
+          What-if. This doesn&apos;t re-run the agents.
+        </p>
         <Hallmark metrics={result.metrics} size={28} />
-        <p className="type-body text-ink">
+        <p role="status" aria-live="polite" aria-atomic="true" className="type-body text-ink">
           The formula reads <span className="font-semibold">{verdictName(result.formula_verdict)}</span> at an overall score of{' '}
           <span className="tabular-nums" data-bench-composite>
             {result.composite.toFixed(2)}
@@ -205,7 +208,7 @@ export function AssayBench({ assay }: { assay: AssayComputed }) {
         <MaskingNotice assay={result} />
         {result.tipping_point && <p className="type-meta text-ink-2">{tippingSentence(result.tipping_point)}</p>}
         <div>
-          <Button variant="secondary" onClick={reset} disabled={!changed}>
+          <Button variant="secondary" onClick={() => changed && reset()} aria-disabled={!changed} className={changed ? undefined : 'opacity-60'}>
             Reset to the case
           </Button>
         </div>

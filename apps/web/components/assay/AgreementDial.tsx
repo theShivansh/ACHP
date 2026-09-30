@@ -16,10 +16,10 @@ export function AgreementDial() {
         <caption className="sr-only">Human agreement with each score, from 0 to 1</caption>
         <thead>
           <tr className="border-b-(length:--rule) border-ink text-left text-ink-2">
-            <th scope="col" className="py-1 pr-3 font-semibold">
+            <th scope="col" className="w-2/5 py-1 pr-3 font-semibold">
               Score
             </th>
-            <th scope="col" className="w-full py-1 pr-3 font-semibold">
+            <th scope="col" className="py-1 pr-3 font-semibold">
               <span className="sr-only">Bar from 0 to 1</span>
             </th>
             <th scope="col" className="py-1 text-right font-semibold">
@@ -30,8 +30,8 @@ export function AgreementDial() {
         <tbody>
           {METRICS.map((code) => (
             <tr key={code} data-metric={code} className="border-b-(length:--rule) border-sheet-line">
-              <th scope="row" className="py-2 pr-3 text-left font-normal whitespace-nowrap text-ink">
-                <MetricTerm code={code} />
+              <th scope="row" className="py-2 pr-3 text-left font-normal text-ink">
+                <MetricTerm code={code} full />
               </th>
               <td className="py-2 pr-3">
                 <span aria-hidden="true" className="relative block h-3 w-full border-l-(length:--rule) border-ink-3">
@@ -46,7 +46,7 @@ export function AgreementDial() {
           ))}
         </tbody>
       </table>
-      <div aria-hidden="true" className="mt-1 flex justify-between pl-[4.5rem] type-meta text-ink-3 tabular-nums">
+      <div aria-hidden="true" className="mt-1 ml-[40%] flex justify-between pr-10 type-meta text-ink-3 tabular-nums">
         <span>0</span>
         <span>0.5</span>
         <span>1</span>

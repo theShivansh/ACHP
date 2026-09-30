@@ -21,6 +21,7 @@
 //   --themes l,d          light and/or dark via prefers-color-scheme; default both
 //   --no-reduced          skip the extra mobile reduced-motion capture
 //   --full                full-page screenshots
+//   --no-mock-health      don't answer /health for /case/fixture-* routes (default: answered, so the chip reads Ready)
 //   --video               also record a desktop-light video (webm) of the whole session
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
@@ -36,6 +37,7 @@ const flag = (name, def) => { const i = argv.indexOf(`--${name}`); return i === 
 const list = (v) => (typeof v === 'string' ? v.split(',').map(s => s.trim()).filter(Boolean) : []);
 
 const phase = flag('phase', 'adhoc');
+const mockHealth = !argv.includes('--no-mock-health');
 const base = flag('base', process.env.BASE_URL || 'http://localhost:3000');
 const url = flag('url', null);
 const routes = url ? list(url) : list(flag('routes', '/'));
@@ -69,6 +71,16 @@ async function captureSet(browser, route, vp, theme, reduced, stillness) {
     ...(video && vp.name === 'desktop' && theme === 'light' && !reduced ? { recordVideo: { dir: outDir, size: { width: vp.width, height: vp.height } } } : {}),
   });
   const page = await ctx.newPage();
+  // Fixture replays never reach the backend: answer /health so the chip reads "Ready", not a red "Unreachable"
+  // (it is not an error on a replay), and hide the framework's dev overlay, which would sit over the sheet.
+  if (mockHealth && /\/case\/fixture-/.test(route)) {
+    await page.route('**/health', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"status":"ok"}' }));
+  }
+  await page.addInitScript(() => {
+    const css = 'nextjs-portal{display:none!important}';
+    const add = () => { const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st); };
+    document.head ? add() : document.addEventListener('DOMContentLoaded', add);
+  });
   const tag = `${slugify(route)}-${vp.name}-${theme}${reduced ? '-reduced' : ''}`;
   const t0 = Date.now();
   await page.goto(full, { waitUntil: 'domcontentloaded' });

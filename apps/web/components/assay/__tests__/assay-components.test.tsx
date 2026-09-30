@@ -61,6 +61,30 @@ describe('Hallmark', () => {
   });
 });
 
+describe('Hallmark sizes and the tooltip', () => {
+  it('prints letters only from 28px, and the score under each mark at 40px', () => {
+    const a = assayOf('quiet-falsehood');
+    const small = render(<Hallmark metrics={a.metrics} size={24} />).container;
+    expect(small.querySelectorAll('svg text')).toHaveLength(0);
+    cleanup();
+    const big = render(<Hallmark metrics={a.metrics} size={40} />).container;
+    expect([...big.querySelectorAll('[data-score]')].map((n) => n.textContent)).toEqual(
+      METRICS.map((m) => String(Math.round(a.metrics[m] * 100))),
+    );
+  });
+
+  it('is dismissed with Escape and comes back on the next hover or focus (WCAG 1.4.13)', () => {
+    const a = assayOf('quiet-falsehood');
+    render(<Hallmark metrics={a.metrics} />);
+    const cts = screen.getByRole('img', { name: /^Consensus Truth Score/ });
+    expect(cts.getAttribute('data-dismissed')).toBeNull();
+    fireEvent.keyDown(cts, { key: 'Escape' });
+    expect(cts.getAttribute('data-dismissed')).toBe('true');
+    fireEvent.focus(cts);
+    expect(cts.getAttribute('data-dismissed')).toBeNull();
+  });
+});
+
 describe('Two-Key and masking', () => {
   it('turns the formula key fully, halfway or not at all', () => {
     const turns = (name: string) => {
@@ -71,6 +95,7 @@ describe('Two-Key and masking', () => {
     };
     expect(turns('paper-fig9-metrics')).toBe('45'); // close call
     expect(turns('quiet-falsehood')).toBe('0'); // split
+    expect(turns('loud-falsehood')).toBe('90'); // agree
   });
 
   it('shows the masking notice for the quiet falsehood only', () => {
@@ -94,12 +119,23 @@ describe('the ledger and the tipping line', () => {
     expect(container.querySelectorAll('tr[data-signal]')).toHaveLength(lg.entries.length);
     const cells = [...container.querySelectorAll('tr[data-signal]')].map((tr) => {
       const td = tr.querySelectorAll('td');
-      const parse = (s: string | null) => (s ? Number(s.replace('−', '-').replace('+', '')) : 0);
+      const parse = (s: string | null) => {
+        const n = s?.match(/[+-]\d\.\d{3}/)?.[0];
+        return n ? Number(n) : 0;
+      };
       return parse(td[1].textContent) + parse(td[2].textContent);
     });
     const shown = cells.reduce((t, n) => t + n, 0);
     expect(Math.abs(shown - (lg.closing_balance - lg.opening_balance))).toBeLessThan(0.0006 * lg.entries.length);
     expect(container.querySelector('[data-closing]')!.textContent).toBe(lg.closing_balance.toFixed(3));
+  });
+
+  it('groups the rows in their own bodies, with a header over the bars and "none" for an empty cell', () => {
+    const lg = assayOf('quiet-falsehood').ledger!;
+    const { container } = render(<IntegrityLedger ledger={lg} />);
+    expect(container.querySelectorAll('tbody')).toHaveLength(1 + 3); // the opening balance, then Facts, Perspectives, Wording
+    expect(container.querySelector('thead')!.textContent).toContain('Effect');
+    expect(container.querySelector('tr[data-signal] td .sr-only')!.textContent).toBe('none');
   });
 
   it('puts the case on the scale and names the nearest flip in the twin list', () => {

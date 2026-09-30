@@ -48,7 +48,7 @@ export function TippingLine({ assay, className }: { assay: AssayComputed; classN
       <h3 id="tipping-title" className="type-ui font-semibold text-ink">
         Tipping point
       </h3>
-      <p className="mt-1 type-body text-ink">
+      <p className="mt-1 max-w-[68ch] type-body text-pretty text-ink">
         <span className="sr-only">{bandWord(tp.band)} band. </span>
         {tippingSentence(tp)}
       </p>
@@ -63,14 +63,14 @@ export function TippingLine({ assay, className }: { assay: AssayComputed; classN
           <g key={z.verdict}>
             <rect x={x(z.from)} y="38" width={x(z.to) - x(z.from)} height="22" className={STEP[i]} />
             <path d={`M${x(z.from)} 36 V62`} className="stroke-ink-3" strokeWidth="1" />
-            <text x={(x(z.from) + x(z.to)) / 2} y="30" textAnchor="middle" className="fill-ink-2 font-sans text-[11px]">
+            <text x={(x(z.from) + x(z.to)) / 2} y="30" textAnchor="middle" className="fill-ink-2 font-sans text-[12px]">
               {verdictName(z.verdict)}
             </text>
           </g>
         ))}
         <path d={`M${x(1)} 36 V62`} className="stroke-ink-3" strokeWidth="1" />
         {[0, 0.3, 0.5, 0.7, 0.85, 1].map((t) => (
-          <text key={t} x={x(t)} y="76" textAnchor="middle" className="fill-ink-2 font-sans text-[10px] tabular-nums">
+          <text key={t} x={x(t)} y="76" textAnchor="middle" className="fill-ink-2 font-sans text-[11px] tabular-nums">
             {t === 0 ? '0' : t === 1 ? '1' : t.toFixed(2).replace(/0$/, '')}
           </text>
         ))}
@@ -83,13 +83,16 @@ export function TippingLine({ assay, className }: { assay: AssayComputed; classN
         <circle cx={x(c)} cy="49" r="6" className="fill-sheet" />
         <circle cx={x(c)} cy="49" r="4" className="fill-mark-focus" data-composite={c} />
         {lever && (
-          <text x={mid} y="100" textAnchor="middle" className="fill-ink font-sans text-[11px]">
+          <text x={mid} y="98" textAnchor="middle" className="fill-ink font-sans text-[12px]">
             {lever} flips to {verdictName(flip!.new_verdict)}
           </text>
         )}
       </svg>
 
-      <ul aria-label="Where the overall score sits on the verdict scale" className="mt-3 flex flex-col gap-1 md:sr-only">
+      <ul
+        aria-label="Where the overall score sits on the verdict scale"
+        className="mt-3 border-t-(length:--rule) border-sheet-line md:sr-only"
+      >
         {VERDICT_ZONES.map((z) => {
           const current = z.verdict === here;
           return (
@@ -97,19 +100,28 @@ export function TippingLine({ assay, className }: { assay: AssayComputed; classN
               key={z.verdict}
               aria-current={current ? 'true' : undefined}
               className={cn(
-                'flex items-baseline justify-between rounded-chip border-(length:--rule) px-3 py-1 type-meta',
-                current ? 'border-ink bg-sheet-line/50 font-semibold text-ink' : 'border-sheet-line text-ink-2',
+                'flex items-center gap-3 border-b-(length:--rule) border-sheet-line py-2 type-body',
+                current ? 'font-semibold text-ink' : 'text-ink-2',
               )}
             >
-              <span>
+              {/* The case's dot sits in its own zone, with a 2px ring of the sheet around it (04 §7.1). */}
+              <span aria-hidden="true" className="flex size-3 shrink-0 items-center justify-center">
+                {current && <span className="size-2 rounded-full bg-mark-focus ring-2 ring-sheet" />}
+              </span>
+              <span className={cn('flex-1 border-l-(length:--rule) pl-3', current ? 'border-ink' : 'border-sheet-line')}>
                 {verdictName(z.verdict)}
                 {current && <span className="sr-only"> (this case, {c.toFixed(2)})</span>}
               </span>
-              <span className="tabular-nums">{RANGE(z.from, z.to)}</span>
+              <span className="type-meta tabular-nums">{RANGE(z.from, z.to)}</span>
             </li>
           );
         })}
       </ul>
+      {boundary != null && (
+        <p data-edge className="mt-2 type-meta text-ink-2 md:sr-only">
+          The overall score is {c.toFixed(2)}; the nearest edge is {boundary.toFixed(2)}.
+        </p>
+      )}
     </section>
   );
 }
