@@ -44,25 +44,63 @@ test('the stage is pinned inside the gate and the gate track is 220vh', async ({
   expect(await page.locator('.story-friction .stage').first().evaluate((el) => getComputedStyle(el).position)).toBe('sticky');
 });
 
-test('the gate’s lines reveal with the scroll (native scroll-driven animation): opacity only ever rises', async ({ page }, info) => {
+test('the gate’s quote and sentence reveal with the scroll (native scroll-driven animation): opacity only ever rises', async ({ page }, info) => {
   test.skip(info.project.name.includes('mobile'), 'the phone run is reduced-motion');
   await page.goto(url('contradicted-strong'));
   expect(await page.evaluate(() => CSS.supports('animation-timeline: view()'))).toBe(true);
   const g = await gateBox(page);
-  const line3 = '.story-friction .line:nth-of-type(3)';
-  if ((await page.locator(line3).count()) === 0) test.skip(true, 'this gate has two lines');
+  const second = '.story-friction .line[data-line="2"]';
+  await expect(page.locator(second).first()).toBeAttached();
   const samples: number[] = [];
-  for (const dy of [40, 500, 700, 950]) {
+  for (const dy of [40, 300, 420, 700]) {
     await scrollToY(page, g.top + dy);
     await page.waitForTimeout(80);
-    samples.push(await opacityOf(page, line3));
+    samples.push(await opacityOf(page, second));
   }
   for (let i = 1; i < samples.length; i += 1) expect(samples[i]).toBeGreaterThanOrEqual(samples[i - 1]);
   expect(samples[0]).toBeLessThan(0.3);
   expect(samples.at(-1)).toBeGreaterThan(0.9);
-  // The first line is fully there once the reader is a little way in.
+  // The first line (the quoted counter-evidence) is fully there once the reader is a little way in.
   await scrollToY(page, g.top + 400);
-  expect(await opacityOf(page, '.story-friction .line:nth-of-type(1)')).toBeGreaterThan(0.95);
+  expect(await opacityOf(page, '.story-friction .line[data-line="1"]')).toBeGreaterThan(0.95);
+});
+
+test('a gate is never an empty stage: its heading and struck strip are on screen, drawn, before anything is revealed', async ({ page }, info) => {
+  test.skip(info.project.name.includes('mobile'), 'the phone run is reduced-motion');
+  await page.goto(url('contradicted-strong'));
+  const g = await gateBox(page);
+  await scrollToY(page, g.top - 60);
+  await page.waitForTimeout(150);
+  await expect(page.locator('.story-friction').first().locator('h2')).toBeInViewport();
+  const strip = page.locator('.story-friction').first().locator('[data-gate-strip]');
+  await expect(strip).toBeInViewport();
+  expect(await opacityOf(page, '.story-friction [data-gate-strip]')).toBe(1);
+  // The mark draws with the scroll: nearly undrawn at the start of the track, fully drawn past its range.
+  const offset = () => page.locator('.story-friction').first().locator('.mark path').first().evaluate((p) => parseFloat(getComputedStyle(p).strokeDashoffset));
+  await scrollToY(page, g.top + 10);
+  await page.waitForTimeout(100);
+  expect(await offset()).toBeGreaterThan(0.6);
+  await scrollToY(page, g.top + 700);
+  await page.waitForTimeout(100);
+  expect(await offset()).toBeLessThan(0.05);
+});
+
+test('on a phone the track is 180vh, the stage pins, and the rail is a short bar', async ({ page }, info) => {
+  test.skip(info.project.name.includes('mobile'), 'this run is the non-reduced phone layout in a desktop project');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(url('contradicted-strong'));
+  await expect(page.locator('.story-friction').first()).toBeAttached();
+  const g = await gateBox(page);
+  expect(g.height).toBe(Math.round(g.vh * 1.8));
+  const tops: number[] = [];
+  for (const dy of [100, 350, 600]) {
+    await scrollToY(page, g.top + dy);
+    tops.push(await page.locator('.story-friction .stage').first().evaluate((el) => Math.round(el.getBoundingClientRect().top)));
+  }
+  expect(new Set(tops).size).toBe(1);
+  const rail = await page.locator('[data-story-rail]').boundingBox();
+  expect(rail!.height).toBeLessThan(110); // one row of ticks and the skip, not a quarter of the screen
+  await expect(page.locator('[data-story-current]')).toContainText(/\d of 7/);
 });
 
 test('without scroll-driven animations (stock Firefox) the same lines are driven by Motion', async ({ page }, info) => {
@@ -81,13 +119,13 @@ test('without scroll-driven animations (stock Firefox) the same lines are driven
   // Motion updates on the next animation frame, so each position is polled until the value settles.
   await scrollToY(page, g.top + 20);
   await expect.poll(opacity, { timeout: 5000 }).toBeLessThan(0.3);
-  await scrollToY(page, g.top + 700);
+  await scrollToY(page, g.top + 400);
   await expect.poll(opacity, { timeout: 5000 }).toBeGreaterThan(0.3);
   const mid = await opacity();
-  await scrollToY(page, g.top + 950);
+  await scrollToY(page, g.top + 700);
   await expect.poll(opacity, { timeout: 5000 }).toBeGreaterThan(0.9);
   expect(mid).toBeLessThan(1);
-  expect(n).toBeGreaterThanOrEqual(2);
+  expect(n).toBeGreaterThanOrEqual(1);
   // A normal step simply shows its content in the fallback (no reveal).
   expect(await opacityOf(page, '[data-chapter="sources"] .reveal')).toBe(1);
 });
@@ -115,6 +153,76 @@ test('reduced motion: a static document, nothing pinned, nothing hidden, marks d
   expect(info.sticky).toBe(0);
   expect(info.marks.length).toBeGreaterThan(0);
   expect(info.marks.every((m) => m === '0px' || m === '0')).toBe(true);
+});
+
+test('focus inside a gate shows the line it is on, even before the scroll has revealed it (2.4.7)', async ({ page }, info) => {
+  test.skip(info.project.name.includes('mobile'), 'the phone run is reduced-motion');
+  await page.goto(url('contradicted-strong'));
+  const g = await gateBox(page);
+  await scrollToY(page, g.top + 10);
+  await page.waitForTimeout(150);
+  const line = '.story-friction .line[data-line="1"]';
+  expect(await opacityOf(page, line)).toBeLessThan(0.3);
+  await page.locator(`${line} [data-evidence]`).first().focus();
+  await page.waitForTimeout(100);
+  expect(await opacityOf(page, line)).toBe(1);
+});
+
+test('at 400% zoom (a 320 × 256 viewport) nothing is pinned, nothing is waiting, and the gate does not overlap what follows', async ({ page }, info) => {
+  test.skip(info.project.name.includes('mobile'), 'this run sets its own viewport');
+  await page.setViewportSize({ width: 320, height: 256 });
+  await page.goto(url('contradicted-strong'));
+  await expect(page.locator('.story-friction').first()).toBeAttached();
+  await expect(page.locator('.story .mark').first()).toBeAttached();
+  const r = await page.evaluate(() => {
+    const gates = [...document.querySelectorAll('.story-friction')];
+    const stage = gates[0].querySelector('.stage')!;
+    const next = gates[0].nextElementSibling ?? gates[0].parentElement!.nextElementSibling;
+    const hidden = [...document.querySelectorAll('.line, .reveal')].filter((e) => Number(getComputedStyle(e).opacity) < 1).length;
+    return {
+      position: getComputedStyle(stage).position,
+      hidden,
+      overlap: next ? gates[0].getBoundingClientRect().bottom > next.getBoundingClientRect().top + 1 : false,
+      noHScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+    };
+  });
+  expect(r.position).toBe('static');
+  expect(r.hidden).toBe(0);
+  expect(r.overlap).toBe(false);
+  expect(r.noHScroll).toBe(true); // reflow: no sideways scroll at 320px
+  // The skip link wraps to its own row rather than squeezing the ticks below 24px.
+  const ticks = await page.locator('[data-tick]').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
+  expect(Math.min(...ticks)).toBeGreaterThanOrEqual(24);
+});
+
+test('the rail puts "Skip to verdict" first in the tab order, and a phone scrolls focused content clear of the bar', async ({ page }, info) => {
+  test.skip(info.project.name.includes('mobile'), 'this run sets its own viewport');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(url('contradicted-strong'));
+  expect(await page.locator('[data-story-rail] a').first().getAttribute('data-skip-verdict')).not.toBeNull();
+  const pad = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom));
+  expect(pad).toBeGreaterThanOrEqual(112); // 7rem: taller than the bar
+  const bar = await page.locator('[data-story-rail]').boundingBox();
+  expect(bar!.height).toBeLessThanOrEqual(pad);
+});
+
+test('every id on the story page is unique (the same strip appears in several chapters)', async ({ page }) => {
+  await page.goto(url('contradicted-strong'));
+  await expect(page.locator('section[id^="chapter-"]')).toHaveCount(7);
+  const dupes = await page.evaluate(() => {
+    const seen = new Map<string, number>();
+    for (const el of document.querySelectorAll('[id]')) seen.set(el.id, (seen.get(el.id) ?? 0) + 1);
+    return [...seen].filter(([, n]) => n > 1).map(([id]) => id);
+  });
+  expect(dupes).toEqual([]);
+});
+
+test('"N sources" on a part in the verdict chapter opens the report’s Evidence tab (no dead button)', async ({ page }) => {
+  await page.goto(url('exercise-mixed'));
+  const btn = page.locator('#chapter-verdict li[data-claim]').getByRole('button', { name: /source/ }).first();
+  await btn.scrollIntoViewIfNeeded();
+  await btn.click();
+  await expect(page).toHaveURL(/\/case\/fixture-exercise-mixed.*tab=evidence/);
 });
 
 test('"Skip to verdict" and the End key reach the verdict at once; the rail follows', async ({ page }) => {
@@ -206,6 +314,11 @@ for (const name of FIXTURES) {
     await page.getByRole('link', { name: 'Skip to verdict' }).click();
     await expect(page.locator('#chapter-verdict')).toBeInViewport();
     await expect(page.getByRole('link', { name: 'Open the full report' })).toHaveAttribute('href', new RegExp(`/case/fixture-${name}`));
+    if (name === 'contradicted-strong') {
+      // The part that was wrong is on the verdict chapter, struck by the Judge's own mark.
+      await expect(page.locator('#chapter-verdict li[data-claim]').first()).toBeAttached();
+      await expect(page.locator('#chapter-verdict svg.mark[data-ruled]').first()).toBeAttached();
+    }
   });
 }
 

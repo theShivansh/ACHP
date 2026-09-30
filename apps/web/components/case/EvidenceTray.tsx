@@ -130,7 +130,7 @@ export function EvidenceCard({ card, uses, n, stopped = false }: { card: Card; u
       </p>
       {src.title && <h3 className="mt-1 type-ui font-semibold text-ink">{src.title}</h3>}
       {/* The quote is verbatim, in Newsreader with a rule in the relation's color. */}
-      <blockquote className={cn('mt-2 border-l-2 pl-3 font-display type-body text-ink', rule)}>
+      <blockquote className={cn('mt-2 max-w-[68ch] border-l-2 pl-3 font-display type-body text-ink', rule)}>
         <p className="line-clamp-6">“{displayQuote(card.quote)}”</p>
       </blockquote>
       {card.locator && <p className="mt-1 type-meta text-ink-3">Where: {card.locator}</p>}

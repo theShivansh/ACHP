@@ -74,7 +74,8 @@ export function Stamp({
       viewBox={`0 0 ${w} ${s.h}`}
       width={w}
       height={s.h}
-      className={cn('stamp inline-block shrink-0 rotate-(--tilt) overflow-visible', info.text, className)}
+      // max-w-full h-auto: a wide stamp (MISSING CONTEXT) scales down to a 320px column instead of scrolling the page sideways.
+      className={cn('stamp inline-block h-auto max-w-full shrink-0 rotate-(--tilt) overflow-visible', info.text, className)}
       style={{ '--tilt': `${tilt}deg` } as React.CSSProperties}
     >
       <defs>

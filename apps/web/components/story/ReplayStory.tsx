@@ -3,7 +3,9 @@
 import { cn } from 'cn';
 import { useReducedMotion } from 'motion/react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useRef, type ReactNode } from 'react';
+import { buttonVariants } from '@/components/ui/button';
 import { ClaimStrip } from '@/components/case/ClaimStrip';
 import { EvidenceCard } from '@/components/case/EvidenceTray';
 import { LinkProvider } from '@/components/case/linkStore';
@@ -24,7 +26,7 @@ import {
 } from '@/lib/runs/reducer';
 import type { RunEvent } from '@/lib/runs/types';
 import type { BandKey } from '@/lib/verdict';
-import { GateLine, useNativeTimelines } from './GateLine';
+import { GateLines, useNativeTimelines } from './GateLine';
 import { StoryRail } from './StoryRail';
 
 // The replay story (05 §2, 07 §2, S7.1–S7.3): any finished case as a scroll story built from its own event
@@ -49,11 +51,15 @@ function agentsIn(chapter: Chapter): string[] {
   return ids;
 }
 
-/** A strip as this chapter sees it: only the marks whose events belong to the chapter. */
+/**
+ * A strip as this chapter sees it: only the marks whose events belong to the chapter, and not the ones a
+ * reading gate opens on (the gate is where those first draw, as the reader scrolls).
+ */
 function stripFor(strip: Strip, chapter: Chapter | null): Strip {
   if (!chapter) return { ...strip, marks: [] };
   const seqs = new Set(chapter.events.filter((e) => e.type === 'claim.marked').map((e) => e.seq));
-  return { ...strip, marks: strip.marks.filter((m) => seqs.has(m.seq)) };
+  const gated = new Set(chapter.gates.map((g) => g.seq));
+  return { ...strip, marks: strip.marks.filter((m) => seqs.has(m.seq) && !gated.has(m.seq)) };
 }
 
 function AgentCard({ lane }: { lane: Lane }) {
@@ -85,6 +91,9 @@ function Stage({ children, className }: { children: ReactNode; className?: strin
 }
 
 function ChapterBody({ chapter, state, reportHref }: { chapter: Chapter; state: RunState; reportHref: string }) {
+  const router = useRouter();
+  // "N sources" on a part goes to the report's Evidence tab (the story has no tray of its own).
+  const openEvidence = () => router.push(`${reportHref}${reportHref.includes('?') ? '&' : '?'}tab=evidence`);
   const claims = orderedClaims(state);
   const agents = agentsIn(chapter);
   switch (chapter.id) {
@@ -130,7 +139,12 @@ function ChapterBody({ chapter, state, reportHref }: { chapter: Chapter; state: 
               </ol>
               {cards.length > shown.length && (
                 <p className="mt-3 type-meta text-desk-ink-2">
-                  {cards.length - shown.length} more {cards.length - shown.length === 1 ? 'source' : 'sources'} in the report.
+                  <Link
+                    href={`${reportHref}${reportHref.includes('?') ? '&' : '?'}tab=evidence`}
+                    className="inline-flex min-h-6 items-center text-desk-ink underline decoration-(length:--rule) underline-offset-4 pointer-coarse:min-h-11"
+                  >
+                    {cards.length - shown.length} more {cards.length - shown.length === 1 ? 'source' : 'sources'} in the report
+                  </Link>
                 </p>
               )}
             </>
@@ -154,6 +168,8 @@ function ChapterBody({ chapter, state, reportHref }: { chapter: Chapter; state: 
                   evidence={{ ids: [], disagree: 0 }}
                   label={null}
                   showStamp={false}
+                  compact
+                  anchor={false}
                   onShowEvidence={noop}
                 />
               ))}
@@ -175,35 +191,37 @@ function ChapterBody({ chapter, state, reportHref }: { chapter: Chapter; state: 
           {v ? (
             <>
               <Stamp label={v.overall.label} id={state.runId ?? 'story'} size="overall" />
-              <InterpretationNote className="mt-5">{v.overall.summary}</InterpretationNote>
+              {/* The parts come right after the verdict, so the wrong one is seen before the reasoning (the struck
+                  strip is the Judge's own mark). One part: the stamp above already is its verdict. */}
+              {claims.length > 0 && (
+                <ol className="mt-4">
+                  {claims.map((c, i) => (
+                    <ClaimStrip
+                      key={c.claim_id}
+                      strip={c}
+                      part={i + 1}
+                      evidence={stripEvidence(state, c.claim_id)}
+                      label={claimLabel(state, c.claim_id)}
+                      showStamp={claims.length > 1}
+                      compact
+                      anchor={false}
+                      onShowEvidence={openEvidence}
+                    />
+                  ))}
+                </ol>
+              )}
+              <InterpretationNote className="mt-4">{v.overall.summary}</InterpretationNote>
               <ConfidenceBand
                 className="mt-4"
                 band={v.overall.confidence_band as BandKey}
                 reason={v.overall.confidence_reason}
               />
-              {claims.length > 1 && (
-                <ol className="mt-4">
-                  {claims.map((c, i) => (
-                    <ClaimStrip
-                      key={c.claim_id}
-                      strip={stripFor(c, null)}
-                      part={i + 1}
-                      evidence={stripEvidence(state, c.claim_id)}
-                      label={claimLabel(state, c.claim_id)}
-                      onShowEvidence={noop}
-                    />
-                  ))}
-                </ol>
-              )}
             </>
           ) : (
             <p className="type-body text-ink">{state.failure?.message ?? 'There was no verdict.'}</p>
           )}
           <p className="mt-6">
-            <Link
-              href={reportHref}
-              className="inline-flex min-h-6 items-center type-ui text-pencil-blue underline decoration-(length:--rule) underline-offset-4 hover:decoration-2 pointer-coarse:min-h-11"
-            >
+            <Link href={reportHref} className={buttonVariants({ variant: 'secondary' })}>
               Open the full report
             </Link>
           </p>
@@ -213,34 +231,26 @@ function ChapterBody({ chapter, state, reportHref }: { chapter: Chapter; state: 
   }
 }
 
-/** One reading gate: a longer track with a pinned stage whose lines appear as the reader scrolls. */
+/**
+ * One reading gate: a longer track with a pinned stage. The heading and the struck strip are there from the
+ * start (so the stage is never an empty desk with a lone heading), the mark draws with the scroll, and then
+ * the quoted counter-evidence and the agent's sentence appear: at most three reveal units (05 §2.3).
+ */
 function GateTrack({ gate, chapter, state, native }: { gate: Gate; chapter: Chapter['id']; state: RunState; native: boolean }) {
   const ref = useRef<HTMLElement>(null);
   const reduced = useReducedMotion();
   const claims = orderedClaims(state);
   const at = claims.findIndex((c) => c.claim_id === gate.claimId);
   const strip = claims[at];
-  const cards = gate.evidenceIds.map((id) => state.evidence[id]).filter(Boolean).slice(0, 2);
+  // One quote: a gate has at most three reveal units (the mark, the quote, one sentence), and on a phone a
+  // stage taller than its 180vh track would scroll away before the reader finished it.
+  const cards = gate.evidenceIds.map((id) => state.evidence[id]).filter(Boolean).slice(0, 1);
   const who = agentIdentity(gate.agent ?? '', undefined).displayName;
   const relation = gate.kind === 'contradiction' ? RELATION_WORDS.contradicts : RELATION_WORDS.missing_context;
 
-  const lines: ReactNode[] = [];
-  if (strip) {
-    lines.push(
-      <ol key="strip" className="paper rounded-sheet px-5 py-2 shadow-lift-sheet md:px-10">
-        <ClaimStrip
-          strip={strip}
-          part={at + 1}
-          evidence={{ ids: [], disagree: 0 }}
-          label={null}
-          showStamp={false}
-          onShowEvidence={noop}
-        />
-      </ol>,
-    );
-  }
+  const reveals: ReactNode[] = [];
   if (cards.length) {
-    lines.push(
+    reveals.push(
       <ol key="evidence" className="flex flex-col gap-4">
         {cards.map((c) => (
           <EvidenceCard
@@ -254,8 +264,8 @@ function GateTrack({ gate, chapter, state, native }: { gate: Gate; chapter: Chap
     );
   }
   if (gate.note) {
-    lines.push(
-      <div key="note" className="paper rounded-sheet px-5 py-4 shadow-lift-sheet md:px-10">
+    reveals.push(
+      <div key="note" className="paper rounded-sheet px-5 py-4 shadow-lift-card md:px-10">
         <p className="type-meta font-semibold text-ink-2">{who}</p>
         <p className="mt-1 max-w-[60ch] type-body text-ink">{gate.note}</p>
       </div>,
@@ -264,6 +274,7 @@ function GateTrack({ gate, chapter, state, native }: { gate: Gate; chapter: Chap
 
   // Native scroll-driven CSS reveals `.line`; otherwise (and not when motion is reduced) Motion drives the same lines.
   const useFallback = !native && !reduced;
+  const lineClass = 'w-full max-w-[760px]';
   return (
     <section
       ref={ref}
@@ -271,22 +282,36 @@ function GateTrack({ gate, chapter, state, native }: { gate: Gate; chapter: Chap
       data-chapter={chapter}
       data-gate-seq={gate.seq}
       aria-labelledby={`gate-${gate.seq}`}
-      className="story-friction"
+      className="story-friction scroll-mt-20"
     >
       <div className="stage flex flex-col justify-center gap-5 py-4">
-        <h3 id={`gate-${gate.seq}`} className="type-ui font-semibold text-desk-ink">
+        <h2 id={`gate-${gate.seq}`} className="type-h2 text-desk-ink">
           {who} {relation} part {at + 1}
-        </h3>
-        {lines.map((node, i) =>
-          useFallback ? (
-            <GateLine key={i} i={i} n={lines.length} containerRef={ref} className="w-full max-w-[760px]">
-              {node}
-            </GateLine>
-          ) : (
-            <div key={i} className="line w-full max-w-[760px]">
+        </h2>
+        {strip && (
+          <ol data-gate-strip className="paper w-full max-w-[760px] rounded-sheet px-5 py-2 shadow-lift-sheet md:px-10">
+            <ClaimStrip
+              strip={strip}
+              part={at + 1}
+              evidence={{ ids: [], disagree: 0 }}
+              label={null}
+              showStamp={false}
+              compact
+              anchor={false}
+              onShowEvidence={noop}
+            />
+          </ol>
+        )}
+        {useFallback ? (
+          <GateLines containerRef={ref} className={lineClass}>
+            {reveals}
+          </GateLines>
+        ) : (
+          reveals.map((node, i) => (
+            <div key={i} data-line={i + 1} className={`line ${lineClass}`}>
               {node}
             </div>
-          ),
+          ))
         )}
       </div>
     </section>
@@ -305,7 +330,8 @@ export function ReplayStory({ events, reportHref, className }: { events: RunEven
         data-story
         className={cn('story relative mx-auto w-full max-w-[1120px] px-4 pb-24 lg:pl-56', className)}
       >
-        <h1 className="sr-only">Replay of the check</h1>
+        <h1 className="pt-10 type-h2 text-desk-ink">Replay of this check</h1>
+        <p className="mt-1 max-w-[60ch] type-body text-desk-ink-2">Scroll to follow it step by step, or skip to the verdict.</p>
         <StoryRail />
         {chapters.map((ch) => (
           <div key={ch.id}>
@@ -314,7 +340,7 @@ export function ReplayStory({ events, reportHref, className }: { events: RunEven
               data-chapter={ch.id}
               tabIndex={-1}
               aria-labelledby={`chapter-title-${ch.id}`}
-              className="story-step flex min-h-svh scroll-mt-14 flex-col justify-center gap-5 py-16 outline-none"
+              className="story-step flex min-h-svh scroll-mt-14 flex-col justify-center gap-5 py-16 outline-none focus-visible:outline-2 focus-visible:outline-offset-4"
             >
               <header className="reveal max-w-[60ch]">
                 <h2 id={`chapter-title-${ch.id}`} className="type-h2 text-desk-ink">

@@ -45,6 +45,8 @@ export function ClaimStrip({
   label,
   stopped = false,
   showStamp = true,
+  compact = false,
+  anchor = true,
   onShowEvidence,
 }: {
   strip: Strip;
@@ -56,6 +58,10 @@ export function ClaimStrip({
   stopped?: boolean;
   /** False when the message has one part: the header stamp already is this part's verdict. */
   showStamp?: boolean;
+  /** A static setting (the replay story): no reserved height for an evidence line or stamp that will never arrive, and no empty margin column. */
+  compact?: boolean;
+  /** The strip is the target of a #part-… link. False where the same strip repeats on one page (the story), so ids stay unique. */
+  anchor?: boolean;
   onShowEvidence: (claimId: string) => void;
 }) {
   const boxRef = useRef<HTMLParagraphElement>(null);
@@ -89,14 +95,16 @@ export function ClaimStrip({
   const disputes = label ? [] : strip.marks.filter((m) => m.relation === 'contradicts');
   const disputers = [...new Set(disputes.map((m) => agentIdentity(m.agent ?? '', undefined).displayName))];
   const info = verdictInfo(label);
+  const hasMargin = notes.length > 0 || disputers.length > 0 || label === 'supported' || label === 'missing_context';
+  const bareRow = compact && evidence.ids.length === 0 && !(info && showStamp);
 
   const lit = () => store.set({ kind: 'claim', id: strip.claim_id, related: evidence.ids });
   const off = () => store.set(null);
 
   return (
     <li
-      id={`part-${strip.claim_id}`}
-      tabIndex={-1}
+      id={anchor ? `part-${strip.claim_id}` : undefined}
+      tabIndex={anchor ? -1 : undefined}
       data-claim={strip.claim_id}
       data-link={link}
       onPointerEnter={lit}
@@ -104,7 +112,9 @@ export function ClaimStrip({
       onFocus={lit}
       onBlur={off}
       className={cn(
-        'grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-4 border-t-(length:--rule) border-sheet-line py-6 transition-opacity duration-(--dur-quick) md:grid-cols-[1.5rem_minmax(0,1fr)_120px] animate-[fade-in_var(--dur-base)_var(--ease-out)] scroll-mt-16 focus-visible:outline-2 focus-visible:outline-offset-4',
+        'grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-4 border-t-(length:--rule) border-sheet-line transition-opacity duration-(--dur-quick) animate-[fade-in_var(--dur-base)_var(--ease-out)] scroll-mt-16 focus-visible:outline-2 focus-visible:outline-offset-4',
+        compact ? 'py-4' : 'py-6',
+        compact && !hasMargin ? 'md:grid-cols-[1.5rem_minmax(0,1fr)]' : 'md:grid-cols-[1.5rem_minmax(0,1fr)_120px]',
         link === 'dimmed' && 'opacity-45',
       )}
     >
@@ -139,7 +149,7 @@ export function ClaimStrip({
         )}
 
         {/* Evidence line and stamp slot: reserved, filled only by events. */}
-        <div className="mt-2 flex min-h-10 flex-wrap items-center gap-x-4 gap-y-2">
+        <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-2', bareRow ? 'mt-0' : 'mt-2 min-h-10')}>
           {evidence.ids.length > 0 && (
             <button
               type="button"
@@ -159,9 +169,7 @@ export function ClaimStrip({
       <div
         className={cn(
           'col-start-2 md:col-start-3',
-          notes.length || disputers.length || label === 'supported' || label === 'missing_context'
-            ? 'mt-2 md:mt-0'
-            : 'hidden md:block',
+          hasMargin ? 'mt-2 md:mt-0' : compact ? 'hidden' : 'hidden md:block',
         )}
       >
         {label === 'supported' && <Tick className="mb-1" />}

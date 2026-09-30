@@ -77,7 +77,8 @@ async function captureSet(browser, route, vp, theme, reduced, stillness) {
     await page.route('**/health', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"status":"ok"}' }));
   }
   await page.addInitScript(() => {
-    const css = 'nextjs-portal{display:none!important}';
+    // The framework's dev overlay and the query devtools button are not the page.
+    const css = 'nextjs-portal,.tsqd-parent-container{display:none!important}';
     const add = () => { const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st); };
     document.head ? add() : document.addEventListener('DOMContentLoaded', add);
   });
@@ -104,7 +105,7 @@ async function captureSet(browser, route, vp, theme, reduced, stillness) {
   }
   for (const f of scroll) {
     await page.evaluate((frac) => window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * frac), f);
-    await sleep(350);
+    await sleep(700); // scroll-linked reveals settle on the next frames
     await snap(`-s${Math.round(f * 100)}`);
   }
   await ctx.close();

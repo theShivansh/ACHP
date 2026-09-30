@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, useScroll, useTransform } from 'motion/react';
+import { motion, useScroll, useTransform, type MotionValue } from 'motion/react';
 import { useSyncExternalStore, type ReactNode, type RefObject } from 'react';
 
 // The fallback for the reading gate (05 §2.4). A browser with CSS scroll-driven animations reveals each
@@ -19,26 +19,49 @@ export function useNativeTimelines(): boolean {
   );
 }
 
-export function GateLine({
-  i,
-  n,
+/**
+ * The gate's revealing lines, driven by ONE scroll tracker (not one per line). Each line is fully there by the
+ * end of its quarter of the track, the same ranges as the native CSS (0–25%, 25–50%); the strip and its
+ * mark-drawing are the gate's first reveal and are not a line.
+ */
+export function GateLines({
   containerRef,
   className,
   children,
 }: {
-  /** This line's place among the gate's `n` lines. */
-  i: number;
-  n: number;
   /** The gate's track (`.story-friction`). */
   containerRef: RefObject<HTMLElement | null>;
   className?: string;
-  children: ReactNode;
+  children: ReactNode[];
 }) {
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
-  // A line is fully there by the end of its quarter of the track (the native ranges: 0–25, 25–50, 50–75%).
+  return (
+    <>
+      {children.map((c, i) => (
+        <GateLine key={i} i={i} n={children.length} progress={scrollYProgress} className={className}>
+          {c}
+        </GateLine>
+      ))}
+    </>
+  );
+}
+
+function GateLine({
+  i,
+  n,
+  progress,
+  className,
+  children,
+}: {
+  i: number;
+  n: number;
+  progress: MotionValue<number>;
+  className?: string;
+  children: ReactNode;
+}) {
   // Explicit and clamped: once a line is fully revealed it stays revealed to the end of the track.
   const from = i * 0.25;
-  const reveal = useTransform(scrollYProgress, (p) => Math.min(1, Math.max(0, (p - from) / 0.25)));
+  const reveal = useTransform(progress, (p) => Math.min(1, Math.max(0, (p - from) / 0.25)));
   const opacity = reveal;
   const y = useTransform(reveal, (r) => 16 * (1 - r));
   return (
