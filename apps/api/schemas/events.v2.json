@@ -610,7 +610,7 @@
     },
     "AssayComputed": {
       "additionalProperties": false,
-      "description": "Defined now so the contract is complete; emitted from P5 (11_THE_ASSAY.md).",
+      "description": "The metric instruments' readout, from the raw signals by the reference formulas (11_THE_ASSAY.md).\nEmitted right after verdict.final. The composite is context, never a headline (11 §4).",
       "properties": {
         "formula_version": {
           "title": "Formula Version",
@@ -642,29 +642,19 @@
           "type": "string"
         },
         "two_key": {
-          "additionalProperties": true,
-          "title": "Two Key",
-          "type": "object"
+          "$ref": "#/$defs/AssayTwoKey"
         },
         "ledger": {
-          "additionalProperties": true,
-          "title": "Ledger",
-          "type": "object"
+          "$ref": "#/$defs/AssayLedger"
         },
         "tipping_point": {
-          "additionalProperties": true,
-          "title": "Tipping Point",
-          "type": "object"
+          "$ref": "#/$defs/AssayTippingPoint"
         },
         "masking": {
-          "additionalProperties": true,
-          "title": "Masking",
-          "type": "object"
+          "$ref": "#/$defs/AssayMasking"
         },
         "integrity_map": {
-          "additionalProperties": true,
-          "title": "Integrity Map",
-          "type": "object"
+          "$ref": "#/$defs/AssayIntegrityMap"
         }
       },
       "required": [
@@ -739,6 +729,257 @@
         "data"
       ],
       "title": "AssayComputedEvent",
+      "type": "object"
+    },
+    "AssayIntegrityMap": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        },
+        "quadrant": {
+          "enum": [
+            "sound",
+            "true_but_loaded",
+            "quiet_falsehood",
+            "loud_falsehood"
+          ],
+          "title": "Quadrant",
+          "type": "string"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "quadrant"
+      ],
+      "title": "AssayIntegrityMap",
+      "type": "object"
+    },
+    "AssayLedger": {
+      "additionalProperties": false,
+      "description": "Exact Shapley attribution of the composite against a declared reference sheet; it balances.",
+      "properties": {
+        "mode": {
+          "title": "Mode",
+          "type": "string"
+        },
+        "opening_balance": {
+          "title": "Opening Balance",
+          "type": "number"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/AssayLedgerEntry"
+          },
+          "title": "Entries",
+          "type": "array"
+        },
+        "closing_balance": {
+          "title": "Closing Balance",
+          "type": "number"
+        },
+        "check": {
+          "title": "Check",
+          "type": "number"
+        }
+      },
+      "required": [
+        "mode",
+        "opening_balance",
+        "entries",
+        "closing_balance",
+        "check"
+      ],
+      "title": "AssayLedger",
+      "type": "object"
+    },
+    "AssayLedgerEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "signal": {
+          "title": "Signal",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Reference"
+        },
+        "amount": {
+          "title": "Amount",
+          "type": "number"
+        }
+      },
+      "required": [
+        "signal",
+        "label",
+        "value",
+        "reference",
+        "amount"
+      ],
+      "title": "AssayLedgerEntry",
+      "type": "object"
+    },
+    "AssayMasking": {
+      "additionalProperties": false,
+      "properties": {
+        "calm": {
+          "title": "Calm",
+          "type": "number"
+        },
+        "narrative_lift": {
+          "title": "Narrative Lift",
+          "type": "number"
+        },
+        "qfi": {
+          "title": "Qfi",
+          "type": "number"
+        },
+        "masking": {
+          "title": "Masking",
+          "type": "boolean"
+        },
+        "quiet_falsehood": {
+          "title": "Quiet Falsehood",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "calm",
+        "narrative_lift",
+        "qfi",
+        "masking",
+        "quiet_falsehood"
+      ],
+      "title": "AssayMasking",
+      "type": "object"
+    },
+    "AssayTippingPoint": {
+      "additionalProperties": false,
+      "description": "The smallest single-signal change that flips the formula verdict; `flips` is at most 5.",
+      "properties": {
+        "verdict": {
+          "title": "Verdict",
+          "type": "string"
+        },
+        "composite": {
+          "title": "Composite",
+          "type": "number"
+        },
+        "flips": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "maxItems": 5,
+          "title": "Flips",
+          "type": "array"
+        },
+        "min_distance": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Distance"
+        },
+        "band": {
+          "enum": [
+            "fragile",
+            "firm",
+            "settled"
+          ],
+          "title": "Band",
+          "type": "string"
+        }
+      },
+      "required": [
+        "verdict",
+        "composite",
+        "flips",
+        "band"
+      ],
+      "title": "AssayTippingPoint",
+      "type": "object"
+    },
+    "AssayTwoKey": {
+      "additionalProperties": false,
+      "description": "The Judge's verdict against the published formula's verdict (11 §3.2).",
+      "properties": {
+        "state": {
+          "enum": [
+            "agree",
+            "adjacent",
+            "split",
+            "not_applicable"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "steps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Steps"
+        },
+        "judge": {
+          "title": "Judge",
+          "type": "string"
+        },
+        "formula": {
+          "title": "Formula",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "judge",
+        "formula"
+      ],
+      "title": "AssayTwoKey",
       "type": "object"
     },
     "ClaimExtracted": {

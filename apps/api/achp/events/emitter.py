@@ -161,6 +161,7 @@ class RunEvents:
         self._marks: Set[Tuple[str, str, Span]] = set()
         self.evidence_ids: List[str] = []
         self._verdict: Optional[Tuple[Optional[str], Dict[str, Any]]] = None
+        self._assay: Optional[Dict[str, Any]] = None
         self._ended = False
 
     @property
@@ -232,6 +233,7 @@ class RunEvents:
     async def fail(self, stage: str, code: str, message: str, retryable: bool) -> None:
         """agent.failed for every lane still working, then run.failed. A held verdict is dropped."""
         self._verdict = None
+        self._assay = None
         if self._ended:
             return
         self._ended = True
@@ -400,8 +402,15 @@ class RunEvents:
         self._verdict = ("judge" if label != "blocked" else None, data)
         return data
 
+    def hold_assay(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate the Assay readout now and hold it; it goes out right after verdict.final (06 §3.1)."""
+        from achp.events.models import validate_payload
+        data = validate_payload("assay.computed", data)
+        self._assay = data
+        return data
+
     async def complete(self, total_ms: int, cache_hit: bool = False) -> None:
-        """verdict.final (if the run produced one) and run.completed, back to back."""
+        """verdict.final and assay.computed (if the run produced them) and run.completed, back to back."""
         if self._ended:
             return
         self._ended = True
@@ -410,6 +419,9 @@ class RunEvents:
             agent, data = self._verdict
             self._verdict = None
             items.append(("verdict.final", agent, data))
+            if self._assay is not None:
+                items.append(("assay.computed", None, self._assay))
+        self._assay = None
         items.append(("run.completed", None, {"total_ms": max(0, int(total_ms)), "cache_hit": bool(cache_hit)}))
         if self.enabled:
             # One transaction: a verdict is never logged without the run.completed that closes it.

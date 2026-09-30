@@ -230,8 +230,57 @@ class VerdictFinal(_Payload):
     metrics: Optional[Metrics] = None
 
 
+class AssayTwoKey(_Payload):
+    """The Judge's verdict against the published formula's verdict (11 §3.2)."""
+    state: Literal["agree", "adjacent", "split", "not_applicable"]
+    steps: Optional[int] = None
+    judge: str
+    formula: str
+
+
+class AssayLedgerEntry(_Payload):
+    signal: str
+    label: str
+    value: Union[float, int, str]
+    reference: Union[float, int, str]
+    amount: float
+
+
+class AssayLedger(_Payload):
+    """Exact Shapley attribution of the composite against a declared reference sheet; it balances."""
+    mode: str
+    opening_balance: float
+    entries: List[AssayLedgerEntry]
+    closing_balance: float
+    check: float
+
+
+class AssayTippingPoint(_Payload):
+    """The smallest single-signal change that flips the formula verdict; `flips` is at most 5."""
+    verdict: str
+    composite: float
+    flips: List[Dict[str, Any]] = Field(max_length=5)
+    min_distance: Optional[float] = None
+    band: Literal["fragile", "firm", "settled"]
+
+
+class AssayMasking(_Payload):
+    calm: float
+    narrative_lift: float
+    qfi: float
+    masking: bool
+    quiet_falsehood: bool
+
+
+class AssayIntegrityMap(_Payload):
+    x: float
+    y: float
+    quadrant: Literal["sound", "true_but_loaded", "quiet_falsehood", "loud_falsehood"]
+
+
 class AssayComputed(_Payload):
-    """Defined now so the contract is complete; emitted from P5 (11_THE_ASSAY.md)."""
+    """The metric instruments' readout, from the raw signals by the reference formulas (11_THE_ASSAY.md).
+    Emitted right after verdict.final. The composite is context, never a headline (11 §4)."""
     formula_version: str
     mode: Literal["code"]
     signals: Dict[str, Any]
@@ -239,11 +288,11 @@ class AssayComputed(_Payload):
     composite: float
     formula_verdict: str
     judge_verdict: str
-    two_key: Dict[str, Any]
-    ledger: Dict[str, Any]
-    tipping_point: Dict[str, Any]
-    masking: Dict[str, Any]
-    integrity_map: Dict[str, Any]
+    two_key: AssayTwoKey
+    ledger: AssayLedger
+    tipping_point: AssayTippingPoint
+    masking: AssayMasking
+    integrity_map: AssayIntegrityMap
 
 
 PAYLOADS: Dict[str, Type[_Payload]] = {

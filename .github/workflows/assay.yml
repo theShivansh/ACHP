@@ -1,0 +1,27 @@
+name: assay
+# The Assay's formulas are pinned three ways: the API copy is byte-identical to the reference, the
+# parity test runs against core_pipeline.py, and the leverage lint fails a formula that lets tone
+# outweigh the factual attack (docs/upgrade/11_THE_ASSAY.md). See CONTRIBUTING.md.
+on:
+  push:
+    paths: ["reference/assay/**", "apps/api/achp/assay/**", "apps/api/achp/core/core_pipeline.py", "apps/web/lib/assay/**", "scripts/leverage_lint.py"]
+  pull_request:
+    paths: ["reference/assay/**", "apps/api/achp/assay/**", "apps/api/achp/core/core_pipeline.py", "apps/web/lib/assay/**", "scripts/leverage_lint.py"]
+jobs:
+  assay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: pip install pytest pytest-asyncio
+      - name: Reference tests (the parity test must run, not skip)
+        run: ACHP_REPO=$PWD python -m pytest -q reference/assay
+      - name: The web port matches vectors.json
+        run: node --experimental-strip-types --test reference/assay/assay.test.mjs apps/web/lib/assay/assay.test.mjs
+      - name: The API copy is the reference
+        run: cd apps/api && pip install -r requirements.txt && python -m pytest -q tests/assay
+      - name: Leverage lint
+        run: python scripts/leverage_lint.py && python scripts/leverage_lint.py --no-judge-nss

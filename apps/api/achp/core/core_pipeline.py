@@ -108,6 +108,8 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Protocol
 
 from pydantic import BaseModel, Field
 
+from achp.assay.emit import assay_payload, build_signals
+
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -569,6 +571,15 @@ class CorePipeline:
         )
         composite = compute_composite(CTS, PCS, BIS, NSS, EPS)
         verdict, confidence = verdict_from_composite(composite, judge.verdict)
+        await self._hold_assay(
+            ev, run_id, judge.verdict, (CTS, PCS, BIS, NSS, EPS),
+            build_signals(
+                factual_a=mem.adversary_a.overall_factual_score, judge_cts=judge.metrics.CTS,
+                nil_bias=nil_result.BIS, framing=framing_sc, polarity_abs=polarity_abs,
+                dominant_frame=dominant_frame, perspective_b=mem.adversary_b.perspective_completeness_score,
+                nil_pcs=nil_result.PCS, missing=len(mem.adversary_b.missing_perspectives),
+                vader_eps=vader_eps, hedge_ratio=hedge_ratio,
+                judge_nss=judge.metrics.NSS if judge.metrics else None))
 
         # ── 8. Security post-check ────────────────────────────────────────
         t0 = time.perf_counter()
@@ -651,6 +662,24 @@ class CorePipeline:
             f"{total_latency:.0f}ms | groq_calls={len(mem.llm_calls)} | rounds={debate_round}"
         )
         return output
+
+    @staticmethod
+    async def _hold_assay(ev: Any, run_id: str, judge_verdict: str,
+                          metrics: tuple, signals: Any) -> None:
+        """Run the Assay on the same raw signals as the metrics above and hold `assay.computed`.
+
+        The Assay never changes a number: if its metrics ever differ from the pipeline's, the run
+        keeps the pipeline's and the event is dropped (an instrument must not contradict the record).
+        A failure here never fails the check; the report then says the readout isn't available."""
+        try:
+            payload = await asyncio.to_thread(assay_payload, signals, judge_verdict)
+            got = tuple(payload["metrics"][k] for k in ("CTS", "PCS", "BIS", "NSS", "EPS"))
+            if got != metrics:
+                logger.error(f"[{run_id}] assay metrics {got} differ from the pipeline's {metrics}; not emitted")
+                return
+            ev.hold_assay(payload)
+        except Exception as e:  # noqa: BLE001 - an instrument failing must not fail the check
+            logger.error(f"[{run_id}] assay.computed not emitted: {type(e).__name__}: {e}")
 
     @staticmethod
     async def _emit_challenger(ev: Any, report: Any, claim_texts: Dict[str, str], model: str, verb: str) -> None:
