@@ -1,109 +1,117 @@
 {
-  "schema": 1,
-  "provenance": {
-    "source": "README.md, section 'Benchmarks' (v2 repo write-up)",
-    "rerun_in_this_repo": false,
-    "note": "These figures are transcribed from the project's own write-up. They have not been re-run here. The paper's Table III reports a different per-benchmark mean (62.2% vs 57.2% for GPT-4 zero-shot) that cannot be reconciled without the paper's source tables; it is listed below under other published figures and is never averaged with these."
+  "measured": null,
+  "progress": {
+    "tag": "2026-10-01",
+    "planned": 240,
+    "with_verdict": 48
   },
-  "headline": {
-    "system": "ACHP (ours)",
-    "metric": "macro accuracy",
-    "value": 68.3,
-    "unit": "%"
-  },
-  "split_columns": [
-    "Factual",
-    "Opinion",
-    "Prediction",
-    "Macro"
-  ],
-  "systems": [
-    {
-      "name": "ClaimBuster SVM",
-      "scores": [
-        61.2,
-        44.3,
-        38.7,
-        48.1
-      ]
+  "earlier": {
+    "schema": 1,
+    "provenance": {
+      "source": "README.md, section 'Benchmarks' (v2 repo write-up)",
+      "rerun_in_this_repo": false,
+      "note": "These figures are transcribed from the project's own write-up. They have not been re-run here. The paper's Table III reports a different per-benchmark mean (62.2% vs 57.2% for GPT-4 zero-shot) that cannot be reconciled without the paper's source tables; it is listed below under other published figures and is never averaged with these."
     },
-    {
-      "name": "GPT-4o zero-shot",
-      "scores": [
-        74.8,
-        52.6,
-        49.1,
-        58.8
-      ]
+    "headline": {
+      "system": "ACHP (ours)",
+      "metric": "macro accuracy",
+      "value": 68.3,
+      "unit": "%"
     },
-    {
-      "name": "Factiverse API",
-      "scores": [
-        78.3,
-        55.1,
-        52.4,
-        61.9
-      ]
-    },
-    {
-      "name": "ACHP (ours)",
-      "scores": [
-        82.4,
-        63.7,
-        58.9,
-        68.3
-      ],
-      "ours": true
-    },
-    {
-      "name": "ACHP with a second debate round",
-      "scores": [
-        84.1,
-        65.2,
-        60.4,
-        69.9
-      ],
-      "ours": true,
-      "variant": true
-    }
-  ],
-  "ablation": [
-    {
-      "configuration": "Proposer only",
-      "macro": 52.4
-    },
-    {
-      "configuration": "+ Adversary A",
-      "macro": 60.8
-    },
-    {
-      "configuration": "+ Adversary B",
-      "macro": 64.1
-    },
-    {
-      "configuration": "+ NIL (all five checks)",
-      "macro": 67.9
-    },
-    {
-      "configuration": "+ Judge synthesis",
-      "macro": 68.3
-    },
-    {
-      "configuration": "+ second debate round",
-      "macro": 69.9
-    }
-  ],
-  "significance": "Every component added a gain reported as statistically significant (p < 0.01, McNemar's test).",
-  "other_published": [
-    {
-      "label": "Paper abstract and Sec. IX",
-      "value": 69.9,
-      "note": "The same figure as the second-debate-round variant above."
-    },
-    {
-      "label": "Paper Table III per-benchmark mean",
-      "value": 62.2,
-      "note": "Reported per benchmark as 74.8, 48.6 and 63.1, against a GPT-4 zero-shot mean of 57.2. Different benchmark sets from the table above; not reconciled."
-    }
-  ]
+    "split_columns": [
+      "Factual",
+      "Opinion",
+      "Prediction",
+      "Macro"
+    ],
+    "systems": [
+      {
+        "name": "ClaimBuster SVM",
+        "scores": [
+          61.2,
+          44.3,
+          38.7,
+          48.1
+        ]
+      },
+      {
+        "name": "GPT-4o zero-shot",
+        "scores": [
+          74.8,
+          52.6,
+          49.1,
+          58.8
+        ]
+      },
+      {
+        "name": "Factiverse API",
+        "scores": [
+          78.3,
+          55.1,
+          52.4,
+          61.9
+        ]
+      },
+      {
+        "name": "ACHP (ours)",
+        "scores": [
+          82.4,
+          63.7,
+          58.9,
+          68.3
+        ],
+        "ours": true
+      },
+      {
+        "name": "ACHP with a second debate round",
+        "scores": [
+          84.1,
+          65.2,
+          60.4,
+          69.9
+        ],
+        "ours": true,
+        "variant": true
+      }
+    ],
+    "ablation": [
+      {
+        "configuration": "Proposer only",
+        "macro": 52.4
+      },
+      {
+        "configuration": "+ Adversary A",
+        "macro": 60.8
+      },
+      {
+        "configuration": "+ Adversary B",
+        "macro": 64.1
+      },
+      {
+        "configuration": "+ NIL (all five checks)",
+        "macro": 67.9
+      },
+      {
+        "configuration": "+ Judge synthesis",
+        "macro": 68.3
+      },
+      {
+        "configuration": "+ second debate round",
+        "macro": 69.9
+      }
+    ],
+    "significance": "Every component added a gain reported as statistically significant (p < 0.01, McNemar's test).",
+    "other_published": [
+      {
+        "label": "Paper abstract and Sec. IX",
+        "value": 69.9,
+        "note": "The same figure as the second-debate-round variant above."
+      },
+      {
+        "label": "Paper Table III per-benchmark mean",
+        "value": 62.2,
+        "note": "Reported per benchmark as 74.8, 48.6 and 63.1, against a GPT-4 zero-shot mean of 57.2. Different benchmark sets from the table above; not reconciled."
+      }
+    ]
+  }
 }

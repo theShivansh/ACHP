@@ -1,0 +1,60 @@
+{"id": "neg-01a", "suite": "metamorphic", "relation": "negation", "pair": "neg-01", "gold": "supported", "text": "Water boils at 100 degrees Celsius at sea level."}
+{"id": "neg-01b", "suite": "metamorphic", "relation": "negation", "pair": "neg-01", "gold": "contradicted", "text": "Water does not boil at 100 degrees Celsius at sea level."}
+{"id": "neg-02a", "suite": "metamorphic", "relation": "negation", "pair": "neg-02", "gold": "supported", "text": "Mount Everest is the highest mountain above sea level on Earth."}
+{"id": "neg-02b", "suite": "metamorphic", "relation": "negation", "pair": "neg-02", "gold": "contradicted", "text": "Mount Everest is not the highest mountain above sea level on Earth."}
+{"id": "neg-03a", "suite": "metamorphic", "relation": "negation", "pair": "neg-03", "gold": "supported", "text": "Penicillin was discovered by Alexander Fleming in 1928."}
+{"id": "neg-03b", "suite": "metamorphic", "relation": "negation", "pair": "neg-03", "gold": "contradicted", "text": "Penicillin was not discovered by Alexander Fleming; it was first found in 1960."}
+{"id": "neg-04a", "suite": "metamorphic", "relation": "negation", "pair": "neg-04", "gold": "supported", "text": "The Pacific is the largest ocean on Earth."}
+{"id": "neg-04b", "suite": "metamorphic", "relation": "negation", "pair": "neg-04", "gold": "contradicted", "text": "The Atlantic, not the Pacific, is the largest ocean on Earth."}
+{"id": "neg-05a", "suite": "metamorphic", "relation": "negation", "pair": "neg-05", "gold": "supported", "text": "Humans have 23 pairs of chromosomes."}
+{"id": "neg-05b", "suite": "metamorphic", "relation": "negation", "pair": "neg-05", "gold": "contradicted", "text": "Humans have 30 pairs of chromosomes."}
+{"id": "neg-06a", "suite": "metamorphic", "relation": "negation", "pair": "neg-06", "gold": "supported", "text": "The Berlin Wall fell in November 1989."}
+{"id": "neg-06b", "suite": "metamorphic", "relation": "negation", "pair": "neg-06", "gold": "contradicted", "text": "The Berlin Wall stood until 1995 and did not fall in 1989."}
+{"id": "neg-07a", "suite": "metamorphic", "relation": "negation", "pair": "neg-07", "gold": "supported", "text": "Light from the Sun takes about eight minutes to reach Earth."}
+{"id": "neg-07b", "suite": "metamorphic", "relation": "negation", "pair": "neg-07", "gold": "contradicted", "text": "Light from the Sun reaches Earth instantly, with no delay at all."}
+{"id": "neg-08a", "suite": "metamorphic", "relation": "negation", "pair": "neg-08", "gold": "supported", "text": "Antibiotics do not work against viral infections such as the common cold."}
+{"id": "neg-08b", "suite": "metamorphic", "relation": "negation", "pair": "neg-08", "gold": "contradicted", "text": "Antibiotics cure viral infections such as the common cold."}
+{"id": "neg-09a", "suite": "metamorphic", "relation": "negation", "pair": "neg-09", "gold": "supported", "text": "Canberra is the capital city of Australia."}
+{"id": "neg-09b", "suite": "metamorphic", "relation": "negation", "pair": "neg-09", "gold": "contradicted", "text": "Sydney is the capital city of Australia."}
+{"id": "neg-10a", "suite": "metamorphic", "relation": "negation", "pair": "neg-10", "gold": "supported", "text": "The human heart has four chambers."}
+{"id": "neg-10b", "suite": "metamorphic", "relation": "negation", "pair": "neg-10", "gold": "contradicted", "text": "The human heart has only two chambers."}
+{"id": "neg-11a", "suite": "metamorphic", "relation": "negation", "pair": "neg-11", "gold": "supported", "text": "The first Moon landing took place in July 1969."}
+{"id": "neg-11b", "suite": "metamorphic", "relation": "negation", "pair": "neg-11", "gold": "contradicted", "text": "Nobody landed on the Moon before 1980."}
+{"id": "neg-12a", "suite": "metamorphic", "relation": "negation", "pair": "neg-12", "gold": "supported", "text": "Diamonds are made of carbon."}
+{"id": "neg-12b", "suite": "metamorphic", "relation": "negation", "pair": "neg-12", "gold": "contradicted", "text": "Diamonds are made of silicon, not carbon."}
+{"id": "neg-13a", "suite": "metamorphic", "relation": "negation", "pair": "neg-13", "gold": "supported", "text": "Vaccines do not cause autism, according to large studies."}
+{"id": "neg-13b", "suite": "metamorphic", "relation": "negation", "pair": "neg-13", "gold": "contradicted", "text": "Large studies show that vaccines cause autism."}
+{"id": "neg-14a", "suite": "metamorphic", "relation": "negation", "pair": "neg-14", "gold": "supported", "text": "The Amazon River flows into the Atlantic Ocean."}
+{"id": "neg-14b", "suite": "metamorphic", "relation": "negation", "pair": "neg-14", "gold": "contradicted", "text": "The Amazon River flows into the Pacific Ocean."}
+{"id": "neg-15a", "suite": "metamorphic", "relation": "negation", "pair": "neg-15", "gold": "supported", "text": "Venus is the hottest planet in the Solar System."}
+{"id": "neg-15b", "suite": "metamorphic", "relation": "negation", "pair": "neg-15", "gold": "contradicted", "text": "Mercury is the hottest planet in the Solar System."}
+{"id": "par-01a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-01", "gold": "supported", "text": "Drinking enough water helps prevent kidney stones."}
+{"id": "par-01b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-01", "gold": "supported", "text": "Staying well hydrated lowers your chances of getting kidney stones."}
+{"id": "par-02a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-02", "gold": "contradicted", "text": "We only use ten percent of our brains."}
+{"id": "par-02b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-02", "gold": "contradicted", "text": "Ninety percent of the human brain sits unused."}
+{"id": "par-03a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-03", "gold": "supported", "text": "Smoking is a leading cause of lung cancer."}
+{"id": "par-03b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-03", "gold": "supported", "text": "Most cases of lung cancer are linked to cigarette smoking."}
+{"id": "par-04a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-04", "gold": "contradicted", "text": "Goldfish have a memory span of only three seconds."}
+{"id": "par-04b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-04", "gold": "contradicted", "text": "A goldfish forgets everything after about three seconds."}
+{"id": "par-05a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-05", "gold": "supported", "text": "The Great Pyramid of Giza was built more than 4,000 years ago."}
+{"id": "par-05b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-05", "gold": "supported", "text": "Egypt's Great Pyramid at Giza is over four millennia old."}
+{"id": "par-06a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-06", "gold": "contradicted", "text": "Lightning never strikes the same place twice."}
+{"id": "par-06b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-06", "gold": "contradicted", "text": "A spot that has been hit by lightning cannot be hit again."}
+{"id": "par-07a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-07", "gold": "supported", "text": "Regular physical activity lowers the risk of type 2 diabetes."}
+{"id": "par-07b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-07", "gold": "supported", "text": "People who exercise regularly are less likely to develop type 2 diabetes."}
+{"id": "par-08a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-08", "gold": "contradicted", "text": "Bats are blind."}
+{"id": "par-08b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-08", "gold": "contradicted", "text": "Bats cannot see at all and rely only on sound."}
+{"id": "par-09a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-09", "gold": "supported", "text": "Honey can stay edible for a very long time if it is sealed."}
+{"id": "par-09b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-09", "gold": "supported", "text": "Sealed honey keeps for years without spoiling."}
+{"id": "par-10a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-10", "gold": "contradicted", "text": "Sugar makes children hyperactive."}
+{"id": "par-10b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-10", "gold": "contradicted", "text": "Eating sweets causes hyperactivity in kids."}
+{"id": "par-11a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-11", "gold": "supported", "text": "The Earth orbits the Sun once roughly every 365 days."}
+{"id": "par-11b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-11", "gold": "supported", "text": "One trip of our planet around the Sun takes about a year."}
+{"id": "par-12a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-12", "gold": "contradicted", "text": "Cracking your knuckles causes arthritis."}
+{"id": "par-12b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-12", "gold": "contradicted", "text": "Popping your knuckles will give you arthritis in your hands."}
+{"id": "par-13a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-13", "gold": "supported", "text": "Mosquitoes spread malaria."}
+{"id": "par-13b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-13", "gold": "supported", "text": "Malaria is passed to people through mosquito bites."}
+{"id": "par-14a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-14", "gold": "contradicted", "text": "Napoleon Bonaparte was unusually short, at about five feet tall."}
+{"id": "par-14b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-14", "gold": "contradicted", "text": "Napoleon stood only around five feet, far shorter than men of his time."}
+{"id": "par-15a", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-15", "gold": "supported", "text": "Sleep deprivation impairs memory and concentration."}
+{"id": "par-15b", "suite": "metamorphic", "relation": "paraphrase", "pair": "par-15", "gold": "supported", "text": "Not getting enough sleep makes it harder to focus and remember things."}

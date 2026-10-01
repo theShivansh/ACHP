@@ -79,24 +79,34 @@ test('the findings are computed by the Assay, not typed', async ({ page }) => {
   await expect(page.locator('[data-finding="leverage"]')).toContainText(/about 3\.\d times/);
 });
 
-test('one headline benchmark number, generated from the data file, with the split and the unreconciled figures named', async ({ page }) => {
+test('the benchmark: measured results only once ACHP Bench is complete; until then the earlier figures, labelled, and the progress', async ({ page }) => {
   await mockBackend(page, { libraries: [] });
   const data = JSON.parse(readFileSync(path.resolve(__dirname, '..', 'lib', 'benchmark.generated.json'), 'utf8')) as {
-    headline: { value: number; metric: string };
-    systems: { name: string }[];
-    other_published: { label: string }[];
+    measured: { suites: { averitec: { accuracy: { k: number; n: number } } } } | null;
+    progress?: { planned: number; with_verdict: number };
+    earlier: { headline: { value: number; metric: string }; systems: { name: string }[]; other_published: { label: string }[] };
   };
-  await page.goto('/method#benchmark');
-  const headline = page.locator('[data-headline]');
-  await expect(headline).toHaveText(`${data.headline.value.toFixed(1)}% ${data.headline.metric}`);
-  // Exactly one headline.
-  await expect(page.locator('[data-headline]')).toHaveCount(1);
-  await expect(page.locator('[data-benchmark-table] tbody tr')).toHaveCount(data.systems.length);
-  for (const o of data.other_published) await expect(page.locator('main')).toContainText(o.label);
-  await expect(page.locator('main')).toContainText('have not been re-run');
-  // EVALUATION.md, the data file and the page agree.
   const md = readFileSync(path.resolve(__dirname, '..', '..', '..', 'EVALUATION.md'), 'utf8');
-  expect(md).toContain(`${data.headline.value.toFixed(1)}% ${data.headline.metric}`);
+  await page.goto('/method#benchmark');
+  await expect(page.locator('[data-headline]')).toHaveCount(1);
+  const earlier = page.locator('[data-earlier]');
+  await expect(earlier.locator('summary')).toHaveText('Earlier figures, not re-run here');
+  if (data.measured) {
+    const acc = data.measured.suites.averitec.accuracy;
+    await expect(page.locator('[data-headline]')).toHaveText(`${acc.k} of ${acc.n} real-world claims got the same label as professional fact-checkers.`);
+    await expect(page.locator('[data-headline-detail]')).toContainText('95% interval');
+    await expect(page.locator('[data-confusion-table] tbody tr')).toHaveCount(4);
+    await earlier.locator('summary').click();
+    expect(md.split('\n\n')[1]).toContain(`${acc.k} of ${acc.n}`);
+  } else {
+    // A partial run is never shown as accuracy: the earlier figures lead, labelled, with the progress beside them.
+    await expect(page.locator('[data-headline]')).toHaveText(`${data.earlier.headline.value.toFixed(1)}% ${data.earlier.headline.metric}, in the project's earlier write-up.`);
+    await expect(page.locator('[data-bench-progress]')).toContainText(`${data.progress!.with_verdict} of ${data.progress!.planned} checks have a verdict`);
+    await expect(page.locator('[data-confusion-table]')).toHaveCount(0);
+    expect(md.split('\n\n')[1]).toContain('part-way through');
+  }
+  await expect(earlier.locator('[data-benchmark-table] tbody tr')).toHaveCount(data.earlier.systems.length);
+  for (const o of data.earlier.other_published) await expect(earlier).toContainText(o.label);
 });
 
 test('no radar, no composite headline and no marketing words', async ({ page }) => {

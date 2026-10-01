@@ -5,6 +5,8 @@ ACHP is an evidence-grounded, multi-agent claim-verification system. A FastAPI p
 ## Repo layout
 - `apps/web`: Next.js 16 App Router, React 19.2, Tailwind v4 (`app/`, `components/`, `lib/`)
 - `apps/api`: FastAPI (`main.py`), pipeline in `achp/core/core_pipeline.py`, agents in `achp/agents/`, NIL in `achp/nil/`, KB in `achp/kb/`, the Groq runtime + model registry in `achp/llm/` (every model call goes through it), prompt contracts in `achp/prompts/`, evidence pack + grounding in `achp/evidence/`, memory tiers in `achp/memory/` (see `docs/upgrade/12_GROQ_RUNTIME.md`), the Assay in `achp/assay/` (added in P5, a copy of `reference/assay/assay.py`)
+- `apps/mcp`: ACHP as an MCP server (FastMCP), a client of the public REST API; `scripts/gen_mcp_manifest.py` writes what /developers lists
+- `bench/`: ACHP Bench (suites, a resumable runner against a live backend, stored gzipped event logs, an offline scorer); `scripts/gen_evaluation.py` turns `bench/results/latest.json` into EVALUATION.md and the site's benchmark
 - `reference/assay/`: the metric instruments' reference implementation (Python source of truth + TS port + `vectors.json` + tests + `leverage_lint.py`)
 - `docs/upgrade/`: PRD, stories, DESIGN.md, motion spec, event protocol, IA, QA, phase prompts, `PROGRESS.md`
 - `scripts/ui/shoot.mjs`: Playwright screenshots + stillness check
@@ -15,6 +17,8 @@ ACHP is an evidence-grounded, multi-agent claim-verification system. A FastAPI p
 - API dev: `cd apps/api && uvicorn main:app --reload --port 8000` · tests: `cd apps/api && pytest -q`
 - Screenshots: `node scripts/ui/shoot.mjs --phase P3 --routes /,/case/fixture-exercise-mixed`
 - Assay: `ACHP_REPO=$PWD python -m pytest -q reference/assay` (parity must run, not skip) · `node --experimental-strip-types --test reference/assay/assay.test.mjs` · `python reference/assay/leverage_lint.py`
+- MCP: `cd apps/mcp && python -m pytest -q` · run: `pip install -e apps/mcp && achp-mcp` · after a tool change: `python scripts/gen_mcp_manifest.py`
+- Bench: `python bench/run.py --tag <date>` (real runs on the live backend, about 40s each) · `python bench/score.py --tag <date>` · `python scripts/gen_evaluation.py` · `python -m pytest -q bench reference/benchmark`
 - Live backend (read-only checks): `https://theshivansh-achp-api.hf.space/health`
 
 ## Non-negotiables (the reason each one exists is in brackets)

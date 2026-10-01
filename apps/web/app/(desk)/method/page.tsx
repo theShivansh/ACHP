@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { MethodPage, type Benchmark, type MethodAgent } from '@/components/method/MethodPage';
+import { MethodPage, type MethodAgent } from '@/components/method/MethodPage';
+import type { BenchmarkData } from '@/lib/benchmark';
 import benchmark from '@/lib/benchmark.generated.json';
 import { loadCase } from '@/lib/runs/loadCase';
 
@@ -14,5 +15,5 @@ export default async function Page() {
   const started = loaded?.events.find((e) => e.type === 'run.started');
   const agents: MethodAgent[] =
     started && started.type === 'run.started' ? started.data.agents.map((a) => ({ id: a.id, name: a.name, role: a.role, group: a.group })) : [];
-  return <MethodPage agents={agents} benchmark={benchmark as Benchmark} />;
+  return <MethodPage agents={agents} benchmark={benchmark as BenchmarkData} />;
 }

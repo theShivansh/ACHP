@@ -11,6 +11,7 @@ import { compute, leverage, REFERENCE } from '@/lib/assay/assay';
 import { BENCH_SAMPLES } from '@/lib/assay/samples';
 import { verdictName } from '@/lib/assay/present';
 import { LIMITATIONS, METRICS, OVERALL } from '@/lib/method';
+import { findings, GOLD_CLASSES, GOLD_WORDS, pct, PREDICTED, PREDICTED_WORDS, type BenchmarkData, type Earlier } from '@/lib/benchmark';
 
 // How ACHP decides (07 §8): a scroll story on paper. Agents → the five scores (full forms first) → where each number
 // comes from → how far people agreed → the formula to play with → what we found in our own formulas → the benchmark →
@@ -24,16 +25,6 @@ export interface MethodAgent {
   group: string;
 }
 
-export interface Benchmark {
-  provenance: { note: string };
-  headline: { system: string; metric: string; value: number };
-  split_columns: string[];
-  systems: { name: string; scores: number[]; ours?: boolean }[];
-  ablation: { configuration: string; macro: number }[];
-  significance: string;
-  other_published: { label: string; value: number; note: string }[];
-}
-
 const STEPS = [
   { id: 'agents', title: 'The seven agents' },
   { id: 'scores', title: 'The five scores' },
@@ -45,7 +36,7 @@ const STEPS = [
   { id: 'limits', title: 'What it cannot do' },
 ] as const;
 
-const pct = (v: number) => `${v.toFixed(1)}%`;
+const pctOf100 = (v: number) => `${v.toFixed(1)}%`;
 
 function Step({ id, title, children, lead }: { id: string; title: string; children: React.ReactNode; lead?: string }) {
   return (
@@ -219,27 +210,23 @@ function MethodBench() {
   );
 }
 
-function BenchmarkSection({ b }: { b: Benchmark }) {
+function EarlierFigures({ e, open = false }: { e: Earlier; open?: boolean }) {
   return (
-    <Sheet>
-      <p className="max-w-[64ch] type-body text-ink-2">
-        On the project&apos;s own factual, opinion and prediction claims, the checked pipeline got this far. It is a measure of the method on a test set, not a promise about any one claim.
+    <details data-earlier open={open || undefined} className="mt-8 border-t-(length:--rule) border-sheet-line pt-4">
+      <summary className="inline-flex min-h-6 cursor-pointer items-center type-ui font-semibold text-ink pointer-coarse:min-h-11">Earlier figures, not re-run here</summary>
+      <p className="mt-2 max-w-[64ch] type-body text-ink-2">
+        The project&apos;s earlier write-up reports {pctOf100(e.headline.value)} {e.headline.metric} on its own factual, opinion and prediction claims. Those claims and runs are not in this
+        repository, so these figures are transcribed, not measured, and are never mixed with the results above.
       </p>
-      <p data-headline className="mt-2 type-h2 text-ink">
-        {pct(b.headline.value)} {b.headline.metric}
-      </p>
-      <p className="mt-2 max-w-[64ch] type-meta text-ink-2">{b.provenance.note}</p>
-
-      <h3 className="mt-6 type-ui font-semibold text-ink">By kind of claim</h3>
-      <div tabIndex={0} role="region" aria-label="Accuracy by kind of claim, scrolls sideways on a narrow screen" className="mt-2 overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label="Earlier accuracy by kind of claim, scrolls sideways on a narrow screen" className="mt-3 overflow-x-auto">
         <table data-benchmark-table className="w-full min-w-[30rem] border-collapse type-meta">
-          <caption className="sr-only">Accuracy by kind of claim, for ACHP and three baselines</caption>
+          <caption className="sr-only">Earlier, not re-run: accuracy by kind of claim, for ACHP and three baselines</caption>
           <thead>
             <tr className="border-b-(length:--rule) border-ink text-left text-ink-2">
               <th scope="col" className="py-1 pr-3 font-semibold">
                 System
               </th>
-              {b.split_columns.map((c) => (
+              {e.split_columns.map((c) => (
                 <th key={c} scope="col" className="py-1 pl-3 text-right font-semibold">
                   {c}
                 </th>
@@ -247,14 +234,123 @@ function BenchmarkSection({ b }: { b: Benchmark }) {
             </tr>
           </thead>
           <tbody>
-            {b.systems.map((s) => (
+            {e.systems.map((s) => (
               <tr key={s.name} className="border-b-(length:--rule) border-sheet-line">
                 <th scope="row" className={cn('py-2 pr-3 text-left', s.ours ? 'font-semibold text-ink' : 'font-normal text-ink')}>
                   {s.name}
                 </th>
                 {s.scores.map((v, i) => (
                   <td key={i} className="py-2 pl-3 text-right text-ink tabular-nums">
-                    {pct(v)}
+                    {pctOf100(v)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ul className="mt-3 flex max-w-[64ch] flex-col gap-1 type-meta text-ink-2">
+        {e.ablation.map((a) => (
+          <li key={a.configuration}>
+            {a.configuration}: {pctOf100(a.macro)}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 max-w-[64ch] type-meta text-ink-2">{e.significance}</p>
+      <ul className="mt-3 flex max-w-[64ch] flex-col gap-1 type-body text-ink-2">
+        {e.other_published.map((o) => (
+          <li key={o.label}>
+            <span className="font-semibold text-ink">
+              {o.label}: {pctOf100(o.value)}.
+            </span>{' '}
+            {o.note}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 max-w-[64ch] type-meta text-ink-2">{e.provenance.note}</p>
+    </details>
+  );
+}
+
+function PendingBenchmark({ b }: { b: BenchmarkData }) {
+  const e = b.earlier;
+  return (
+    <Sheet>
+      <p data-headline className="max-w-[40ch] font-display text-[1.375rem] leading-snug text-ink">
+        {pctOf100(e.headline.value)} {e.headline.metric}, in the project&apos;s earlier write-up.
+      </p>
+      <p className="mt-1 max-w-[64ch] type-meta text-ink-2">{e.provenance.note}</p>
+      {b.progress && (
+        <p data-bench-progress className="mt-4 max-w-[64ch] type-body text-ink-2">
+          ACHP Bench, which measures the system end to end in this repository on real fact-checked claims, is part-way through: {b.progress.with_verdict} of {b.progress.planned} checks have a
+          verdict. Its results replace these figures once every claim has been checked, so that an outage is never reported as accuracy.
+        </p>
+      )}
+      <EarlierFigures e={e} open />
+    </Sheet>
+  );
+}
+
+function BenchmarkSection({ b }: { b: BenchmarkData }) {
+  const m = b.measured;
+  if (!m) return <PendingBenchmark b={b} />;
+  const a = m.suites.averitec;
+  const lines = findings(m);
+  return (
+    <Sheet>
+      <p className="max-w-[64ch] type-body text-ink-2">
+        We ran ACHP Bench through the same public interface the site uses, kept every check&apos;s full event log, and scored the logs. It measures the method on a test set; it is not a promise about any
+        one claim.
+      </p>
+      <p data-headline className="mt-3 max-w-[40ch] font-display text-[1.375rem] leading-snug text-ink">
+        {a.accuracy.k} of {a.accuracy.n} real-world claims got the same label as professional fact-checkers.
+      </p>
+      <p data-headline-detail className="mt-1 max-w-[64ch] type-meta text-ink-2">
+        {pct(a.accuracy.rate)} agreement on four labels, 95% interval {pct(a.accuracy.low)} to {pct(a.accuracy.high)}. A fixed sample of the AVeriTeC dev set, measured on {m.tag}; a check that
+        failed counts as wrong. Weighted to the dev set&apos;s own mix of labels: {pct(a.accuracy_weighted_to_dev_mix)}.
+      </p>
+
+      <h3 className="mt-6 type-ui font-semibold text-ink">Label by label</h3>
+      <ol data-recall className="mt-2 flex flex-col gap-1">
+        {GOLD_CLASSES.map((g) => {
+          const r = a.recall_by_gold_label[g];
+          return (
+            <li key={g} className="grid grid-cols-[minmax(0,13rem)_1fr_6.5rem] items-center gap-3 type-meta text-ink">
+              <span>{GOLD_WORDS[g]}</span>
+              <span aria-hidden="true" className="block h-3 border-l-(length:--rule) border-ink-3">
+                <span style={{ '--w': `${100 * (r.rate ?? 0)}%` } as React.CSSProperties} className="block h-full w-(--w) rounded-r-[4px] bg-mark-neutral" />
+              </span>
+              <span className="text-right tabular-nums">
+                {r.k} of {r.n}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      <div tabIndex={0} role="region" aria-label="What ACHP said for each of the fact-checkers' labels, scrolls sideways on a narrow screen" className="mt-4 overflow-x-auto">
+        <table data-confusion-table className="w-full min-w-[40rem] border-collapse type-meta">
+          <caption className="pb-2 text-left text-ink-2">What ACHP said, for each label the fact-checkers gave</caption>
+          <thead>
+            <tr className="border-b-(length:--rule) border-ink text-left text-ink-2">
+              <th scope="col" className="py-1 pr-3 font-semibold">
+                Fact-checkers said
+              </th>
+              {PREDICTED.map((p) => (
+                <th key={p} scope="col" className="py-1 pl-3 text-right font-semibold">
+                  {PREDICTED_WORDS[p]}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {GOLD_CLASSES.map((g) => (
+              <tr key={g} className="border-b-(length:--rule) border-sheet-line">
+                <th scope="row" className="py-2 pr-3 text-left font-normal text-ink">
+                  {GOLD_WORDS[g]}
+                </th>
+                {PREDICTED.map((p) => (
+                  <td key={p} className={cn('py-2 pl-3 text-right tabular-nums', p === g ? 'font-semibold text-ink' : 'text-ink-2')}>
+                    {a.confusion[g]?.[p] ?? 0}
                   </td>
                 ))}
               </tr>
@@ -263,36 +359,26 @@ function BenchmarkSection({ b }: { b: Benchmark }) {
         </table>
       </div>
 
-      <h3 className="mt-6 type-ui font-semibold text-ink">What each part adds</h3>
-      <ol data-ablation className="mt-2 flex flex-col gap-1">
-        {b.ablation.map((a) => (
-          <li key={a.configuration} className="grid grid-cols-[minmax(0,14rem)_1fr_3.5rem] items-center gap-3 type-meta text-ink">
-            <span>{a.configuration}</span>
-            <span aria-hidden="true" className="block h-3 border-l-(length:--rule) border-ink-3">
-              <span style={{ '--w': `${a.macro}%` } as React.CSSProperties} className="block h-full w-(--w) rounded-r-[4px] bg-mark-neutral" />
-            </span>
-            <span className="text-right tabular-nums">{pct(a.macro)}</span>
-          </li>
-        ))}
-      </ol>
-      <p className="mt-2 max-w-[64ch] type-meta text-ink-2">{b.significance}</p>
-
-      <h3 className="mt-6 type-ui font-semibold text-ink">Other figures you may have seen</h3>
-      <ul className="mt-2 flex max-w-[64ch] flex-col gap-1 type-body text-ink-2">
-        {b.other_published.map((o) => (
-          <li key={o.label}>
-            <span className="font-semibold text-ink">
-              {o.label}: {pct(o.value)}.
-            </span>{' '}
-            {o.note}
+      <h3 className="mt-6 type-ui font-semibold text-ink">What else we measured</h3>
+      <ul data-findings className="mt-2 flex max-w-[64ch] list-disc flex-col gap-2 pl-5 type-body text-ink-2 marker:text-ink-3">
+        {lines.map((l) => (
+          <li key={l.id} data-bench-line={l.id}>
+            {l.text}
           </li>
         ))}
       </ul>
+      <p className="mt-4 max-w-[64ch] type-meta text-ink-2">
+        Baselines on this sample: always the commonest label {pct(a.baselines.always_the_commonest_label_in_this_sample)}, a uniform guess {pct(a.baselines.uniform_random_expected)}. The claims
+        are from 2020 to 2022 and their fact-checks are online, where ACHP searches. The safety, consistency and abstention sets were written for this benchmark. Models:{' '}
+        {m.operations.models.join(', ')}. The method and every log are in the repository under bench/.
+      </p>
+
+      <EarlierFigures e={b.earlier} />
     </Sheet>
   );
 }
 
-export function MethodPage({ agents, benchmark }: { agents: MethodAgent[]; benchmark: Benchmark }) {
+export function MethodPage({ agents, benchmark }: { agents: MethodAgent[]; benchmark: BenchmarkData }) {
   return (
     <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[880px] flex-1 px-4 pt-8 pb-24 outline-none md:px-6 md:pt-12">
       <h1 className="font-display text-[2.25rem] leading-tight font-medium text-balance text-desk-ink md:text-[2.75rem] [font-variation-settings:'opsz'_60]">
@@ -348,7 +434,7 @@ export function MethodPage({ agents, benchmark }: { agents: MethodAgent[]; bench
         <Findings />
       </Step>
 
-      <Step id="benchmark" title={STEPS[6].title} lead="One headline number, the split behind it, and what each agent adds.">
+      <Step id="benchmark" title={STEPS[6].title} lead="Real claims checked by professional fact-checkers, and the tests we wrote for the rest: safety, consistency and knowing when it cannot know.">
         <BenchmarkSection b={benchmark} />
       </Step>
 

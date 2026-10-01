@@ -133,7 +133,7 @@ const STATES = [
   { name: 'method-scores', route: '/method', mocks: {}, run: async (p) => { await p.evaluate(() => document.getElementById('scores')?.scrollIntoView()); await p.waitForTimeout(900); } },
   { name: 'method-bench', route: '/method', mocks: {}, run: async (p) => { await p.getByLabel('Quiet falsehood').check(); await p.evaluate(() => document.getElementById('bench')?.scrollIntoView()); await p.waitForTimeout(900); } },
   { name: 'method-benchmark', route: '/method', mocks: {}, run: async (p) => { await p.evaluate(() => document.getElementById('benchmark')?.scrollIntoView()); await p.waitForTimeout(900); } },
-  { name: 'developers-rest', route: '/developers', mocks: {}, run: async (p) => { await p.waitForTimeout(400); } },
+  { name: 'developers-rest', route: '/developers', mocks: {}, run: async (p) => { await p.getByRole('tab', { name: 'REST' }).click(); await p.waitForTimeout(400); } },
   { name: 'developers-events', route: '/developers', mocks: {}, run: async (p) => { await p.getByRole('tab', { name: 'Events' }).click(); await p.waitForTimeout(400); } },
   { name: 'developers-mcp', route: '/developers', mocks: {}, run: async (p) => { await p.getByRole('tab', { name: 'MCP' }).click(); await p.waitForTimeout(400); } },
   { name: 'case-report', route: '/case/sample-exercise-mixed', mocks: {}, run: async (p) => { await p.locator('[data-run-status="completed"]').waitFor(); await p.waitForTimeout(500); } },

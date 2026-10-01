@@ -1,9 +1,9 @@
-"""The benchmark the site shows is generated from one data file (07 section 8, 01_AUDIT G5).
+"""The benchmark the site shows is generated from data files (07 section 8, 01_AUDIT G5).
 
     python -m pytest -q reference/benchmark
 
-A change to results.json without regenerating EVALUATION.md and the web data fails here, and so does a headline that is
-not the Macro score of the system it names.
+A change to either source without regenerating EVALUATION.md and the web data fails here. So does a headline that is
+not the measured ACHP Bench result, or an earlier figure that is presented as measured.
 """
 from __future__ import annotations
 
@@ -26,27 +26,44 @@ def _load():
 def test_generated_files_are_current():
     mod = _load()
     data = mod.load()
-    expected = {mod.MARKDOWN: mod.markdown(data), mod.WEB_JSON: json.dumps(data, indent=2, ensure_ascii=False) + "\n"}
+    expected = {mod.MARKDOWN: mod.markdown(data), mod.WEB_JSON: json.dumps(mod.web(data), indent=2, ensure_ascii=False) + "\n"}
     for path, text in expected.items():
         assert path.exists(), f"{path.name} is missing; run python scripts/gen_evaluation.py"
         assert path.read_text(encoding="utf-8").replace("\r\n", "\n") == text, f"{path.name} is out of date; run python scripts/gen_evaluation.py"
 
 
-def test_the_headline_is_one_number_and_it_is_the_macro_score_of_the_named_system():
-    data = json.loads((ROOT / "reference" / "benchmark" / "results.json").read_text(encoding="utf-8"))
-    named = [s for s in data["systems"] if s["name"] == data["headline"]["system"]]
-    assert len(named) == 1
-    assert named[0]["scores"][-1] == data["headline"]["value"]
-    assert data["split_columns"][-1] == "Macro"
+def test_the_headline_is_the_measured_result_only_once_the_run_is_complete():
+    mod = _load()
+    d = mod.load()
+    first = (ROOT / "EVALUATION.md").read_text(encoding="utf-8").split("\n\n")[1]
+    web = json.loads(mod.WEB_JSON.read_text(encoding="utf-8"))
+    if d["complete"]:
+        acc = d["measured"]["suites"]["averitec"]["accuracy"]
+        assert f"{acc['k']} of {acc['n']}" in first and "95% interval" in first and "Measured in this repository" in first
+        assert web["measured"] is not None
+    else:
+        # A partial run (an outage, a quota) is never reported as the method's accuracy.
+        assert "not been re-run" in first and "part-way through" in first
+        assert web["measured"] is None and web["progress"]["planned"] > web["progress"]["with_verdict"]
 
 
-def test_every_other_published_figure_is_named_and_none_is_averaged_in():
+def test_the_measured_result_is_what_the_scorer_computes_from_the_stored_logs():
+    spec = importlib.util.spec_from_file_location("bench_score", ROOT / "bench" / "score.py")
+    mod = importlib.util.module_from_spec(spec)
+    import sys
+    sys.modules["bench_score"] = mod
+    spec.loader.exec_module(mod)
+    latest = json.loads((ROOT / "bench" / "results" / "latest.json").read_text(encoding="utf-8"))
+    assert mod.score(latest["tag"]) == latest, "bench/results/latest.json does not match its logs; run python bench/score.py --tag <tag>"
+
+
+def test_earlier_figures_stay_labelled_and_are_never_averaged_in():
     data = json.loads((ROOT / "reference" / "benchmark" / "results.json").read_text(encoding="utf-8"))
     assert data["provenance"]["rerun_in_this_repo"] is False
-    assert {o["label"] for o in data["other_published"]} >= {"Paper Table III per-benchmark mean"}
-
-
-def test_markdown_leads_with_the_headline_the_case_page_reads():
+    named = [s for s in data["systems"] if s["name"] == data["headline"]["system"]]
+    assert len(named) == 1 and named[0]["scores"][-1] == data["headline"]["value"]
     md = (ROOT / "EVALUATION.md").read_text(encoding="utf-8")
-    first_paragraph = md.split("\n\n")[1]
-    assert "68.3% macro accuracy" in first_paragraph
+    earlier = md.split("## Earlier figures (not re-run here)")
+    assert len(earlier) == 2
+    if _load().load()["complete"]:
+        assert f"{data['headline']['value']:.1f}%" not in earlier[0], "an earlier figure appears in the measured part"
