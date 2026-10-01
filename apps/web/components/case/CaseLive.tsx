@@ -17,6 +17,7 @@ import { agentIdentity } from '@/lib/agents.config';
 import { useHealth } from '@/lib/api';
 import { createAnnouncer, stageWords } from '@/lib/runs/announcer';
 import { apiBase, startRun } from '@/lib/runs/api';
+import { isRememberable, rememberRun } from '@/lib/runs/history';
 import { openCase } from '@/lib/transitions';
 import type { ConnectionStatus } from '@/lib/runs/connection';
 import {
@@ -165,11 +166,13 @@ export interface CaseLiveProps {
   expired?: boolean;
   /** Dev fixture replay: no /health gating, no re-run against the real backend. */
   fixture?: { name: string; speed: number } | null;
+  /** A recorded example shipped with the app: a stored case, labelled as such, with no re-run. */
+  sample?: boolean;
   /** Text of EVALUATION.md, when the repo has one (read on the server, never written here). */
   benchmark?: string | null;
 }
 
-export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixture = null, benchmark = null }: CaseLiveProps) {
+export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixture = null, sample = false, benchmark = null }: CaseLiveProps) {
   const router = useRouter();
   const [announcement, setAnnouncement] = useState('');
   // Only live events are announced; a stored log that was already there on load stays quiet.
@@ -191,6 +194,10 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
     onEvents,
   );
   const health = useHealth();
+  // This browser's checks: a case opened here is listed on /runs (ids only; the stored log is the source of truth).
+  useEffect(() => {
+    if (!expired && isRememberable(runId)) rememberRun(runId);
+  }, [runId, expired]);
   const pathname = usePathname();
   const search = useSearchParams();
   const tab: TabId = TABS.includes(search.get('tab') as TabId) ? (search.get('tab') as TabId) : 'report';
@@ -291,7 +298,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
 
   const text = state.input?.text ?? null;
   const rerun = useMemo(() => {
-    if (fixture || !text) return null;
+    if (fixture || sample || !text) return null;
     return async () => {
       const created = await startRun(text, state.kb?.id);
       openCase(router, created.run_id);
@@ -326,6 +333,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
           </Link>
           <p className="hidden type-meta text-desk-ink-2 md:block">
             Case <span className="tabular-nums">{runId}</span>
+            {sample && ' · a recorded example, not a new check'}
             {fixture && (
               <>
                 {' · '}

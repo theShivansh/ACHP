@@ -87,6 +87,33 @@ export async function deleteKB(kb_id: string): Promise<{ kb_id: string; deleted:
   return r.json();
 }
 
+export interface KBChunk {
+  index: number;
+  text: string;
+  char_count: number;
+}
+
+export interface KBChunksResponse {
+  kb_id: string;
+  name: string;
+  chunk_count: number;
+  chunks: KBChunk[];
+}
+
+export async function fetchKB(kb_id: string): Promise<KBItem> {
+  const r = await fetch(`${API}/kb/${encodeURIComponent(kb_id)}`);
+  if (r.status === 404) throw new Error('not_found');
+  if (!r.ok) throw new Error(`KB failed: ${r.status}`);
+  return r.json();
+}
+
+export async function fetchKBChunks(kb_id: string): Promise<KBChunksResponse> {
+  const r = await fetch(`${API}/kb/${encodeURIComponent(kb_id)}/chunks`);
+  if (r.status === 404) throw new Error('not_found');
+  if (!r.ok) throw new Error(`Chunks failed: ${r.status}`);
+  return r.json();
+}
+
 export async function analyzeWithFastAPI(payload: AnalyzePayload) {
   const r = await fetch(`${API}/analyze`, {
     method: 'POST',
@@ -118,6 +145,27 @@ export function useKBList() {
     queryFn: fetchKBList,
     refetchInterval: 5000,   // poll every 5s to catch newly indexing KBs
     staleTime: 2000,
+  });
+}
+
+/** One knowledge base; polls while it is still indexing so its status is the server's, not a guess. */
+export function useKB(kb_id: string) {
+  return useQuery<KBItem>({
+    queryKey: ['kb', kb_id],
+    queryFn: () => fetchKB(kb_id),
+    refetchInterval: (q) => (q.state.data?.status === 'indexing' ? 3000 : false),
+    retry: false,
+  });
+}
+
+/** A knowledge base's stored chunks (read once; they do not change after indexing). */
+export function useKBChunks(kb_id: string, enabled: boolean) {
+  return useQuery<KBChunksResponse>({
+    queryKey: ['kb', kb_id, 'chunks'],
+    queryFn: () => fetchKBChunks(kb_id),
+    enabled,
+    staleTime: 60_000,
+    retry: false,
   });
 }
 

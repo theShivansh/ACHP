@@ -3,6 +3,7 @@
 import { cn } from 'cn';
 import { CircleAlert } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
+import type { Ref } from 'react';
 import { ClaimMorph } from '@/components/case/ClaimMorph';
 import { Button } from '@/components/ui/button';
 import { useShake } from '@/lib/useShake';
@@ -20,13 +21,31 @@ export function ClaimInput({
   onSubmit,
   min = MIN_CLAIM,
   placeholder = 'Paste the message you want checked',
+  value: controlled,
+  onValueChange,
+  textareaRef,
+  footer,
+  waiting = false,
 }: {
   /** Start the check. Resolve when the case is open; throw (with a readable message) if it could not start. */
   onSubmit: (claim: string) => Promise<void>;
   min?: number;
   placeholder?: string;
+  /** Controlled text (the Desk's example claims fill the field). Without it the field keeps its own text. */
+  value?: string;
+  onValueChange?: (value: string) => void;
+  textareaRef?: Ref<HTMLTextAreaElement>;
+  /** Extra controls in the sheet's bottom row, before the button (the Library selector). */
+  footer?: React.ReactNode;
+  /** The backend is still waking: the sent line says the check starts when it is ready. */
+  waiting?: boolean;
 }) {
-  const [value, setValue] = useState('');
+  const [own, setOwn] = useState('');
+  const value = controlled ?? own;
+  const setValue = (v: string) => {
+    setOwn(v);
+    onValueChange?.(v);
+  };
   const [sent, setSent] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [fieldRef, shake, onFieldAnimationEnd] = useShake<HTMLDivElement>();
@@ -78,7 +97,7 @@ export function ClaimInput({
           </p>
         </ClaimMorph>
         <p role="status" className="mt-4 type-meta text-ink-2">
-          Sent to the desk. Opening the case.
+          {waiting ? 'Sent to the desk. It is waking up; the check starts as soon as it is ready.' : 'Sent to the desk. Opening the case.'}
         </p>
       </div>
     );
@@ -108,6 +127,7 @@ export function ClaimInput({
         </label>
         <textarea
           id={id}
+          ref={textareaRef}
           value={value}
           rows={4}
           placeholder={placeholder}
@@ -133,6 +153,7 @@ export function ClaimInput({
         {problem}
       </p>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {footer}
         <Button type="submit" size="lg">
           Check this claim
         </Button>

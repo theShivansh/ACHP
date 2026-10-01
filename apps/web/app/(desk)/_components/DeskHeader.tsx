@@ -4,6 +4,7 @@ import { cn } from 'cn';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BackendStatusChip } from './BackendStatusChip';
+import { CommandMenu } from './CommandMenu';
 import { MobileMenu } from './MobileMenu';
 import { ThemeToggle } from './ThemeToggle';
 import { deskNav, isCurrent } from './nav';
@@ -45,7 +46,9 @@ export function DeskHeader() {
 
         <div className="ml-auto flex items-center gap-2">
           <BackendStatusChip />
-          <ThemeToggle />
+          {/* On a phone the header is the wordmark, the status and the menu (07 §1); the theme is in the menu. */}
+          <CommandMenu className="max-md:hidden" />
+          <ThemeToggle className="max-md:hidden" />
           <MobileMenu className={cn(!compact && 'md:hidden')} />
         </div>
       </div>

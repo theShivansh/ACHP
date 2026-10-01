@@ -22,7 +22,11 @@ test.describe('backend status chip', () => {
   test('reads "Unreachable" when /health fails', async ({ page }) => {
     await page.route('**/health', (route) => route.fulfill({ status: 503, body: '' }));
     await page.goto('/case/chip-down');
-    await expect(page.getByRole('status').filter({ hasText: 'Backend:' })).toHaveText('Backend: Unreachable');
+    const chip = page.getByRole('status').filter({ hasText: 'Backend:' });
+    await expect(chip).toContainText('Backend: Unreachable');
+    // It says when it tries again, and offers a Retry now.
+    await expect(chip).toContainText(/retrying in \d+s/);
+    await expect(chip.getByRole('button', { name: 'Retry' })).toBeVisible();
   });
 });
 

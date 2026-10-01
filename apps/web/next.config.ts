@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // React <ViewTransition> (the claim-text morph is wired in P3, animated in P7).
   experimental: { viewTransition: true },
+  // The recorded samples are read from disk at request time (lib/runs/fixtures.ts), so the standalone build must carry them.
+  outputFileTracingIncludes: { '/**': ['./fixtures/runs/*.jsonl'] },
 };
 
 export default nextConfig;

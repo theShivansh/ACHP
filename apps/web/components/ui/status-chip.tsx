@@ -25,16 +25,25 @@ const dot: Record<BackendStatus, string> = {
 function StatusChip({
   status,
   elapsedSeconds,
+  retryInSeconds,
+  onRetry,
   className,
   ...props
 }: React.ComponentProps<"span"> & {
   status: BackendStatus
   elapsedSeconds?: number
+  /** While unreachable: seconds to the next automatic retry. */
+  retryInSeconds?: number | null
+  /** While unreachable: try now. Renders a button next to the chip's words. */
+  onRetry?: () => void
 }) {
+  // The seconds appear once the wait is noticeable, so a fast answer never flashes a number.
   const text =
-    status === "waking" && elapsedSeconds != null
+    status === "waking" && elapsedSeconds != null && elapsedSeconds >= 3
       ? `${label.waking} · ${elapsedSeconds}s`
-      : label[status]
+      : status === "unreachable" && retryInSeconds != null
+        ? `${label.unreachable} · retrying in ${retryInSeconds}s`
+        : label[status]
 
   return (
     <span
@@ -43,7 +52,7 @@ function StatusChip({
       data-waking={status === "waking" || undefined}
       role="status"
       className={cn(
-        "inline-flex h-7 items-center gap-2 rounded-chip border-(length:--rule) border-desk-line bg-desk-raised px-2.5 type-meta text-desk-ink-2",
+        "inline-flex h-7 items-center gap-2 whitespace-nowrap rounded-chip border-(length:--rule) border-desk-line bg-desk-raised px-2.5 type-meta text-desk-ink-2",
         className
       )}
       {...props}
@@ -55,6 +64,15 @@ function StatusChip({
       )}
       <span className="sr-only">Backend: </span>
       {text}
+      {status === "unreachable" && onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="-my-1 -mr-1.5 ml-0.5 min-h-6 cursor-pointer rounded-chip px-1.5 type-meta text-desk-ink underline decoration-(length:--rule) underline-offset-4 pointer-coarse:min-h-11"
+        >
+          Retry
+        </button>
+      )}
     </span>
   )
 }

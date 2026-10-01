@@ -64,3 +64,33 @@ export function replayOptionsSegment(o: Partial<ReplayOptions>): string {
   if (o.drop) parts.push(`drop=${o.drop}`);
   return parts.join(',');
 }
+
+// ── Samples: recorded real checks that ship with the app ──────────────────────────────────────────────────────────
+// Unlike fixtures (dev and test replays), a sample is served in production: it is a stored case, opened at
+// /case/sample-<name> and labelled as a recorded example. Only recorded runs qualify, never synthetic test logs.
+
+export const SAMPLE_PREFIX = 'sample-';
+
+export const SAMPLES = [
+  { name: 'exercise-mixed', id: 'sample-exercise-mixed' },
+  { name: 'contradicted-strong', id: 'sample-contradicted-strong' },
+  { name: 'all-supported', id: 'sample-all-supported' },
+] as const;
+
+export function isSampleId(id: string): boolean {
+  return SAMPLES.some((s) => s.id === id);
+}
+
+/** A sample's recorded events in seq order, or null when `id` is not a sample. Works in production. */
+export function readSample(id: string): RunEvent[] | null {
+  const sample = SAMPLES.find((s) => s.id === id);
+  if (!sample) return null;
+  const file = path.join(process.cwd(), 'fixtures', 'runs', `${sample.name}.jsonl`);
+  if (!existsSync(file)) return null;
+  const events = readFileSync(file, 'utf8')
+    .split(/\r?\n/)
+    .filter((l) => l.trim())
+    .map((l) => JSON.parse(l) as unknown)
+    .filter(isRunEvent);
+  return events.length ? events.sort((a, b) => a.seq - b.seq) : null;
+}

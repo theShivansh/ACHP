@@ -9,8 +9,19 @@ import { CHAPTER_IDS, CHAPTER_TITLES, type ChapterId } from '@/lib/runs/chapters
 // bottom of a phone. The position is read with an IntersectionObserver; nothing listens to wheel or touch,
 // and `End`, the keyboard and anchor links all work natively.
 
-export function StoryRail({ className }: { className?: string }) {
+export function StoryRail({ className, embedded = false }: { className?: string; embedded?: boolean }) {
   const [current, setCurrent] = useState<ChapterId>('claim');
+  // On a page with other content (the Desk), the rail belongs to the story only: shown while the story is on screen.
+  const [shown, setShown] = useState(() => !embedded || typeof IntersectionObserver === 'undefined');
+
+  useEffect(() => {
+    if (!embedded) return;
+    const story = document.querySelector('[data-story]');
+    if (!story || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([e]) => setShown(e.isIntersecting), { rootMargin: '-35% 0px -35% 0px', threshold: 0 });
+    io.observe(story);
+    return () => io.disconnect();
+  }, [embedded]);
 
   useEffect(() => {
     // A chapter's reading gates carry its id too, so the rail stays on "Challenge" while a gate is pinned.
@@ -32,6 +43,7 @@ export function StoryRail({ className }: { className?: string }) {
     <nav
       aria-label="Story chapters"
       data-story-rail
+      hidden={!shown}
       className={cn(
         'fixed z-30 border-desk-line bg-desk text-desk-ink',
         'inset-x-0 bottom-0 border-t-(length:--rule) px-3 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]',

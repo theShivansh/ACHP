@@ -3,7 +3,7 @@
 
 import { cache } from 'react';
 import { apiBase } from './api';
-import { fixtureEnabled, readFixture } from './fixtures';
+import { fixtureEnabled, isSampleId, readFixture, readSample } from './fixtures';
 import { initialRunState, reduceAll, type RunState } from './reducer';
 import { isRunEvent, type RunEvent } from './types';
 
@@ -15,6 +15,8 @@ export interface LoadedCase {
   /** The backend says the run doesn't exist (expired or never stored). */
   expired: boolean;
   fixture: string | null;
+  /** A recorded example that ships with the app (served in production, unlike a fixture). */
+  sample: boolean;
   state: RunState;
 }
 
@@ -39,9 +41,13 @@ export const loadCase = cache(async (id: string): Promise<LoadedCase | null> => 
     if (!fixtureEnabled()) return null;
     const name = id.slice(FIXTURE_PREFIX.length);
     const events = readFixture(name);
-    return events ? { events, expired: false, fixture: name, state: reduceAll(events) } : null;
+    return events ? { events, expired: false, fixture: name, sample: false, state: reduceAll(events) } : null;
+  }
+  if (isSampleId(id)) {
+    const events = readSample(id);
+    return events ? { events, expired: false, fixture: null, sample: true, state: reduceAll(events) } : null;
   }
   if (!RUN_ID.test(id)) return null;
   const { events, expired } = await fetchStored(id);
-  return { events, expired, fixture: null, state: events.length ? reduceAll(events) : initialRunState(id) };
+  return { events, expired, fixture: null, sample: false, state: events.length ? reduceAll(events) : initialRunState(id) };
 });

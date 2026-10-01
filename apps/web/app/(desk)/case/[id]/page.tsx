@@ -85,6 +85,13 @@ export default async function CasePage({ params, searchParams }: Props) {
 
   // A run that already has a stored log renders on the server (fast LCP); a live one resumes from it.
   return (
-    <CaseLive key={id} runId={id} initialEvents={loaded.events} expired={loaded.expired} benchmark={readBenchmark()} />
+    <CaseLive
+      key={id}
+      runId={loaded.events[0]?.run_id ?? id}
+      initialEvents={loaded.events}
+      expired={loaded.expired}
+      sample={loaded.sample}
+      benchmark={readBenchmark()}
+    />
   );
 }

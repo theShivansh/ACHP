@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Toaster } from '@/components/ui/sonner';
+import { BackendProvider } from '@/lib/backend';
 import { DeskHeader } from './_components/DeskHeader';
 
 // The Fact-Checker's Desk shell. It only exists behind NEXT_PUBLIC_FF_DESK=1; without the flag
@@ -8,6 +9,7 @@ export default function DeskLayout({ children }: { children: React.ReactNode }) 
   if (process.env.NEXT_PUBLIC_FF_DESK !== '1') notFound();
 
   return (
+    <BackendProvider>
     <div className="flex min-h-dvh flex-col bg-desk text-desk-ink">
       <a
         href="#main"
@@ -21,5 +23,6 @@ export default function DeskLayout({ children }: { children: React.ReactNode }) 
       <div className="flex flex-1 flex-col">{children}</div>
       <Toaster />
     </div>
+    </BackendProvider>
   );
 }

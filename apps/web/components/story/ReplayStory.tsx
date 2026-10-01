@@ -318,7 +318,18 @@ function GateTrack({ gate, chapter, state, native }: { gate: Gate; chapter: Chap
   );
 }
 
-export function ReplayStory({ events, reportHref, className }: { events: RunEvent[]; reportHref: string; className?: string }) {
+export function ReplayStory({
+  events,
+  reportHref,
+  className,
+  embedded = false,
+}: {
+  events: RunEvent[];
+  reportHref: string;
+  className?: string;
+  /** Part of another page (the Desk): a second-level heading, its own title, and a rail shown only while the story is on screen. */
+  embedded?: boolean;
+}) {
   const state = useMemo(() => events.reduce(reduceRun, initialRunState()), [events]);
   const chapters = useMemo(() => buildChapters(events), [events]);
   const native = useNativeTimelines();
@@ -330,9 +341,22 @@ export function ReplayStory({ events, reportHref, className }: { events: RunEven
         data-story
         className={cn('story relative mx-auto w-full max-w-[1120px] px-4 pb-24 lg:pl-56', className)}
       >
-        <h1 className="pt-10 type-h2 text-desk-ink">Replay of this check</h1>
-        <p className="mt-1 max-w-[60ch] type-body text-desk-ink-2">Scroll to follow it step by step, or skip to the verdict.</p>
-        <StoryRail />
+        {embedded ? (
+          <>
+            <h2 id="how-it-works" tabIndex={-1} className="scroll-mt-20 pt-10 type-h2 text-desk-ink outline-none">
+              How a check works
+            </h2>
+            <p className="mt-1 max-w-[60ch] type-body text-desk-ink-2">
+              A recorded check, replayed. Scroll to follow it step by step, or skip to the verdict.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="pt-10 type-h2 text-desk-ink">Replay of this check</h1>
+            <p className="mt-1 max-w-[60ch] type-body text-desk-ink-2">Scroll to follow it step by step, or skip to the verdict.</p>
+          </>
+        )}
+        <StoryRail embedded={embedded} />
         {chapters.map((ch) => (
           <div key={ch.id}>
             <section

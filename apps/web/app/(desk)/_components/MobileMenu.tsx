@@ -6,10 +6,12 @@ import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { deskNav, isCurrent } from './nav';
+import { nextTheme, useThemeChoice } from './ThemeToggle';
 
 // The nav in a sheet (07 §1). Navigation is desk chrome, so the sheet is on the desk surface.
 export function MobileMenu({ className }: { className?: string }) {
   const pathname = usePathname();
+  const theme = useThemeChoice();
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -38,6 +40,18 @@ export function MobileMenu({ className }: { className?: string }) {
             ))}
           </ul>
         </nav>
+        <div className="mt-4 border-t-(length:--rule) border-desk-line px-2 pt-3">
+          <button
+            type="button"
+            onClick={theme.cycle}
+            data-theme-choice={theme.mounted ? theme.current : undefined}
+            className="flex min-h-11 w-full cursor-pointer items-center justify-between rounded-button px-3 text-left type-body text-desk-ink-2 hover:bg-surface-tint hover:text-desk-ink"
+          >
+            <span>Theme</span>
+            <span className="text-desk-ink">{theme.current === 'system' ? 'Follow the system' : theme.current === 'light' ? 'Light' : 'Dark'}</span>
+            <span className="sr-only">. Change to {nextTheme(theme.current)}</span>
+          </button>
+        </div>
       </SheetContent>
     </Sheet>
   );
