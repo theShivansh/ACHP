@@ -65,7 +65,10 @@ test('a live run: every handmade moment is stepped, the boil stays within 3, and
 
   const anims = await started(page);
   const names = new Set(anims.map((a) => a.name));
-  for (const n of ['mark-draw', 'boil', 'stamp', 'clip-snap', 'tally-in', 'swipe', 'cut-line']) expect(names, n).toContain(n);
+  for (const n of ['mark-draw', 'boil', 'stamp', 'clip-snap', 'swipe', 'cut-line']) expect(names, n).toContain(n);
+  // The tally strokes were drawn live (when a slow machine gets the last checks in the same batch as the end of the run,
+  // the lane list has already folded away and a hidden stroke has nothing to animate).
+  expect(await page.locator('[data-tally] path.tally[data-play]').count()).toBeGreaterThan(0);
   // 12fps: never a smooth curve on a handmade element (05 §3).
   const smooth = anims.filter((a) => STOP_MOTION.includes(a.name) && !/^steps\(/.test(a.timing));
   expect(smooth).toEqual([]);

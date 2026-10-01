@@ -10,8 +10,12 @@ import { isRunEvent, type RunEvent } from './types';
 
 const NAME = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
+/**
+ * On in dev and test. A local production build can opt in with ACHP_FIXTURES=1 (server-side, never NEXT_PUBLIC) to
+ * measure performance on a real bundle (P8, P10); a deployment never sets it.
+ */
 export function fixtureEnabled(): boolean {
-  return process.env.NODE_ENV !== 'production';
+  return process.env.NODE_ENV !== 'production' || process.env.ACHP_FIXTURES === '1';
 }
 
 function fixturePath(name: string): string | null {

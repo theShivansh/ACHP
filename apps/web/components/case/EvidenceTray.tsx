@@ -2,7 +2,7 @@
 
 import { cn } from 'cn';
 import { ExternalLink, Globe } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { PaperclipGlyph } from '@/components/glyphs';
 import { usePlayOnce } from './arrival';
 import { Roll } from '@/components/ui/roll';
@@ -88,7 +88,22 @@ function Favicon({ domain }: { domain: string | null | undefined }) {
   );
 }
 
-export function EvidenceCard({ card, uses, n, stopped = false }: { card: Card; uses: EvidenceUse[]; n?: number; stopped?: boolean }) {
+type CardProps = { card: Card; uses: EvidenceUse[]; n?: number; stopped?: boolean };
+
+const sameUses = (a: EvidenceUse[], b: EvidenceUse[]) =>
+  a.length === b.length && a.every((u, i) => u.claimId === b[i].claimId && u.part === b[i].part && u.relation === b[i].relation);
+
+/**
+ * A card re-renders only when what it shows changes: every event re-renders the case, and on a phone at 4× CPU
+ * throttling re-rendering every card for every event made long tasks (P8 performance gate). `uses` is rebuilt each
+ * time, so it is compared by value.
+ */
+export const EvidenceCard = memo(
+  EvidenceCardView,
+  (a: CardProps, b: CardProps) => a.card === b.card && a.n === b.n && a.stopped === b.stopped && sameUses(a.uses, b.uses),
+);
+
+function EvidenceCardView({ card, uses, n, stopped = false }: CardProps) {
   const src = card.source;
   const store = useLinkStore();
   const link = useLinkState('evidence', card.evidence_id);

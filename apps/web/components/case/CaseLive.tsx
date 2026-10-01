@@ -210,7 +210,12 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
 
   const laneList = selectLanes(state);
   const groups = useMemo(() => laneGroups(state), [state]);
-  const laneFx = useMemo(() => ({ boiling: boilingLanes(state), signals: laneSignals(state) }), [state]);
+  // Kept stable while its contents are: every lane reads it, so a new object per event would re-render them all.
+  const boilKey = [...boilingLanes(state)].join(',');
+  const signals = laneSignals(state);
+  const signalKey = JSON.stringify(signals);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by value on purpose
+  const laneFx = useMemo(() => ({ boiling: new Set(boilKey ? boilKey.split(',') : []), signals }), [boilKey, signalKey]);
   const flagged = useMemo(() => flaggedSpans(state), [state]);
   const reason = debateReason(state);
   const clock: LaneClock = { lastTMs: state.lastTMs, receivedAt, rate: fixture?.speed ?? 1 };

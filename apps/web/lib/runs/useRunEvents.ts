@@ -3,7 +3,7 @@
 // React binding for a run's live event log: RunConnection → reduceRun. Components read slices of
 // `state`; nothing else changes run state.
 
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { apiBase } from './api';
 import { RunConnection, type ConnectionOptions, type ConnectionStatus } from './connection';
 import { initialRunState, isFinished, reduceAll, reduceRun, type RunState } from './reducer';
@@ -74,8 +74,13 @@ export function useRunEvents(
       runId,
       { ...connOptions, baseUrl },
       (events) => {
-        setReceivedAt(performance.now());
-        dispatch({ runId, events });
+        // Rendering a batch is a transition: React renders it in slices that yield to the browser, so a big batch (the
+        // lanes appearing, the report landing) is not one long task on a slow phone (P8 performance gate). The state is
+        // still exactly the reduced log; only when it paints can be deferred by a frame or two.
+        startTransition(() => {
+          setReceivedAt(performance.now());
+          dispatch({ runId, events });
+        });
         onEventsRef.current?.(events);
       },
       (status) => setConn({ runId, status }),

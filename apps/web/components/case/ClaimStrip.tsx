@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from 'cn';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { memo, useLayoutEffect, useRef, useState } from 'react';
 import { agentIdentity } from '@/lib/agents.config';
 import { measureSpan, type MarkRect } from '@/lib/marks/measure';
 import type { ClaimStrip as Strip, Mark as StripMark, StripEvidence } from '@/lib/runs/reducer';
@@ -38,7 +38,7 @@ interface Measured {
   rects: MarkRect[];
 }
 
-export function ClaimStrip({
+function ClaimStripView({
   strip,
   part,
   evidence,
@@ -225,3 +225,24 @@ export function ClaimStrip({
     </li>
   );
 }
+
+type StripProps = Parameters<typeof ClaimStripView>[0];
+
+/**
+ * A strip re-renders only when its part, its marks, its evidence line or its ruling changes (P8 performance gate: every
+ * event re-renders the case). `evidence` is rebuilt each time, so it is compared by value; `onShowEvidence` always does
+ * the same thing (opens the evidence for a part), so a new function with the same behaviour is not a change.
+ */
+export const ClaimStrip = memo(
+  ClaimStripView,
+  (a: StripProps, b: StripProps) =>
+    a.strip === b.strip &&
+    a.part === b.part &&
+    a.label === b.label &&
+    a.stopped === b.stopped &&
+    a.showStamp === b.showStamp &&
+    a.compact === b.compact &&
+    a.anchor === b.anchor &&
+    a.evidence.disagree === b.evidence.disagree &&
+    a.evidence.ids.join() === b.evidence.ids.join(),
+);

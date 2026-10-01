@@ -164,6 +164,7 @@ test('under 768px the Hallmark stays one row and the tipping scale is a list of 
 });
 
 test('the Assay tab has no axe violations, on any of the three logs', async ({ page }) => {
+  test.setTimeout(180_000); // eight full replays, each waiting for the page to be still
   const { default: AxeBuilder } = await import('@axe-core/playwright');
   for (const name of ['quiet-falsehood', 'true-but-loaded', 'paper-fig9-metrics', 'loud-falsehood']) {
     for (const tab of ['', 'assay']) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from 'cn';
-import { createContext, useContext, useState } from 'react';
+import { createContext, memo, useContext, useState } from 'react';
 import { Roll } from '@/components/ui/roll';
 import { agentIdentity, deskInkClass } from '@/lib/agents.config';
 import { skipWords } from '@/lib/runs/announcer';
@@ -100,15 +100,22 @@ function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-export function AgentLane({
-  lane,
-  clock,
-  debateReason,
-}: {
-  lane: Lane;
-  clock: LaneClock;
-  debateReason: string | null;
-}) {
+type LaneProps = { lane: Lane; clock: LaneClock; debateReason: string | null };
+
+/**
+ * A lane re-renders only when its slice changes (P8 performance gate: every event re-renders the case, and the lanes are
+ * drawn in up to three places). The clock moves with every event but only a working lane reads it.
+ */
+export const AgentLane = memo(
+  AgentLaneView,
+  (a: LaneProps, b: LaneProps) =>
+    a.lane === b.lane &&
+    a.debateReason === b.debateReason &&
+    (a.lane.state !== 'working' ||
+      (a.clock.lastTMs === b.clock.lastTMs && a.clock.receivedAt === b.clock.receivedAt && a.clock.rate === b.clock.rate)),
+);
+
+function AgentLaneView({ lane, clock, debateReason }: LaneProps) {
   const identity = agentIdentity(lane.id, lane.name);
   const Glyph = identity.glyph;
   const fx = useContext(LaneFx);
