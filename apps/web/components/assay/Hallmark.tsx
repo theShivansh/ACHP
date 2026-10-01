@@ -4,6 +4,7 @@ import { cn } from 'cn';
 import { useEffect, useId, useState } from 'react';
 import { fillLevel, metricLabel, METRIC_INFO, METRICS, score100, type MetricName } from '@/lib/assay/present';
 import type { Metrics } from '@/lib/runs/types';
+import { usePlayOnce } from '@/components/case/arrival';
 import { useAssayFocus, useMetricLit } from './assayLink';
 import { GEOMETRY, W } from './hallmarkGeometry';
 
@@ -11,8 +12,10 @@ import { GEOMETRY, W } from './hallmarkGeometry';
 // reads without color. The ink rises from the bottom to the value; BIS is hatched (impurity), because more
 // of it is worse. A finer outline marks the measures humans agreed with least (r < 0.75). It replaces the
 // radar, which couldn't show direction, reuse or disagreement.
+// When the Assay arrives while you watch, the report's Hallmark is punched in (05 §3.4): after the overall stamp, one
+// cartouche per 12fps frame, its outline first, then its ink stepping up to the level in two frames.
 
-function Cartouche({ code, value, size }: { code: MetricName; value: number; size: number }) {
+function Cartouche({ code, value, size, i }: { code: MetricName; value: number; size: number; i: number }) {
   const uid = useId().replace(/:/g, '');
   const info = METRIC_INFO[code];
   const g = GEOMETRY[info.shape];
@@ -29,6 +32,8 @@ function Cartouche({ code, value, size }: { code: MetricName; value: number; siz
       data-cartouche={code}
       data-fill={level.toFixed(2)}
       className="overflow-visible"
+      // For the punch: its place in the row, and how far below its level the ink starts (it rises from empty).
+      style={{ '--i': i, '--drop': `${(g.bottom - fillTop).toFixed(2)}px` } as React.CSSProperties}
     >
       <defs>
         <clipPath id={`clip-${uid}`}>
@@ -73,10 +78,12 @@ function HallmarkMark({
   code,
   value,
   size,
+  i,
   dismissed,
   onDismiss,
 }: {
   code: MetricName;
+  i: number;
   value: number;
   size: 24 | 28 | 40;
   dismissed: boolean;
@@ -125,7 +132,7 @@ function HallmarkMark({
       }}
       className="group relative inline-flex min-h-6 min-w-6 cursor-help flex-col items-center gap-0.5 rounded-card outline-offset-4"
     >
-      <Cartouche code={code} value={value} size={size} />
+      <Cartouche code={code} value={value} size={size} i={i} />
       {size === 40 && (
         <span aria-hidden="true" data-score className="type-meta tabular-nums text-ink-2">
           {score100(value)}
@@ -160,24 +167,30 @@ function HallmarkMark({
 export function Hallmark({
   metrics,
   size = 28,
+  punch = false,
   className,
 }: {
   metrics: Metrics;
+  /** The report's Hallmark: punch it in when the Assay arrives while you watch (once). */
+  punch?: boolean;
   /** 24 in a row of a table, 28 compact, 40 where the Hallmark is the signature (the report header, the Assay tab). */
   size?: 24 | 28 | 40;
   className?: string;
 }) {
   const [dismissed, setDismissed] = useState<MetricName | null>(null);
+  const play = usePlayOnce('hallmark', punch);
   return (
     <div
       role="group"
       aria-label="Assay hallmark: the five scores"
       data-hallmark
+      data-punch={play || undefined}
       className={cn('flex items-start', size === 40 ? 'gap-3' : 'gap-2', className)}
     >
-      {METRICS.map((code) => (
+      {METRICS.map((code, i) => (
         <HallmarkMark
           key={code}
+          i={i}
           code={code}
           value={metrics[code]}
           size={size}

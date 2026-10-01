@@ -4,6 +4,7 @@ import { cn } from 'cn';
 import { ExternalLink, Globe } from 'lucide-react';
 import { useState } from 'react';
 import { PaperclipGlyph } from '@/components/glyphs';
+import { usePlayOnce } from './arrival';
 import { Roll } from '@/components/ui/roll';
 import type { EvidenceCard as Card, EvidenceUse } from '@/lib/runs/reducer';
 import { useLinkState, useLinkStore } from './linkStore';
@@ -101,6 +102,13 @@ export function EvidenceCard({ card, uses, n, stopped = false }: { card: Card; u
   const strength = strengthWords(card.strength);
   const verifier = card.verifier_status === 'accepted' ? 'Verified' : card.verifier_status === 'rejected' ? 'Could not be verified' : null;
   const lit = () => store.set({ kind: 'evidence', id: card.evidence_id, related: [...new Set(uses.map((u) => u.claimId))] });
+  // A card that arrives while you watch rises in and the Clipper's paperclip snaps shut on it (05 §3.4: 2 frames).
+  // Both come off once they have played: a list that is hidden and shown again (the desk's tray while the Evidence tab
+  // is open) would otherwise restart them. A stored case's cards are simply there.
+  const arrived = usePlayOnce(`clip:${card.evidence_id}`);
+  const [entered, setEntered] = useState<string[]>([]);
+  const snap = arrived && !entered.includes('clip-snap');
+  const rise = arrived && !entered.includes('rise-in');
   const off = () => store.set(null);
 
   return (
@@ -114,15 +122,20 @@ export function EvidenceCard({ card, uses, n, stopped = false }: { card: Card; u
       onPointerLeave={off}
       onFocus={lit}
       onBlur={off}
+      onAnimationEnd={(e) => {
+        const n = e.animationName;
+        if (n === 'rise-in' || n === 'clip-snap') setEntered((d) => [...d, n]);
+      }}
       className={cn(
-        'paper relative rounded-card border-(length:--rule) border-sheet-line px-4 pt-4 pb-3 shadow-lift-card animate-[rise-in_var(--dur-base)_var(--ease-out)]',
+        'paper relative rounded-card border-(length:--rule) border-sheet-line px-4 pt-4 pb-3 shadow-lift-card',
+        rise && 'animate-[rise-in_var(--dur-base)_var(--ease-out)]',
         // In over --dur-quick, out at once: only the dimmed state declares the transition.
         link === 'dimmed' && 'opacity-60 transition-opacity duration-(--dur-quick) motion-reduce:transition-none',
         link === 'active' && 'outline-2 outline-pencil-blue',
         link === 'related' && 'outline-2 outline-ink-3',
       )}
     >
-      <PaperclipGlyph aria-hidden="true" className="absolute -top-2 left-3 size-5 text-graphite" />
+      <PaperclipGlyph data-snap={snap || undefined} className={cn('absolute -top-2 left-3 size-5 text-graphite', snap && 'clip-snap')} />
       <p className="flex flex-wrap items-center gap-x-2 type-meta text-ink-2">
         {n != null && <span className="font-semibold text-ink tabular-nums">Source {n}</span>}
         <Favicon domain={src.domain} />

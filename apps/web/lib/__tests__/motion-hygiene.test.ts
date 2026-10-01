@@ -42,9 +42,8 @@ const LITERAL =
 
 /** Where a literal is the spec's own number, with the reason. */
 const ALLOWED: { file: string; text: RegExp; why: string }[] = [
-  { file: 'app/globals.css', text: /^\s*--(dur|ease|fps|boil)[-\w]*:/, why: 'the token definitions (05 §1)' },
+  { file: 'app/globals.css', text: /^\s*--(dur|ease|fps|boil|lamp)[-\w]*:/, why: 'the token definitions (05 §1, §3.4)' },
   { file: 'app/globals.css', text: /animation-duration:\s*120ms/, why: '05 §6: a reduced-motion crossfade is at most 120ms' },
-  { file: 'components/case/Mark.tsx', text: /line \* 120/, why: 'a wrapped mark starts a line later, like a hand moving on; P8 puts it on the 12fps clock' },
   { file: 'lib/motion.ts', text: /.*/, why: 'the mirror of the tokens for motion/react' },
 ];
 

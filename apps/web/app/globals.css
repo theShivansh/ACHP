@@ -214,6 +214,7 @@
   --dur-tooltip-delay: 400ms; /* a hover waits this long before a definition appears; focus shows it at once (05 §4) */
   --fps-stop: 83ms;
   --boil-period: 400ms;
+  --lamp-period: 1200ms;   /* the cold-start lamp's irregular flicker, 05 §3.4 */
 }
 
 /* ── Type roles — 04 §4 ───────────────────────────────────────────────────────────────────── */
@@ -335,20 +336,95 @@
 
 /* Low-end devices (hardwareConcurrency ≤ 4 or saveData) get no boil. */
 html[data-lowfx] .boil,
-html[data-lowfx] .boil-once {
+html[data-lowfx] .boil-once,
+html[data-lowfx] .mark[data-play]:not([data-draw="swipe"]) {
   animation: none;
   filter: none;
 }
 
-/* ── Span marks v1 (P3, S3.5) — a smooth draw, once, as the mark's event arrives. ─────────── */
-/* Job: cause → effect (an agent's finding lands on the words it concerns). P8 makes it stepped. */
+/* ── Stop-motion (P8, Language C, 05 §3) ──────────────────────────────────────────────────────
+   Handmade moments at 12fps: every one is steps(), lasts a few --fps-stop frames, plays only when its event arrives
+   while you watch ([data-play], set by usePlayOnce) and then stops for good. At rest an element shows its final state
+   with no animation and no filter. Text, data and layout never move stepwise; only marks and glyphs do. */
+
+/* Span marks (S3.5): a pencil draws the stroke in --frames frames (underline 6 · strike 5 · bracket 7 · tick 4 · caret
+   4), each later line of a wrapped span starting when the line before it ends, then the line boils three times (1.2s)
+   and goes still. Job: cause → effect (an agent's finding lands on the words it concerns). */
 @keyframes mark-draw { from { stroke-dashoffset: 1; } }
-.mark { left: var(--x); top: var(--y); }
-.mark path {
-  stroke-dashoffset: 0;
-  animation: mark-draw var(--dur-base) var(--ease-out) var(--delay, 0ms) backwards;
+.mark { left: var(--x); top: var(--y); --frames: 6; --at: calc(var(--line, 0) * var(--frames) * var(--fps-stop)); }
+.mark path { stroke-dashoffset: 0; }
+/* Loaded words in the claim (signal.computed spans): the Framing Lens's highlighter, behind the words. */
+.hl { background: var(--highlighter); opacity: var(--highlighter-opacity); mix-blend-mode: var(--highlighter-blend); }
+
+/* Everything below moves, so it exists only when motion is welcome; under reduced motion each element simply has its
+   final state (05 §6), and no specificity contest with the reduced-motion block can bring a frame back. */
+@media (prefers-reduced-motion: no-preference) {
+  .mark[data-play] path {
+    animation: mark-draw calc(var(--frames) * var(--fps-stop)) steps(var(--frames), end) var(--at) backwards;
+  }
+  .mark[data-play] {
+    animation: boil var(--boil-period) steps(1, end) calc(var(--at) + var(--frames) * var(--fps-stop)) 3;
+  }
+  /* A dashed or highlighter mark can't be drawn along its dashes: it is swiped on left → right in stepped clip frames. */
+  @keyframes swipe { from { clip-path: inset(0 100% 0 0); } }
+  .mark[data-play][data-draw="swipe"] path { animation: none; }
+  .mark[data-play][data-draw="swipe"] {
+    animation: swipe calc(var(--frames) * var(--fps-stop)) steps(var(--frames), end) var(--at) backwards;
+  }
+  /* The highlighter swipes on in 5 frames. */
+  .hl[data-play] { animation: swipe calc(5 * var(--fps-stop)) steps(5, end) var(--at, 0ms) backwards; }
+
+  /* The verdict stamp (05 §3.3): 4 frames, 333ms, lifted, pressed past flat, settled. The tilt is the element's own
+     `rotate`, so the keyframes leave it alone. */
+  @keyframes stamp {
+    0% { opacity: 0; transform: translateY(-20px) scale(1.14); }
+    25% { opacity: 0.4; transform: translateY(-6px) scale(1.06); }
+    50% { opacity: 1; transform: translateY(0) scale(0.96); }
+    75% { transform: translateY(0) scale(1.01); }
+  }
+  .stamp[data-play] { transform-origin: center; animation: stamp calc(4 * var(--fps-stop)) steps(1, end) var(--at, 0ms) both; }
+
+  /* The Hallmark punch (05 §3.4): after the overall stamp, one cartouche per frame. Its outline appears, then the ink
+     steps up to its level in 2 frames (--drop is how far below its level the ink starts, in the cartouche's units). */
+  @keyframes punch-in { from { opacity: 0; } }
+  @keyframes ink-rise { from { transform: translateY(var(--drop)); } }
+  [data-punch] [data-cartouche] {
+    animation: punch-in var(--fps-stop) steps(1, end) calc((4 + var(--i)) * var(--fps-stop)) backwards;
+  }
+  [data-punch] [data-cartouche] [data-ink] {
+    animation: ink-rise calc(2 * var(--fps-stop)) steps(2, end) calc((5 + var(--i)) * var(--fps-stop)) backwards;
+  }
+
+  /* The Two-Key keys (05 §3.4): after the punch, each key turns from upright in 2 stepped frames, the Judge's first. */
+  @keyframes key-upright { from { transform: rotate(0deg); } }
+  [data-arrive] .key-turn {
+    animation: key-upright calc(2 * var(--fps-stop)) steps(2, end) calc(var(--at) * var(--fps-stop)) backwards;
+  }
+
+  /* The paperclip snaps onto an evidence card (05 §3.4): one frame open and lifted, then closed. The card itself
+     enters smoothly (rise-in). */
+  @keyframes clip-snap { 0% { transform: translateY(-3px) rotate(-18deg); } 50%, 100% { transform: none; } }
+  .clip-snap { transform-origin: 30% 80%; animation: clip-snap calc(2 * var(--fps-stop)) steps(1, end) backwards; }
+
+  /* Tally (05 §3.4): one stroke per NIL sub-check, each drawn upward in 3 frames. */
+  @keyframes tally-in { from { clip-path: inset(100% 0 0 0); } }
+  .tally[data-play] { animation: tally-in calc(3 * var(--fps-stop)) steps(3, end) backwards; }
+
+  /* The scissors cut (05 §3.4): the dashed line runs across in frame 1, its two edges part 6px in frame 2, and they
+     settle in frame 3. The overlay is then removed; the strips enter after it. */
+  @keyframes cut-line { 0% { clip-path: inset(0 100% 0 0); } 33%, 100% { clip-path: inset(0 0 0 0); } }
+  @keyframes cut-up { 0%, 33% { transform: none; } 66% { transform: translateY(-3px); } 100% { transform: none; } }
+  @keyframes cut-down { 0%, 33% { transform: none; } 66% { transform: translateY(3px); } 100% { transform: none; } }
+  .cut { animation: cut-line calc(3 * var(--fps-stop)) steps(1, end) both; }
+  .cut-up { animation: cut-up calc(3 * var(--fps-stop)) steps(1, end) both; }
+  .cut-down { animation: cut-down calc(3 * var(--fps-stop)) steps(1, end) both; }
+  [data-cutting] ~ ol > li[data-claim] { animation-delay: calc(3 * var(--fps-stop)); animation-fill-mode: backwards; }
+
+  /* The cold-start lamp (05 §3.4): irregular stepped opacity, 1.2s, the only loop that runs while nothing is checking,
+     and only while the backend wakes. */
+  @keyframes lamp { 0% { opacity: 1; } 14% { opacity: 0.82; } 28% { opacity: 1; } 42% { opacity: 0.9; } 57% { opacity: 1; } 71% { opacity: 0.7; } 85% { opacity: 1; } }
+  [data-waking] .lamp { animation: lamp var(--lamp-period) steps(1, end) infinite; } /* slop-allow: 05 §3.4 cold-start lamp, only while waking */
 }
-.mark[data-relation="unclear"] path { animation: fade-in var(--dur-base) var(--ease-out) var(--delay, 0ms) backwards; }
 
 /* An older source's card takes a faint yellow shift of the paper (a ΔE of about 4), the "evidence
    aging" cue. It is always paired with the words "older source". */
@@ -502,12 +578,13 @@ html[data-lowfx] .boil-once {
     animation: none;
     filter: none;
   }
-  /* Marks appear fully drawn; stamps appear in place. */
+  /* Marks appear fully drawn; stamps, punches, keys, clips, tallies and highlights appear in place; the lamp is lit
+     and still; the cut is not drawn at all. */
   .mark path {
     animation: none;
     stroke-dashoffset: 0;
   }
-  .stamp { animation: none; }
+  [data-cutting] { display: none; }
   /* Strips and evidence cards appear in place (no rise or fade). */
   li[data-claim],
   li[data-evidence],

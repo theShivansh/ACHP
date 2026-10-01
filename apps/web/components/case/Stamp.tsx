@@ -1,11 +1,16 @@
+'use client';
+
 import { cn } from 'cn';
 import { useId } from 'react';
+import { seededRandom } from '@/lib/handdrawn';
+import { usePlayOnce } from './arrival';
 import { seededTilt, verdictInfo } from '@/lib/verdict';
 
 // Stamp v1 (04 §7). An SVG rubber stamp: an irregular border, the verdict in Newsreader 600 caps
 // (the one place uppercase is allowed), and an ink texture from a static feTurbulence threshold, so
 // it looks pressed rather than printed. The tilt (1.2° to 3° either way) is seeded from the id, so the same
-// claim always gets the same stamp. It simply appears; P8 adds the four-frame press.
+// claim always gets the same stamp. When the verdict arrives while you watch it is pressed in four 12fps frames
+// (05 §3.3: lifted, pressed past flat, settled); otherwise it is simply there.
 // `role="img"` + a written label: the stamp is never the only carrier of the verdict.
 
 const SIZES = {
@@ -13,21 +18,9 @@ const SIZES = {
   strip: { font: 15, pad: 9, h: 30, stroke: 1.75 },
 } as const;
 
-/** Deterministic 0..1 sequence from a string (the border's wobble). */
-function rng(seed: string) {
-  let h = 1779033703;
-  for (let i = 0; i < seed.length; i += 1) h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
-  return () => {
-    h = Math.imul(h ^ (h >>> 16), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    h ^= h >>> 16;
-    return (h >>> 0) / 4294967296;
-  };
-}
-
 /** A rounded-rectangle outline whose corners and edges drift by a pixel or two. */
 export function wobblyRect(w: number, h: number, seed: string, amount = 1.4): string {
-  const r = rng(seed);
+  const r = seededRandom(seed);
   const j = () => (r() - 0.5) * 2 * amount;
   const c = 4;
   const p = (x: number, y: number) => `${(x + j()).toFixed(2)} ${(y + j()).toFixed(2)}`;
@@ -48,6 +41,7 @@ export function Stamp({
   label,
   id,
   size = 'strip',
+  at = 0,
   className,
 }: {
   /** A server label (or a legacy verdict); an unknown value renders nothing rather than a guess. */
@@ -55,10 +49,14 @@ export function Stamp({
   /** Seeds the tilt and the border wobble: the claim id, or the run id for the overall stamp. */
   id: string;
   size?: keyof typeof SIZES;
+  /** Frames to wait before pressing (the overall stamp lands after the parts'). */
+  at?: number;
   className?: string;
 }) {
   const info = verdictInfo(label);
   const uid = useId().replace(/:/g, '');
+  // Pressed only when its verdict arrives while you watch (arrival.tsx); a stored case shows it in place.
+  const play = usePlayOnce(`stamp:${id}:${size}:${label}`);
   if (!info) return null;
   const s = SIZES[size];
   // Caps in Newsreader 600 run about 0.68em per glyph; the tracking is small, not the wide-tracked label style.
@@ -71,12 +69,13 @@ export function Stamp({
       aria-label={`Verdict: ${info.name}`}
       data-slot="stamp"
       data-label={info.label}
+      data-play={play || undefined}
       viewBox={`0 0 ${w} ${s.h}`}
       width={w}
       height={s.h}
       // max-w-full h-auto: a wide stamp (MISSING CONTEXT) scales down to a 320px column instead of scrolling the page sideways.
       className={cn('stamp inline-block h-auto max-w-full shrink-0 rotate-(--tilt) overflow-visible', info.text, className)}
-      style={{ '--tilt': `${tilt}deg` } as React.CSSProperties}
+      style={{ '--tilt': `${tilt}deg`, '--at': `calc(${at} * var(--fps-stop))` } as React.CSSProperties}
     >
       <defs>
         {/* Static ink texture: noise thresholded into speckled gaps, applied once, never animated. */}

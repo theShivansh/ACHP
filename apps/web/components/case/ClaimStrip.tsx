@@ -133,8 +133,9 @@ export function ClaimStrip({
           {strip.marks.map((m) =>
             (measured.find((x) => x.seq === m.seq)?.rects ?? []).map((rect, i, all) => (
               <Mark
-                key={`${m.seq}-${i}`}
+                key={`${m.seq}-${label === 'contradicted'}-${i}`}
                 rect={rect}
+                seed={strip.claim_id}
                 relation={m.relation}
                 ink={markInk(m.agent, m.relation, label, stopped)}
                 line={i}
@@ -145,7 +146,7 @@ export function ClaimStrip({
               />
             )),
           )}
-          {label && whole.map((rect, i) => <VerdictMark key={`v-${i}`} rect={rect} label={label} line={i} />)}
+          {label && whole.map((rect, i) => <VerdictMark key={`v-${i}`} rect={rect} label={label} line={i} seed={strip.claim_id} />)}
           {/* The link rule: drawn under the words a hovered or focused source bears on, then gone at once. */}
           {strip.marks
             .filter((m) => m.evidence_ids?.length)
@@ -200,7 +201,7 @@ export function ClaimStrip({
           hasMargin ? 'mt-2 md:mt-0' : compact ? 'hidden' : 'hidden md:block',
         )}
       >
-        {label === 'supported' && <Tick className="mb-1" />}
+        {label === 'supported' && <Tick className="mb-1" seed={strip.claim_id} />}
         {label === 'missing_context' && (
           <p className="type-meta text-ochre">
             <span aria-hidden="true">^ </span>context is missing

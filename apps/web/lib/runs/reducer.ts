@@ -405,6 +405,49 @@ export function currentLane(state: RunState): Lane | null {
   return working.reduce((a, b) => ((b.startedAtMs ?? 0) >= (a.startedAtMs ?? 0) ? b : a));
 }
 
+/** At most this many glyphs boil at once (05 §3.2). */
+export const BOIL_BUDGET = 3;
+
+/**
+ * The working lanes whose glyph boils: the most recently started ones, at most BOIL_BUDGET (05 §3.2). Ties keep server
+ * order. A lane that is not `working` never boils, so nothing boils once the run is over.
+ */
+export function boilingLanes(state: RunState): Set<string> {
+  const working = lanes(state)
+    .map((l, i) => ({ l, i }))
+    .filter(({ l }) => l.state === 'working')
+    .sort((a, b) => (b.l.startedAtMs ?? 0) - (a.l.startedAtMs ?? 0) || a.i - b.i);
+  return new Set(working.slice(0, BOIL_BUDGET).map(({ l }) => l.id));
+}
+
+/** The wording checks each agent has finished, in arrival order (one tally stroke each, 05 §3.4). */
+export function laneSignals(state: RunState): Record<string, SignalKind[]> {
+  const out: Record<string, SignalKind[]> = {};
+  for (const e of state.events) {
+    if (e.type !== 'signal.computed' || !e.agent) continue;
+    const list = (out[e.agent] ??= []);
+    if (!list.includes(e.data.signal)) list.push(e.data.signal);
+  }
+  return out;
+}
+
+/** The input's spans the wording checks flagged (loaded words, absolutes), merged where they overlap. */
+export function flaggedSpans(state: RunState): { span: [number, number]; seq: number }[] {
+  const all = Object.values(state.signals)
+    .flatMap((s) => (s?.spans ?? []).map((span) => ({ span: [span[0], span[1]] as [number, number], seq: s!.seq })))
+    .filter(({ span }) => Number.isFinite(span[0]) && Number.isFinite(span[1]) && span[1] > span[0])
+    .sort((a, b) => a.span[0] - b.span[0] || a.span[1] - b.span[1]);
+  const out: { span: [number, number]; seq: number }[] = [];
+  for (const cur of all) {
+    const prev = out[out.length - 1];
+    if (prev && cur.span[0] <= prev.span[1]) {
+      prev.span[1] = Math.max(prev.span[1], cur.span[1]);
+      prev.seq = Math.min(prev.seq, cur.seq);
+    } else out.push({ span: [...cur.span], seq: cur.seq });
+  }
+  return out;
+}
+
 /** How many agents have been handed the case so far ("step N" in the interrupted banner). */
 export function stepsReached(state: RunState): number {
   return lanes(state).filter((l) => l.state !== 'queued' && l.state !== 'skipped').length;

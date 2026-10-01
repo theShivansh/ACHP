@@ -26,3 +26,6 @@ export const fpsStop = 0.083;
 
 /** 4 seeds × 100ms: the line boil period. */
 export const boilPeriod = 0.4;
+
+/** The cold-start lamp's loop (05 §3.4). Mirrors `--lamp-period`. */
+export const lampPeriod = 1.2;

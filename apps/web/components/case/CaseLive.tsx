@@ -20,8 +20,11 @@ import { apiBase, startRun } from '@/lib/runs/api';
 import { openCase } from '@/lib/transitions';
 import type { ConnectionStatus } from '@/lib/runs/connection';
 import {
+  boilingLanes,
   claimLabel,
   currentLane,
+  flaggedSpans,
+  laneSignals,
   debateReason,
   evidenceUses,
   laneCounts,
@@ -37,9 +40,12 @@ import type { RunEvent } from '@/lib/runs/types';
 import { METRIC_INFO, METRICS, tippingSentence } from '@/lib/assay/present';
 import type { BandKey } from '@/lib/verdict';
 import { useRunEvents } from '@/lib/runs/useRunEvents';
-import { LaneList, type LaneClock } from './AgentLane';
+import { LaneFx, LaneList, type LaneClock } from './AgentLane';
+import { ArrivalProvider } from './arrival';
+import { ClaimHeadline, flaggedWordsSentence } from './ClaimHeadline';
 import { ClaimMorph } from './ClaimMorph';
 import { ClaimStrip } from './ClaimStrip';
+import { ScissorsCut } from './ScissorsCut';
 import { EvidenceTray } from './EvidenceTray';
 import { LaneRail, LaneStrip } from './LaneStrip';
 import { LinkProvider } from './linkStore';
@@ -204,6 +210,8 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
 
   const laneList = selectLanes(state);
   const groups = useMemo(() => laneGroups(state), [state]);
+  const laneFx = useMemo(() => ({ boiling: boilingLanes(state), signals: laneSignals(state) }), [state]);
+  const flagged = useMemo(() => flaggedSpans(state), [state]);
   const reason = debateReason(state);
   const clock: LaneClock = { lastTMs: state.lastTMs, receivedAt, rate: fixture?.speed ?? 1 };
   const claims = orderedClaims(state);
@@ -297,6 +305,8 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
       : 'Sources appear here as the Clipper pins them.';
 
   return (
+    <ArrivalProvider lastSeq={state.lastSeq}>
+    <LaneFx value={laneFx}>
     <LinkProvider>
     <div data-run-status={phase} data-run-id={runId} className="flex flex-1 flex-col">
       {/* Case bar: where you are and what the run is doing, in words (role=status, changes on events only). */}
@@ -435,8 +445,13 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                       <>
                         <p className="type-meta font-semibold text-ink-2">The message you were forwarded</p>
                         <ClaimMorph>
-                          <h1 className="mt-3 max-w-[68ch] font-display type-claim text-balance text-ink">{text}</h1>
+                          <ClaimHeadline
+                            text={text}
+                            spans={flagged}
+                            className="mt-3 max-w-[68ch] font-display type-claim text-balance text-ink"
+                          />
                         </ClaimMorph>
+                        {flaggedWordsSentence(text, flagged) && <p className="sr-only">{flaggedWordsSentence(text, flagged)}</p>}
                       </>
                     ) : (
                       <h1 className="sr-only">Case {runId}</h1>
@@ -444,7 +459,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                     {phase === 'completed' && state.verdict && (
                       <div className="mt-5 flex flex-wrap items-center gap-x-8 gap-y-4">
                         <Stamp label={state.verdict.overall.label} id={runId} size="overall" />
-                        {state.assay && !blocked && tab === 'report' && <Hallmark metrics={state.assay.metrics} size={40} />}
+                        {state.assay && !blocked && tab === 'report' && <Hallmark metrics={state.assay.metrics} size={40} punch />}
                       </div>
                     )}
                     {phase === 'completed' && state.assay && !blocked && tab === 'report' && (
@@ -468,7 +483,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                             What they mean, on The Assay tab
                           </button>
                         </p>
-                        <TwoKey assay={state.assay} className="mt-4" />
+                        <TwoKey assay={state.assay} arrive className="mt-4" />
                       </>
                     )}
                   </header>
@@ -516,6 +531,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                         <h2 id="parts-title" className="type-meta font-semibold text-ink-2">
                           {claims.length === 1 ? 'The checkable part' : `${claims.length} checkable parts`}
                         </h2>
+                        <ScissorsCut />
                         <ol className="mt-3">
                           {claims.map((c, i) => (
                             <ClaimStrip
@@ -643,5 +659,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
       </p>
     </div>
     </LinkProvider>
+    </LaneFx>
+    </ArrivalProvider>
   );
 }

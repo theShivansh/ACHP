@@ -1,10 +1,11 @@
 'use client';
 
 import { cn } from 'cn';
+import { useContext } from 'react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { agentIdentity, deskInkClass } from '@/lib/agents.config';
 import type { Lane, LaneGroup, LaneState } from '@/lib/runs/reducer';
-import { LaneList, type LaneClock } from './AgentLane';
+import { LaneFx, LaneList, type LaneClock } from './AgentLane';
 
 // Narrow screens (04 §5, S3.7). Mobile: a sticky strip of 7 state dots + what is happening now; a
 // tap opens every lane in a bottom sheet. Tablet: a 64px rail of glyphs that opens the same sheet.
@@ -137,6 +138,7 @@ export function LaneRail({
   clock: LaneClock;
   debateReason: string | null;
 }) {
+  const { boiling } = useContext(LaneFx);
   return (
     <aside aria-label="Agents" className="hidden w-16 shrink-0 border-r-(length:--rule) border-desk-line md:block xl:hidden">
       <LanesSheet
@@ -161,7 +163,7 @@ export function LaneRail({
                   l.state === 'skipped' && 'opacity-40',
                 )}
               >
-                <Glyph className={cn(l.state === 'working' && 'boil')} />
+                <Glyph className={cn(boiling.has(l.id) && 'boil')} />
               </span>
               <StateDot state={l.state} />
               <span className="sr-only">

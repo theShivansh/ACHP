@@ -41,7 +41,7 @@ describe('Stamp', () => {
 
 describe('VerdictMark (the Judge’s own mark on a strip)', () => {
   const mark = (label: Parameters<typeof VerdictMark>[0]['label']) =>
-    render(<VerdictMark rect={rect} label={label} line={0} />).container;
+    render(<VerdictMark rect={rect} label={label} line={0} seed="C1" />).container;
 
   it('draws a dashed box in graphite for unverifiable, never red', () => {
     const c = mark('unverifiable');

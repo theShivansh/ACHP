@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { LampGlyph } from '@/components/glyphs';
 import { stageWords } from '@/lib/runs/announcer';
 import type { RunFailed } from '@/lib/runs/types';
 
@@ -16,7 +17,10 @@ function Ruled({ children, tone = 'graphite' }: { children: React.ReactNode; ton
 export function WakingNotice() {
   return (
     <Ruled tone="ochre">
-      <p className="type-body text-ink">Waking the desk.</p>
+      <p data-waking className="flex items-center gap-2 type-body text-ink">
+        <LampGlyph className="lamp size-5 text-ochre" />
+        Waking the desk.
+      </p>
       <p className="mt-1 type-meta text-ink-2">Free-tier servers sleep when idle; this takes up to a minute.</p>
     </Ruled>
   );

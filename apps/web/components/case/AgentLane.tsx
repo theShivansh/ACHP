@@ -1,15 +1,60 @@
 'use client';
 
 import { cn } from 'cn';
-import { useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { Roll } from '@/components/ui/roll';
 import { agentIdentity, deskInkClass } from '@/lib/agents.config';
 import { skipWords } from '@/lib/runs/announcer';
 import type { Lane, LaneGroup } from '@/lib/runs/reducer';
+import { SIGNALS, type SignalKind } from '@/lib/runs/types';
+import { usePlayOnce } from './arrival';
 import { Elapsed, formatSeconds } from './Elapsed';
 
 // One agent's lane on the desk (04 §7, 06 §4.1). Everything shown comes from the lane slice the
 // reducer built from events: state, the latest action, the latest public note, durations.
+
+/**
+ * The run-wide inputs a lane's handmade marks need, read by every lane wherever it is drawn (the desk column, the
+ * tablet rail, the phone's sheet): which glyphs may boil (the budget, reducer `boilingLanes`) and the wording checks
+ * each agent has finished (reducer `laneSignals`).
+ */
+export const LaneFx = createContext<{ boiling: ReadonlySet<string>; signals: Readonly<Record<string, SignalKind[]>> }>({
+  boiling: new Set(),
+  signals: {},
+});
+
+const SIGNAL_WORDS: Record<SignalKind, string> = {
+  sentiment: 'tone',
+  bias: 'bias',
+  perspective: 'perspective',
+  framing: 'framing',
+  hedging: 'hedging',
+};
+
+/** One tally stroke, drawn upward in 3 frames when its check arrives while you watch (05 §3.4). */
+function TallyStroke({ agent, signal, i }: { agent: string; signal: SignalKind; i: number }) {
+  const play = usePlayOnce(`tally:${agent}:${signal}`);
+  // Four upright strokes, then the fifth gates them diagonally.
+  const d = i < 4 ? `M${2.5 + i * 4} 2.5 Q${3 + i * 4} 8 ${2.4 + i * 4} 13.5` : 'M0.5 11.5 Q8 7.6 16.5 3.5';
+  return <path d={d} data-play={play || undefined} className="tally" />;
+}
+
+/** The Framing Lens's tally: one stroke per finished wording check; five make a gate. */
+function Tally({ agent, signals }: { agent: string; signals: SignalKind[] }) {
+  return (
+    <span data-tally={signals.length} className="mt-1 flex items-center gap-2 type-meta text-desk-ink-2">
+      <svg aria-hidden="true" focusable="false" viewBox="0 0 17 16" width={17} height={16} fill="none" className="shrink-0 stroke-current" strokeWidth={1.5} strokeLinecap="round">
+        {signals.slice(0, SIGNALS.length).map((s, i) => (
+          <TallyStroke key={s} agent={agent} signal={s} i={i} />
+        ))}
+      </svg>
+      <span>
+        {signals.length} of {SIGNALS.length} wording checks
+        <span className="sr-only">: {signals.map((s) => SIGNAL_WORDS[s]).join(', ')}</span>
+      </span>
+    </span>
+  );
+}
 
 export interface LaneClock {
   lastTMs: number;
@@ -66,6 +111,8 @@ export function AgentLane({
 }) {
   const identity = agentIdentity(lane.id, lane.name);
   const Glyph = identity.glyph;
+  const fx = useContext(LaneFx);
+  const tally = fx.signals[lane.id] ?? [];
   // A template note restates counts the lane's own summary already gives once it's done, so a
   // finished lane shows only notes the model wrote (validated server-side, 06 §5).
   const latest = lane.notes[lane.notes.length - 1] ?? null;
@@ -97,7 +144,7 @@ export function AgentLane({
           lane.state === 'skipped' && 'opacity-40',
         )}
       >
-        <Glyph className={cn(lane.state === 'working' && 'boil')} />
+        <Glyph className={cn(fx.boiling.has(lane.id) && 'boil')} />
         {lane.state === 'failed' && (
           <span
             aria-hidden="true"
@@ -152,6 +199,8 @@ export function AgentLane({
         >
           {line}
         </p>
+
+        {tally.length > 0 && <Tally agent={lane.id} signals={tally} />}
 
         {note && lane.state !== 'skipped' && (
           <>
