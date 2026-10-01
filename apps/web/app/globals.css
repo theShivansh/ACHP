@@ -337,7 +337,7 @@
 /* Low-end devices (hardwareConcurrency ≤ 4 or saveData) get no boil. */
 html[data-lowfx] .boil,
 html[data-lowfx] .boil-once,
-html[data-lowfx] .mark[data-play]:not([data-draw="swipe"]) {
+html[data-lowfx] .mark[data-play][data-boil] {
   animation: none;
   filter: none;
 }
@@ -362,7 +362,8 @@ html[data-lowfx] .mark[data-play]:not([data-draw="swipe"]) {
   .mark[data-play] path {
     animation: mark-draw calc(var(--frames) * var(--fps-stop)) steps(var(--frames), end) var(--at) backwards;
   }
-  .mark[data-play] {
+  /* One boil per mark, on its last line (a wrapped span would otherwise boil every line; P8 motion audit). */
+  .mark[data-play][data-boil] {
     animation: boil var(--boil-period) steps(1, end) calc(var(--at) + var(--frames) * var(--fps-stop)) 3;
   }
   /* A dashed or highlighter mark can't be drawn along its dashes: it is swiped on left → right in stepped clip frames. */
@@ -380,9 +381,9 @@ html[data-lowfx] .mark[data-play]:not([data-draw="swipe"]) {
     0% { opacity: 0; transform: translateY(-20px) scale(1.14); }
     25% { opacity: 0.4; transform: translateY(-6px) scale(1.06); }
     50% { opacity: 1; transform: translateY(0) scale(0.96); }
-    75% { transform: translateY(0) scale(1.01); }
+    75% { opacity: 0.94; transform: translateY(0) scale(1.01); }
   }
-  .stamp[data-play] { transform-origin: center; animation: stamp calc(4 * var(--fps-stop)) steps(1, end) var(--at, 0ms) both; }
+  .stamp[data-play] { transform-origin: center; animation: stamp calc(4 * var(--fps-stop)) steps(1, end) backwards; }
 
   /* The Hallmark punch (05 §3.4): after the overall stamp, one cartouche per frame. Its outline appears, then the ink
      steps up to its level in 2 frames (--drop is how far below its level the ink starts, in the cartouche's units). */
@@ -398,7 +399,7 @@ html[data-lowfx] .mark[data-play]:not([data-draw="swipe"]) {
   /* The Two-Key keys (05 §3.4): after the punch, each key turns from upright in 2 stepped frames, the Judge's first. */
   @keyframes key-upright { from { transform: rotate(0deg); } }
   [data-arrive] .key-turn {
-    animation: key-upright calc(2 * var(--fps-stop)) steps(2, end) calc(var(--at) * var(--fps-stop)) backwards;
+    animation: key-upright calc(2 * var(--fps-stop)) steps(2, end) calc(var(--key-at) * var(--fps-stop)) backwards;
   }
 
   /* The paperclip snaps onto an evidence card (05 §3.4): one frame open and lifted, then closed. The card itself
@@ -424,6 +425,8 @@ html[data-lowfx] .mark[data-play]:not([data-draw="swipe"]) {
      and only while the backend wakes. */
   @keyframes lamp { 0% { opacity: 1; } 14% { opacity: 0.82; } 28% { opacity: 1; } 42% { opacity: 0.9; } 57% { opacity: 1; } 71% { opacity: 0.7; } 85% { opacity: 1; } }
   [data-waking] .lamp { animation: lamp var(--lamp-period) steps(1, end) infinite; } /* slop-allow: 05 §3.4 cold-start lamp, only while waking */
+  /* One lamp flickers at a time: while the case's waking notice shows its lamp, the header chip's is lit and still. */
+  body:has([data-waking-notice]) [data-slot="status-chip"] .lamp { animation: none; }
 }
 
 /* An older source's card takes a faint yellow shift of the paper (a ΔE of about 4), the "evidence
@@ -625,6 +628,10 @@ html[data-lowfx] .mark[data-play]:not([data-draw="swipe"]) {
   ::view-transition-new(*) {
     animation-duration: 120ms;
   }
+}
+/* More contrast: bolder pencil marks (05 §6). */
+@media (prefers-contrast: more) {
+  .mark path { stroke-width: 2.5; }
 }
 @media (prefers-reduced-transparency: reduce) {
   [data-slot="dialog-overlay"],

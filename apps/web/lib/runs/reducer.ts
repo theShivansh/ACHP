@@ -410,9 +410,11 @@ export const BOIL_BUDGET = 3;
 
 /**
  * The working lanes whose glyph boils: the most recently started ones, at most BOIL_BUDGET (05 §3.2). Ties keep server
- * order. A lane that is not `working` never boils, so nothing boils once the run is over.
+ * order. Only while the run is running and its events are arriving (`live`: the caller knows the connection); a lane
+ * left `working` by a lost connection or a log without its agent.done shows no motion that no event backs.
  */
-export function boilingLanes(state: RunState): Set<string> {
+export function boilingLanes(state: RunState, live = true): Set<string> {
+  if (!live || state.status !== 'running') return new Set();
   const working = lanes(state)
     .map((l, i) => ({ l, i }))
     .filter(({ l }) => l.state === 'working')

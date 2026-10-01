@@ -211,7 +211,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
   const laneList = selectLanes(state);
   const groups = useMemo(() => laneGroups(state), [state]);
   // Kept stable while its contents are: every lane reads it, so a new object per event would re-render them all.
-  const boilKey = [...boilingLanes(state)].join(',');
+  const boilKey = [...boilingLanes(state, phase === 'running')].join(',');
   const signals = laneSignals(state);
   const signalKey = JSON.stringify(signals);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by value on purpose

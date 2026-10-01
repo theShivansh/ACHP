@@ -38,6 +38,17 @@ describe('boilingLanes (the boil budget)', () => {
     };
     expect([...boilingLanes(s)].sort()).toEqual(ids.slice(2).sort());
   });
+
+  it('boils nothing while the connection is lost, or once the run is not running', () => {
+    let s = initialRunState();
+    for (const e of mixed) {
+      s = reduceRun(s, e);
+      if (boilingLanes(s).size) break;
+    }
+    expect(boilingLanes(s).size).toBeGreaterThan(0);
+    expect(boilingLanes(s, false).size).toBe(0);
+    expect(boilingLanes({ ...s, status: 'completed' }).size).toBe(0);
+  });
 });
 
 describe('laneSignals (the tally)', () => {

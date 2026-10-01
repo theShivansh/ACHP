@@ -41,7 +41,6 @@ export function Stamp({
   label,
   id,
   size = 'strip',
-  at = 0,
   className,
 }: {
   /** A server label (or a legacy verdict); an unknown value renders nothing rather than a guess. */
@@ -49,8 +48,6 @@ export function Stamp({
   /** Seeds the tilt and the border wobble: the claim id, or the run id for the overall stamp. */
   id: string;
   size?: keyof typeof SIZES;
-  /** Frames to wait before pressing (the overall stamp lands after the parts'). */
-  at?: number;
   className?: string;
 }) {
   const info = verdictInfo(label);
@@ -75,7 +72,7 @@ export function Stamp({
       height={s.h}
       // max-w-full h-auto: a wide stamp (MISSING CONTEXT) scales down to a 320px column instead of scrolling the page sideways.
       className={cn('stamp inline-block h-auto max-w-full shrink-0 rotate-(--tilt) overflow-visible', info.text, className)}
-      style={{ '--tilt': `${tilt}deg`, '--at': `calc(${at} * var(--fps-stop))` } as React.CSSProperties}
+      style={{ '--tilt': `${tilt}deg` } as React.CSSProperties}
     >
       <defs>
         {/* Static ink texture: noise thresholded into speckled gaps, applied once, never animated. */}

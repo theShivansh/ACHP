@@ -51,11 +51,14 @@ describe('announcer: event → sentence', () => {
     expect(texts.at(-1)).toBe('Check complete.');
   });
 
-  it('stays quiet for fine-grained events and never reads out numbers as percentages', () => {
+  it('stays quiet for actions, gives the handmade marks a lowest-priority sentence, and never reads out a percentage', () => {
     for (const e of events) {
       const a = describeEvent(e, names);
-      if (['agent.action', 'evidence.found', 'claim.extracted', 'claim.marked', 'signal.computed'].includes(e.type)) {
-        expect(a).toBeNull();
+      if (e.type === 'agent.action') expect(a).toBeNull();
+      // 05 §6: the pencil, the cut, the clip, the tally and the Hallmark each have a text equivalent.
+      if (['evidence.found', 'claim.extracted', 'claim.marked', 'signal.computed', 'assay.computed'].includes(e.type)) {
+        expect(a?.priority).toBe(0);
+        expect(a?.text).toMatch(/\.$/);
       }
       expect(a?.text ?? '').not.toMatch(/%/);
     }

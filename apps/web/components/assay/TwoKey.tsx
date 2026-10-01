@@ -20,7 +20,7 @@ function Key({ turn, label, verdict, at }: { turn: number; label: string; verdic
       className="inline-flex flex-col items-center gap-0.5"
       data-key={label.toLowerCase()}
       data-turn={turn}
-      style={{ '--at': at } as React.CSSProperties}
+      style={{ '--key-at': at } as React.CSSProperties}
     >
       <svg aria-hidden="true" focusable="false" viewBox="0 0 28 28" width="32" height="32" className="overflow-visible">
         <g

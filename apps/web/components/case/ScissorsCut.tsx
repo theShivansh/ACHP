@@ -12,8 +12,12 @@ import { usePlayOnce } from './arrival';
 export function ScissorsCut() {
   const play = usePlayOnce('scissors-cut');
   // Under reduced motion there is no cut to watch, so it is never drawn (it would never end, either).
-  const [done, setDone] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  if (!play || done) return null;
+  const [reduced] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const [done, setDone] = useState(false);
+  if (!play || reduced) return null;
+  // Once cut, an empty hidden marker stays: the strips' entrance is delayed by a sibling rule, and removing it mid-fade
+  // would cut that delay and make the strips pop in (P8 motion audit).
+  if (done) return <div hidden data-cutting />;
   return (
     <div
       aria-hidden="true"

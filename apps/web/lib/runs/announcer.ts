@@ -1,7 +1,7 @@
 // Event → one plain sentence for the aria-live log (06 §7). ACHP is silent, so every confirmation
 // a sighted user sees is also announced. Throttled to one sentence per 2s and deduped; while
 // throttled, the most important pending sentence wins (verdict or failure > completion >
-// agent failure or second round > progress).
+// agent failure or second round > progress > the handmade marks' text equivalents).
 
 import type { RunEvent } from './types';
 
@@ -65,6 +65,14 @@ function sentence(text: string): string {
   return /[.!?…]$/.test(t) ? t : `${t}.`;
 }
 
+const MARK_WORDS: Record<string, string> = {
+  contradicts: 'disputes a part',
+  supports: 'backs a part',
+  missing_context: 'says a part is missing context',
+  framing: 'flags the wording of a part',
+  unclear: 'questions a part',
+};
+
 /** The sentence for one event, or null when the event is too fine-grained to announce. */
 export function describe(event: RunEvent, nameOf: NameOf): Announcement | null {
   const who = nameOf(event.agent);
@@ -103,8 +111,23 @@ export function describe(event: RunEvent, nameOf: NameOf): Announcement | null {
         `The check stopped at the ${stageWords(event.data.stage)} step. No verdict was produced`,
         4,
       );
+    // The text equivalents of the handmade marks (05 §6): the lowest priority, so while the announcer is throttled a
+    // progress, verdict or failure sentence always wins over them.
+    case 'evidence.found':
+      return at(`${who} pinned a source`, 0);
+    case 'claim.extracted':
+      return at(`${who} cut out a checkable part`, 0);
+    case 'claim.marked': {
+      const n = event.data.evidence_ids?.length ?? 0;
+      const words = MARK_WORDS[event.data.relation] ?? 'marked a part';
+      return at(`${who} ${words}${n ? `, citing ${n === 1 ? '1 source' : `${n} sources`}` : ''}`, 0);
+    }
+    case 'signal.computed':
+      return at(`${who} finished a wording check: ${event.data.signal}`, 0);
+    case 'assay.computed':
+      return at('The Assay scores are ready, on The Assay tab', 0);
     default:
-      return null; // agent.action, evidence.*, claim.*, signal.computed, assay.computed
+      return null; // agent.action, evidence.verified and anything new
   }
 }
 

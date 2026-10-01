@@ -3,7 +3,9 @@
 import { cn } from 'cn';
 import { MARK_FRAMES, seededRandom, wobbleOf, type MarkStroke } from '@/lib/handdrawn';
 import type { MarkRect } from '@/lib/marks/measure';
-import { usePlayOnce } from './arrival';
+import { useContext } from 'react';
+import { LaneFx } from './AgentLane';
+import { useBoilSlot, usePlayOnce } from './arrival';
 import type { Label, Relation } from '@/lib/runs/types';
 
 // Span marks v1 (S3.5). One absolutely positioned SVG per line rect over the strip text. The shape
@@ -154,7 +156,10 @@ export function Mark({
   const highlight = relation === 'framing';
   const { stroke, draw } = markStroke(relation, ruled);
   // Every line of one span shares the key: they mount together and draw one after another.
-  const play = usePlayOnce(`mark:${seed}:${span[0]}-${span[1]}:${relation}:${ruled}`);
+  const key = `mark:${seed}:${span[0]}-${span[1]}:${relation}:${ruled}`;
+  const play = usePlayOnce(key);
+  // A fresh mark boils once, on its last line, if the shared budget (working glyphs + marks, at most 3) has room.
+  const [boil, release] = useBoilSlot(key, play && last && draw === 'line', useContext(LaneFx).boiling.size);
   return (
     <svg
       aria-hidden="true"
@@ -166,6 +171,10 @@ export function Mark({
       data-mark-rect={`${rect.x},${rect.y},${rect.width},${rect.height}`}
       data-pad={pad || undefined}
       data-play={play || undefined}
+      data-boil={boil || undefined}
+      onAnimationEnd={(e) => {
+        if (e.animationName === 'boil' && e.target === e.currentTarget) release();
+      }}
       data-draw={draw}
       width={w}
       height={h}

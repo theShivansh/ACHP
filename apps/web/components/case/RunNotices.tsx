@@ -17,7 +17,7 @@ function Ruled({ children, tone = 'graphite' }: { children: React.ReactNode; ton
 export function WakingNotice() {
   return (
     <Ruled tone="ochre">
-      <p data-waking className="flex items-center gap-2 type-body text-ink">
+      <p data-waking data-waking-notice className="flex items-center gap-2 type-body text-ink">
         <LampGlyph className="lamp size-5 text-ochre" />
         Waking the desk.
       </p>

@@ -40,9 +40,9 @@ async function recordAnimations(page: Page) {
 const started = (page: Page) =>
   page.evaluate(() => (window as unknown as { __anim: { name: string; timing: string; iterations: string }[] }).__anim);
 
-/** Visible boiling glyphs (a hidden layout's copies don't run). */
+/** Boils running now: working glyphs and fresh marks together share the budget (a hidden layout's copies don't run). */
 const boiling = (page: Page) =>
-  page.evaluate(() => [...document.querySelectorAll('.boil')].filter((e) => (e as HTMLElement).getBoundingClientRect().width > 0 && getComputedStyle(e).animationName === 'boil').length);
+  page.evaluate(() => document.getAnimations().filter((a) => (a as CSSAnimation).animationName === 'boil' && a.playState === 'running').length);
 
 const atRest = (page: Page) =>
   page.evaluate(() => ({
