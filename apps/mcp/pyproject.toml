@@ -1,0 +1,23 @@
+[project]
+name = "achp-mcp"
+version = "1.0.0"
+description = "ACHP claim checking as an MCP server (FastMCP): check a claim, read its verdict and sources, ask a library."
+requires-python = ">=3.10"
+dependencies = ["fastmcp>=4,<5", "httpx>=0.27"]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+achp-mcp = "achp_mcp.server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["achp_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

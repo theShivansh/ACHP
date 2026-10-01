@@ -8,12 +8,13 @@ import { whatIf } from '@/components/assay/AssayBench';
 import { BENCH_SAMPLES } from '@/lib/assay/samples';
 import { copyText } from '@/lib/clipboard';
 import { EVENT_DOCS, restExamples } from '@/lib/developers';
+import { MCP, mcpSetup } from '@/lib/mcp';
 import { apiBase } from '@/lib/runs/api';
 import { EVENT_TYPES } from '@/lib/runs/types';
 
 // For developers (07 §9): how to start a check, follow it and read what it produced, and what each event carries.
-// The code is in IBM Plex Mono with a copy button. The MCP server is described for what it is today: planned, not
-// deployed. No example here pretends to be live output.
+// The code is in IBM Plex Mono with a copy button. The MCP tab lists what the server really offers: the list is
+// generated from the server's own discovery (scripts/gen_mcp_manifest.py). No example here pretends to be live output.
 
 function Code({ code, label }: { code: string; label: string }) {
   return (
@@ -33,15 +34,10 @@ function Code({ code, label }: { code: string; label: string }) {
   );
 }
 
-const PLANNED_TOOLS = [
-  { name: 'verify_claim', does: 'Checks a claim and returns the verdict, the parts and their sources.' },
-  { name: 'retrieve_evidence', does: 'Finds sources for a claim without judging it.' },
-  { name: 'get_claim_breakdown', does: 'Returns the checkable parts of a message.' },
-] as const;
-
 export function DevelopersPage() {
   const base = apiBase();
   const rest = useMemo(() => restExamples(base), [base]);
+  const setup = useMemo(() => mcpSetup(base), [base]);
   // The sample is what the Assay computes for an illustrative quiet falsehood, in the shape of the event's data.
   const sample = useMemo(() => {
     const s = BENCH_SAMPLES.find((x) => x.id === 'quiet_falsehood')!;
@@ -67,7 +63,7 @@ export function DevelopersPage() {
         Start a check, follow it as it happens and read what it produced. Everything the page shows is built from the events described here.
       </p>
 
-      <Tabs defaultValue="rest" className="mt-6">
+      <Tabs defaultValue="mcp" className="mt-6">
         <TabsList aria-label="Ways to connect">
           <TabsTrigger value="mcp">MCP</TabsTrigger>
           <TabsTrigger value="rest">REST</TabsTrigger>
@@ -76,18 +72,69 @@ export function DevelopersPage() {
 
         <TabsContent value="mcp" className="mt-6">
           <p data-mcp-status className="max-w-[64ch] type-body text-desk-ink">
-            <span className="font-semibold">Not available yet.</span> An MCP server for agents and other hosts is planned, but this deployment does not run one, so there is nothing to connect to and no
-            live discovery output to show. Use the REST interface for now.
+            <span className="font-semibold">Available to run yourself.</span> The ACHP MCP server runs on your computer, or as your own web service, and checks claims through the backend at{' '}
+            <span className="font-code text-[0.9375rem]">{base}</span>. Every check it starts is a real run with a case page. This deployment does not host it.
           </p>
-          <h2 className="mt-6 type-h2 text-desk-ink">The planned tools</h2>
-          <ul className="mt-2 flex flex-col gap-3">
-            {PLANNED_TOOLS.map((t) => (
-              <li key={t.name}>
-                <p className="font-code text-[0.9375rem] text-desk-ink">{t.name}</p>
-                <p className="type-body text-desk-ink-2">{t.does}</p>
+
+          <ol className="mt-6 flex flex-col gap-8">
+            {setup.map((s) => (
+              <li key={s.title} data-mcp-setup={s.title}>
+                <h2 className="type-h2 text-desk-ink">{s.title}</h2>
+                <p className="mt-1 max-w-[64ch] type-body text-desk-ink-2">{s.note}</p>
+                <div className="mt-3">
+                  <Code code={s.code} label={`${s.title}: command`} />
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          <h2 className="mt-10 type-h2 text-desk-ink">Tools</h2>
+          <p className="mt-1 max-w-[64ch] type-body text-desk-ink-2">
+            What the server lists when a host asks it, {MCP.tools.length} tools. Two of them start a check; the rest only read.
+          </p>
+          <ul className="mt-4 flex flex-col gap-6">
+            {MCP.tools.map((t) => (
+              <li key={t.name} data-mcp-tool={t.name} className="border-t-(length:--rule) border-desk-line pt-4">
+                <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="font-code text-[0.9375rem] text-desk-ink">{t.name}</span>
+                  <span className="type-meta text-desk-ink-2">{t.read_only ? 'Reads only' : 'Starts a check'}</span>
+                </p>
+                <p className="mt-1 max-w-[64ch] type-body text-desk-ink-2">{t.description}</p>
+                {t.params.length > 0 && (
+                  <dl className="mt-2 grid max-w-[64ch] grid-cols-[auto_1fr] gap-x-4 gap-y-1 type-meta">
+                    {t.params.map((p) => (
+                      <div key={p.name} className="contents">
+                        <dt className="font-code text-[0.8125rem] text-desk-ink">{p.name}</dt>
+                        <dd className="text-desk-ink-2">
+                          {p.required ? 'Required. ' : 'Optional. '}
+                          {p.description}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
               </li>
             ))}
           </ul>
+
+          <h2 className="mt-10 type-h2 text-desk-ink">Resources and a prompt</h2>
+          <ul className="mt-3 flex flex-col gap-3">
+            {MCP.resources.map((r) => (
+              <li key={r.uri} data-mcp-resource={r.uri}>
+                <p className="font-code text-[0.8125rem] break-all text-desk-ink">{r.uri}</p>
+                <p className="type-body text-desk-ink-2">{r.description}</p>
+              </li>
+            ))}
+            {MCP.prompts.map((p) => (
+              <li key={p.name} data-mcp-prompt={p.name}>
+                <p className="font-code text-[0.8125rem] text-desk-ink">{p.name}</p>
+                <p className="type-body text-desk-ink-2">{p.description}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-6 max-w-[64ch] type-body text-desk-ink-2">
+            A host is told to lead with the Judge&apos;s label, quote sources word for word, and say so when a check failed or was not checked, instead of guessing a verdict.
+          </p>
         </TabsContent>
 
         <TabsContent value="rest" className="mt-6">

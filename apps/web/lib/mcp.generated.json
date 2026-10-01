@@ -1,0 +1,189 @@
+{
+  "server": "ACHP",
+  "tools": [
+    {
+      "name": "check_claim",
+      "title": "Check a claim",
+      "description": "Check a claim with ACHP's seven agents and return the verdict, each checkable part with its label, and the sources it rests on (verbatim quotes). Progress is reported as agents finish. If the run is not done within wait_seconds, the result has status \"running\" and no verdict; call get_check with the run_id later.",
+      "read_only": false,
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The message or claim to check, as the person received it."
+        },
+        {
+          "name": "library_id",
+          "type": "string",
+          "required": false,
+          "description": "Check against this library (from list_libraries) as well as the web."
+        },
+        {
+          "name": "wait_seconds",
+          "type": "integer",
+          "required": false,
+          "description": "How long to wait for the verdict before returning the run id.",
+          "default": 240
+        }
+      ]
+    },
+    {
+      "name": "start_check",
+      "title": "Start a check",
+      "description": "Start a check and return its run id at once, without waiting. Read it later with get_check.",
+      "read_only": false,
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The message or claim to check."
+        },
+        {
+          "name": "library_id",
+          "type": "string",
+          "required": false,
+          "description": "Optional library id."
+        }
+      ]
+    },
+    {
+      "name": "get_check",
+      "title": "Read a check",
+      "description": "Where a check stands. Finished: the verdict, parts and sources. Running: which agents are working, and no verdict. Failed: the stage and the reason, and no verdict.",
+      "read_only": true,
+      "params": [
+        {
+          "name": "run_id",
+          "type": "string",
+          "required": true,
+          "description": "A run id from check_claim or start_check."
+        }
+      ]
+    },
+    {
+      "name": "get_check_events",
+      "title": "Read a check's event log",
+      "description": "The run's raw event log (protocol v2): every agent action, public note, source, mark and the verdict, in order. It is what the case page is built from. It holds no model reasoning.",
+      "read_only": true,
+      "params": [
+        {
+          "name": "run_id",
+          "type": "string",
+          "required": true,
+          "description": "The run id."
+        },
+        {
+          "name": "since",
+          "type": "integer",
+          "required": false,
+          "description": "Only events after this sequence number.",
+          "default": 0
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "description": "At most this many events.",
+          "default": 200
+        }
+      ]
+    },
+    {
+      "name": "list_libraries",
+      "title": "List libraries",
+      "description": "The libraries (uploaded documents) a check or a question can use, with their status and size.",
+      "read_only": true,
+      "params": []
+    },
+    {
+      "name": "ask_library",
+      "title": "Ask a library",
+      "description": "Answer only from one library. Every sentence carries a [N] marker for a retrieved passage; an answer with no marker means the library does not say.",
+      "read_only": true,
+      "params": [
+        {
+          "name": "question",
+          "type": "string",
+          "required": true,
+          "description": "The question."
+        },
+        {
+          "name": "library_id",
+          "type": "string",
+          "required": true,
+          "description": "The library to answer from (list_libraries)."
+        },
+        {
+          "name": "top_k",
+          "type": "integer",
+          "required": false,
+          "description": "Passages to retrieve.",
+          "default": 6
+        }
+      ]
+    },
+    {
+      "name": "search_library",
+      "title": "Search a library",
+      "description": "Find stored passages in a library that contain the words, verbatim. A plain text match, not an answer.",
+      "read_only": true,
+      "params": [
+        {
+          "name": "library_id",
+          "type": "string",
+          "required": true,
+          "description": "The library id."
+        },
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "description": "Words to look for in the stored passages."
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "description": "",
+          "default": 10
+        }
+      ]
+    },
+    {
+      "name": "backend_status",
+      "title": "Is ACHP awake",
+      "description": "Whether the ACHP backend answers. A free-tier server can take up to a minute to wake after a quiet spell.",
+      "read_only": true,
+      "params": []
+    }
+  ],
+  "resources": [
+    {
+      "uri": "achp://method/scores",
+      "title": "What the scores mean",
+      "description": "The five scores' full names and how to read them. They are instruments, not the verdict."
+    },
+    {
+      "uri": "achp://runs/{run_id}/case",
+      "title": "A check, readable",
+      "description": "A finished check as short Markdown: the verdict, each part and its quoted sources."
+    },
+    {
+      "uri": "achp://runs/{run_id}/events",
+      "title": "A check's event log",
+      "description": "The run's full event log (protocol v2)."
+    }
+  ],
+  "prompts": [
+    {
+      "name": "check_before_forwarding",
+      "title": "Check before forwarding",
+      "description": "Check a message someone wants to forward, and report it the way ACHP's site does.",
+      "args": [
+        "message"
+      ]
+    }
+  ]
+}
