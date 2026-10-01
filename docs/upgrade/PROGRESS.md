@@ -322,9 +322,60 @@ Deferred:
 - Motion P3: `--at` is unitless only in the Two-Key (`--key-at` now); the tablet rail's glyphs can boil behind an open lanes sheet; reduced motion still lacks the waking chip's seconds (P9).
 - The replay story's stamp still appears without the press (it is a static, reader-paced document; a `view()` press at the verdict chapter would be P10 polish).
 
-## P9 — Full-site IA & pages
-- [ ] S2.1 · [ ] S2.2 · [ ] S2.3 · [ ] S8.1 · [ ] S8.2 · [ ] S8.3 · [ ] S8.4 · [ ] S8.5 · [ ] S8.6 · [ ] S10.9 · [ ] ⌘K, status chip, blocked state · [ ] every 07 §1.1 row retired
-- Gate: all routes pass screenshot review on mobile + desktop · 07 §1.1 fully checked
+## P9 — Full-site IA & pages  ✅ 2026-10-01 (engines: Chromium only)
+- [x] S2.1 `/` the Desk: the headline and subcopy from 07 §2, `ClaimInput` (12-character minimum with the P7 shake, ⌘/Ctrl+Enter, a prefilled claim from `/ask?claim=`), a Library selector only when ready libraries exist, three neutral examples that fill the field and never submit, the claim → case morph, and below the fold the recorded `exercise-mixed` check as the scroll story with its two reading gates and a CTA that scrolls back to and focuses the field · [x] S2.2 the StatusChip (`lib/backend.tsx`): Waking (lamp, then the seconds once they are noticeable) / Ready / Unreachable with "retrying in Ns" and a Retry, backoff 2s → 5s → 10s, re-checked every 30s once ready · [x] S2.3 a claim submitted while the desk wakes stays on the sheet ("It is waking up; the check starts as soon as it is ready") and the run starts when /health answers
+- [x] S8.1 `/ask`: library picker with its size, the answer as sheet prose with numbered chips that open their passages (chunk index, similarity in words, the number in the tooltip), the passages retrieved but not cited kept apart, the out-of-library state ("Not in this library." + the three nearest passages + "Check it as a claim instead"), the same `/qa` API
+- [x] S8.2 `/library` and `/library/[kbId]`: index cards with the server's real status (the list polls while anything indexes; no progress bar is drawn), Set active · Ask · Open · Delete behind a confirmation dialog, a drop zone for a file, a web address or pasted text, a chunk list with search; every existing KB call is the same
+- [x] S8.3 `/runs`: this browser's checks (ids only in localStorage, guarded, max 50; each row is read from the run's own stored log) as a list (stamp · 24px Hallmark · claim · time · Two-Key state) and the Integrity Map (CTS × Calm, four named quadrants, 9px dots with 24px hit areas, a readout line, a table twin, click-through, the server's `assay.integrity_map`), empty state with three recorded samples
+- [x] S8.4 `/method`: the eight-part scroll story (agents from a recorded run's `run.started`, the five scores with full forms first, Signal Lineage with the Paper ↔ Production toggle, the Agreement Dial, the Bench on the reference claim and three labelled samples taken from the parity vectors, the findings computed by the Assay module, the benchmark, the limits)
+- [x] S8.5 `/developers`: MCP (planned, not deployed: said plainly) · REST (six copyable curl examples) · Events (every event type, who sends it, what it carries, and a sample `assay.computed`)
+- [x] S8.6 / S10.9 Blocked state: a graphite "Not checked" stamp, the reason, only the Gatekeeper ran, no Hallmark, no Assay tab, no number; the only code that printed "BIS 100%" is deleted with the legacy UI
+- [x] Global chrome: nav, ⌘/Ctrl+K command menu (places, theme, and this case's Assay, trace and replay), the theme cycling system → light → dark, a phone header that is the wordmark, the status and a menu holding the nav and the theme, per-route metadata; no sound control
+- [x] `scripts/gen_evaluation.py` + `reference/benchmark/results.json`: EVALUATION.md and the web data are generated from one file; `reference/benchmark/test_gen_evaluation.py` fails if either is stale
+- [x] The old UI is retired (below), `html2canvas` and `jspdf` removed, a print stylesheet and a "Print or save as PDF" button for cases, `NEXT_PUBLIC_FF_DESK` deleted
+- [x] Mobile pass at 390 and 360: no sideways scroll, 44px for buttons, selects and fields on touch, bottom-sheet menu with a visible close, the Integrity Map's plot scrolls instead of shrinking its dots (and falls back to quadrant chips and the table under 360px)
+- [x] Tests: `desk`, `desk.cold`, `ask`, `library`, `runs.map`, `method`, `blocked` and a route smoke test (one h1, one main, no sideways scroll, no page error, axe clean, 44px at 360) in every project, plus unit tests for the backend status, Q&A parsing, run history, run summaries, the developers page, Bench samples, formats and the theme cycle
+
+### 07 §1.1: every old screen and its successor (screenshots in `docs/upgrade/screens/P9/`, 1440 · 390 · 360, light and dark)
+| Old surface | Successor | Screenshot |
+|---|---|---|
+| ☑ Knowledge Base Manager as the landing page (`KBManager.tsx`) | `/library`, `/library/[kbId]`, and `/` as the Desk | `library-*`, `library-detail-*`, `library-delete-*`, `desk-*` |
+| ☑ Dashboard verdict (`VerdictCard.tsx`) | Case report: per-part stamps, the overall stamp, the Two-Key and a confidence band | `case-report-*`, `case-hallmark-*` |
+| ☑ System Metrics Radar (`MetricsRadar.tsx`) | The Assay Hallmark in the report header and the Assay tab | `case-hallmark-*`, `case-assay-*` |
+| ☑ Transparency Report (`TransparencyReport.tsx`) | The Evidence tab (quote cards vs "ACHP's reading") and the Integrity Ledger | `case-evidence-*`, `case-assay-*` |
+| ☑ Atomic narrative units (`AtomicClaims.tsx`) | Claim strips with stamps, marks on exact spans, validated public notes | `case-parts-*` |
+| ☑ Alternative perspectives (`PerspectivePanel.tsx`) | Blue-pencil notes on the strips and "Voices not heard" in the Evidence tab | `case-parts-*`, `case-evidence-*` |
+| ☑ Grounded Q&A (`RAGAnswer.tsx`) | `/ask` | `ask-*`, `ask-outside-*`, `ask-empty-*` |
+| ☑ Blocked prompt injection (Fig. 8) | The "Not checked" stamp, the reason, only the Gatekeeper lane | `case-blocked-*` |
+| ☑ Pipeline progress (`PipelineProgress.tsx`) | Event-driven agent lanes | `case-live-*` (desktop) |
+| ☑ Monitor / Logs tabs (`page.tsx`) | `/runs` (list and Integrity Map) and the case's Trace tab | `runs-list-*`, `runs-map-*`, `case-trace-*` |
+
+Retired once every row above had its screenshot: `app/page.tsx`, `app/legacy.css`, `components/{TopBar,Sidebar,PipelineProgress,PipelineTimeline,VerdictCard,TransparencyReport,PerspectivePanel,AtomicClaims,QueryInput,KBManager,RAGAnswer}.tsx` (`MetricsRadar.tsx` no longer existed), `lib/exportReport.ts` and `lib/utils.ts` (only they used the old types), `app/api/analyze` (the legacy proxy and its demo data), the `/dev/desk` and `/dev/home` harnesses, `html2canvas` and `jspdf`.
+
+Gate evidence: typecheck ✓ · lint ✓ (0 errors, 1 warning; the legacy UI's 14 are gone) · vitest **358** ✓ · pytest `reference/benchmark` 4 ✓ · e2e desktop-light + desktop-dark + mobile-reduced: 352 passed, 49 skipped by design in the full sweep; the 13 that failed were test-side (two renamed strings, the recorded notice needed a landmark, the Desk's scroll-driven story counted as motion in a stillness check, three timing flakes under load) and pass after the fixes, re-run on the project that failed · anti-slop `--strict` on every new file: 0 · screenshots `docs/upgrade/screens/P9/` (`scripts/ui/shoot-p9.mjs`: 26+ states × 1440, 390, 360, dark, and a reduced-motion phone, against an in-browser mocked backend) · `design-critic`: 3 P0 and 9 P1 (fixed or decided below) · `a11y-auditor`: axe 0 violations on every route in desktop-light and desktop-dark, 1 P1 and 9 P2 (fixed; the rest below) · `assay-auditor`: parity, port, leverage lint and benchmark checks green; 1 P1 and 3 P2 (fixed)
+
+Decisions:
+- Decision: the real routes are served at `/`, `/ask`, `/library`, `/runs`, `/method`, `/developers` and the flag `NEXT_PUBLIC_FF_DESK` is deleted: the Desk is the site.
+- Decision: recorded checks ship with the app as **samples** (`/case/sample-<name>`, served in production, labelled "A recorded example, not a new check" at every width). Fixture replays stay dev and test only. Only recorded runs qualify, never synthetic test logs.
+- Decision: `/developers` says the MCP server is planned and not deployed, and lists the planned tools, because there is no MCP server in this repo and a page must not show discovery output it cannot produce.
+- Decision: the benchmark headline is 68.3% macro accuracy, the Macro score of "ACHP (ours)" in the README table, with the split shown and the page saying the figures have not been re-run in this repository. The paper's Table III mean (62.2%) is named as a different, unreconciled figure and never averaged in; 69.9% is the second-debate-round variant.
+- Decision: `/ask` treats an answer with no `[N]` marker as "not in this library" (the server already drops sentences with no retrieved passage), so no backend change was needed.
+- Decision: `/library/[kbId]` shows characters per chunk, not tokens, because that is what `GET /kb/{id}/chunks` returns.
+- Decision: the library shown in the Desk's selector and `/ask` is "active" by an id in localStorage, set from `/library`; a deleted library is ignored where the list is known.
+- Decision: the Bench on `/method` starts from the parity vectors' samples, so the page's sample signals are the reference's own; its starting values are called "the sample", not "the case".
+- Decision: Judge first: the Bench's spoken sentence now begins "The Judge says X. The formula reads Y…".
+- Decision: a part nobody could settle is headed "The part we could not settle", not "does not hold", so Unverifiable is never presented as wrong.
+- Decision: the case page's desk-surface Hallmark in `/runs` rows sits on a small sheet chip, because the marks are drawn in sheet ink.
+- Decision: print: the browser's own print dialog (a print stylesheet) replaces rendering the page to an image; the text stays text.
+- Decision: the `Button` primitive is 44px high on a coarse pointer everywhere (`pointer-coarse:min-h-11`), instead of fixing each button.
+- Decision: the status chip's spoken text stays "Waking the desk" / "Unreachable" while its seconds and countdown are a visual aside, so a screen reader is not interrupted every second.
+- Decision: P9 captures need web fonts; the dev server must be started with `NODE_OPTIONS=--use-system-ca` on this machine (its TLS interception otherwise blocks the Google Fonts download and every capture falls back to system fonts).
+
+Deferred:
+- Design: the contested span of a Mixed part is not marked on the claim headline itself (the strips below carry the half-underline, strike and dashed box, and "The part that does not hold" sits under the reading) · the Hallmark on the Assay tab and the report spells out its full forms in a caption under the row, not beside each mark · the library page is still a card grid (a punched tab for Active, a stamp for Ready, an index-card look) · the Desk's action row sits under the sheet, not inside it · a visible ⌘K hint · the command menu uses stock line icons · the system states (failed, interrupted, queued, expired, a case waking) have no P9 capture · a dedicated captures run for the phone's live lanes.
+- A11y P3: the similarity number on a touch device (a tooltip does not open on tap) · the long dot labels on the map are read twice with the readout · the "Copy" buttons share one name · a debounced search status · a breadcrumb landmark · the Desk's sent-state status mounted with its text.
+- The slider thumbs on `/method` and in the Bench are under 44px on touch (P7's deferral stands).
+- Real Firefox and Safari checks, and the one-time MCP server (v2 FR4).
 
 ## P10 — Hardening
 - [ ] S9.1 · [ ] S9.3 · [ ] a11y, perf budgets, Lighthouse CI, e2e matrix, `/impeccable audit` + `harden` · [ ] anti-slop full scan = 0
