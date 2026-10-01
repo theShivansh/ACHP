@@ -3,7 +3,7 @@
 import { cn } from 'cn';
 import { useState } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import type { QACitation } from '@/lib/types';
+import type { QACitation } from '@/lib/qaTypes';
 import { matchWords } from '@/lib/qa';
 
 // One passage of a library, quoted verbatim (04 §7 QuoteCard, 07 §6): the excerpt in Newsreader with a rule, which

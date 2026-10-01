@@ -35,7 +35,7 @@ ACHP is an evidence-grounded, multi-agent claim-verification system. A FastAPI p
 - Motion: CSS first; `motion/react` for springs, `useScroll` fallbacks and layout; React `<ViewTransition>` for route and shared-element transitions.
 - Run-state logic lives only in `lib/runs/reducer.ts` (pure, unit-tested). Components read slices.
 - Backend: pydantic models for every event payload; `achp/events/` owns the bus and the store; every emission goes through `RunEventBus.emit`.
-- Feature flags: `NEXT_PUBLIC_FF_DESK`, `NEXT_PUBLIC_FF_IMAGE_INTAKE`, `NEXT_PUBLIC_FF_HUMAN_REVIEW`.
+- Feature flags: `NEXT_PUBLIC_FF_IMAGE_INTAKE`, `NEXT_PUBLIC_FF_HUMAN_REVIEW`. (`NEXT_PUBLIC_FF_DESK` is gone: the Desk is the site.)
 - Commits: conventional, with story ids, e.g. `feat(case): per-strip stamps [S4.1]`.
 
 ## How we work in this repo

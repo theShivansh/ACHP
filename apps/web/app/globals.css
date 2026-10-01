@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "./legacy.css";
 
 /* ACHP — The Fact-Checker's Desk. Source of truth: docs/upgrade/04_DESIGN.md (tokens, type, space)
  * and docs/upgrade/05_MOTION_SPEC.md (motion). The raw tokens live on :root so the dark theme can
@@ -573,6 +572,26 @@ html[data-lowfx] .mark[data-play][data-boil] {
   .story-step .reveal,
   .story-friction .mark path { animation: none; opacity: 1; translate: none; stroke-dashoffset: 0; }
 }
+/* ── Print: a case is a document (replaces the old screenshot-to-PDF export) ──────────────────
+   The report on white paper, black ink: the claim, the stamp, the scores, the parts and their marks, the sources and the
+   summary. The desk chrome, the lanes, the tabs, the share bar and every control are left out. Nothing is rendered
+   to an image; the browser prints the page itself, so the text stays text. */
+@media print {
+  @page { margin: 16mm; }
+  html, body { background: #fff !important; color: #000 !important; }
+  header[class*="sticky"], nav, aside, [role="tablist"], [data-share-bar], [data-announcer], [data-story-rail],
+  [role="status"].sr-only, button, [data-run-status] > section[aria-label="Case"] {
+    display: none !important;
+  }
+  /* The sheet fills the page: no shadow, no grain, no rounded card. */
+  .paper { box-shadow: none !important; background: #fff !important; border-radius: 0 !important; padding: 0 !important; }
+  main { padding: 0 !important; max-width: none !important; }
+  [data-claim], [data-evidence], [data-verdict], [data-slot="stamp"], [data-hallmark], [data-two-key] { break-inside: avoid; }
+  a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.8em; }
+  /* Marks are printed as they are; no animation can be mid-frame on paper. */
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
 /* ── Reduced motion, transparency, contrast — 05 §6 ───────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

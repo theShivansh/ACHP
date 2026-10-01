@@ -8,7 +8,7 @@ import { LibrarySelect } from '@/components/desk/LibrarySelect';
 import { setActiveLibrary, useActiveLibrary } from '@/lib/activeLibrary';
 import { useKBList } from '@/lib/api';
 import { askLibrary, isOutOfLibrary, orderedCitations, QAError, splitAnswer } from '@/lib/qa';
-import type { QAResponse } from '@/lib/types';
+import type { QAResponse } from '@/lib/qaTypes';
 import { QuoteCard } from './QuoteCard';
 
 // Ask a library (07 §6; successor of the paper's Figs. 5–7). The answer is sheet prose; each sentence ends in numbered

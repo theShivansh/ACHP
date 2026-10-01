@@ -17,7 +17,6 @@ export default defineConfig({
         url: baseURL,
         reuseExistingServer: true,
         timeout: 120_000,
-        env: { NEXT_PUBLIC_FF_DESK: '1' },
       },
   projects: [
     {

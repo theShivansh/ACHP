@@ -62,7 +62,6 @@ async function newsreader(weight: 500 | 600) {
 }
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
-  if (process.env.NEXT_PUBLIC_FF_DESK !== '1') return new Response('Not found', { status: 404 });
   const { id } = await params;
   const loaded = await loadCase(id);
   const label = loaded?.state.verdict?.overall.label;

@@ -6,7 +6,7 @@ import { Slot } from "radix-ui"
 // 04 §5/§7: 6px radius (never a pill), Public Sans 500 14px, the global 2px focus outline.
 // Colors come from the surface context, so a button reads correctly on the desk and on paper.
 const buttonVariants = cva(
-  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-button type-ui whitespace-nowrap transition-colors duration-(--dur-quick) ease-out disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:stroke-[1.5] [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-button pointer-coarse:min-h-11 type-ui whitespace-nowrap transition-colors duration-(--dur-quick) ease-out disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:stroke-[1.5] [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

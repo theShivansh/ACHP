@@ -47,7 +47,7 @@ for (const [vp, viewport] of Object.entries(VIEWPORTS)) {
     };
 
     // The Desk's claim input: rejected, then sent.
-    await page.goto(`${base}/dev/desk`);
+    await page.goto(`${base}/`);
     await hideDevtools(page);
     await page.getByRole('textbox').fill('too short');
     await page.getByRole('button', { name: 'Check this claim' }).click();

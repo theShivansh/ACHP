@@ -111,7 +111,7 @@ export function DevelopersPage() {
             A check is a log of events, each with a sequence number that never skips. A page is a projection of the log: nothing it shows is invented on the client. Version 2 of the protocol has{' '}
             {EVENT_TYPES.length} event types.
           </p>
-          <div className="mt-4 overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Event types, scrolls sideways on a narrow screen" className="mt-4 overflow-x-auto">
             <table data-event-table className="w-full min-w-[34rem] border-collapse text-left type-meta text-desk-ink">
               <caption className="sr-only">Event types, who sends each one and what it carries</caption>
               <thead>

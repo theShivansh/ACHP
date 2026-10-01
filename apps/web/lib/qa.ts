@@ -2,7 +2,7 @@
 // retrieved chunk and writes the [N] markers itself, so every marker here points at a passage the reader can open.
 // Nothing here writes an answer: it only splits the server's text at its markers.
 
-import type { QACitation, QAResponse } from '@/lib/types';
+import type { QACitation, QAResponse } from '@/lib/qaTypes';
 
 const API = () => (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/+$/, '');
 

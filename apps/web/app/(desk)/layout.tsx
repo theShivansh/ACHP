@@ -1,13 +1,9 @@
-import { notFound } from 'next/navigation';
 import { Toaster } from '@/components/ui/sonner';
 import { BackendProvider } from '@/lib/backend';
 import { DeskHeader } from './_components/DeskHeader';
 
-// The Fact-Checker's Desk shell. It only exists behind NEXT_PUBLIC_FF_DESK=1; without the flag
-// these routes 404 and the current UI at / is untouched.
+// The Fact-Checker's Desk shell: the header, the backend status and the page.
 export default function DeskLayout({ children }: { children: React.ReactNode }) {
-  if (process.env.NEXT_PUBLIC_FF_DESK !== '1') notFound();
-
   return (
     <BackendProvider>
     <div className="flex min-h-dvh flex-col bg-desk text-desk-ink">

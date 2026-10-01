@@ -152,7 +152,8 @@ function Findings() {
         <li data-finding="leverage">
           <h3 className="type-ui font-semibold text-ink">Wording moves the overall score more than facts do.</h3>
           <p className="mt-1 max-w-[64ch] type-body text-ink-2">
-            Moving the framing score by a tenth moves the overall score about {ratio.toFixed(1)} times as much as moving the Fact Challenger&apos;s factual score by a
+            Moving the framing score by a tenth moves the overall score about {ratio.toFixed(1)}{' '}
+            times as much as moving the Fact Challenger&apos;s factual score by a
             tenth. Framing also feeds four of the five scores; no other signal feeds more than one.
           </p>
         </li>
@@ -229,7 +230,7 @@ function BenchmarkSection({ b }: { b: Benchmark }) {
       </p>
 
       <h3 className="mt-6 type-ui font-semibold text-ink">By kind of claim</h3>
-      <div className="mt-2 overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label="Accuracy by kind of claim, scrolls sideways on a narrow screen" className="mt-2 overflow-x-auto">
         <table data-benchmark-table className="w-full min-w-[30rem] border-collapse type-meta">
           <caption className="sr-only">Accuracy by kind of claim, for ACHP and three baselines</caption>
           <thead>

@@ -3,25 +3,10 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // Motion token hygiene (05 §1, P7): no durations or easings written out in the product's code. They come from
-// the --dur-* and --ease-* tokens (CSS) or lib/motion.ts (Motion). The legacy single-page UI is retired in P9 and
-// is not scanned. Every exception is listed here with its reason.
+// the --dur-* and --ease-* tokens (CSS) or lib/motion.ts (Motion). Every exception is listed here with its reason.
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const LEGACY = [
-  'app/page.tsx',
-  'app/legacy.css',
-  'components/KBManager.tsx',
-  'components/TopBar.tsx',
-  'components/Sidebar.tsx',
-  'components/QueryInput.tsx',
-  'components/RAGAnswer.tsx',
-  'components/PipelineProgress.tsx',
-  'components/PipelineTimeline.tsx',
-  'components/VerdictCard.tsx',
-  'components/TransparencyReport.tsx',
-  'components/PerspectivePanel.tsx',
-  'components/AtomicClaims.tsx',
-];
+const LEGACY: string[] = []; // the single-page UI is retired (P9); nothing is exempt any more
 const SKIP = /(__tests__|\.test\.|node_modules|\.next)/;
 
 function files(dir: string): string[] {

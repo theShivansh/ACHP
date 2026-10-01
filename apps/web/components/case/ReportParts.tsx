@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from 'cn';
-import { Copy, Share2 } from 'lucide-react';
+import { Copy, Printer, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { ConfirmButton } from '@/components/ui/confirm-button';
@@ -170,6 +170,11 @@ export function ShareBar({
           }
         />
       )}
+      {/* The browser's own print dialog saves a PDF: the report has a print stylesheet (globals.css), so nothing is rendered to an image. */}
+      <Button type="button" variant="secondary" className="pointer-coarse:h-11" onClick={() => window.print()}>
+        <Printer aria-hidden="true" />
+        Print or save as PDF
+      </Button>
       {/* The replay itself is built in P6; the link is the contract (?replay=1). */}
       {!fixture && (
         <a

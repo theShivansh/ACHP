@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { healthOk, pickFixture } from './case-fixtures';
 import { initialRunState, reduceRun } from '../lib/runs/reducer';
+import { mockBackend } from './site-mocks';
 
 // P7: the quiet, silent micro-interactions (05 §4). Each one has a job, ends, and is still under reduced motion.
 
@@ -239,13 +240,14 @@ test('a changed count rolls its digits in, and everything is still afterwards', 
 
 test('a too-short claim shakes the field three times by 4px, says what is missing and sends nothing', async ({ page }, info) => {
   await recordAnimations(page);
-  await page.goto('/dev/desk');
+  await mockBackend(page, { libraries: [], runId: 'sample-exercise-mixed' });
+  await page.goto('/');
   const field = page.locator('[data-claim-input] > div').first();
   await page.getByRole('textbox').fill('too short');
   await page.getByRole('button', { name: 'Check this claim' }).click();
   await expect(page.locator('p[role="alert"]')).toContainText('at least 12 characters');
   await expect(page.getByRole('textbox')).toHaveAttribute('aria-invalid', 'true');
-  expect(new URL(page.url()).pathname).toBe('/dev/desk');
+  expect(new URL(page.url()).pathname).toBe('/');
   if (reduced(info)) {
     expect(await field.evaluate((el) => el.getAnimations().length)).toBe(0);
     return;
@@ -275,10 +277,11 @@ test("submitting a claim morphs it into the case's headline (a to-case view tran
       }
     }, 16);
   });
-  await page.goto('/dev/desk');
+  await mockBackend(page, { libraries: [], runId: 'sample-exercise-mixed' });
+  await page.goto('/');
   await page.getByRole('textbox').fill('Regular exercise reduces heart disease risk by 30 to 40 percent.');
   await page.getByRole('button', { name: 'Check this claim' }).click();
-  await page.waitForURL(/\/case\/fixture-exercise-mixed/, { timeout: 30_000 });
+  await page.waitForURL(/\/case\/sample-exercise-mixed/, { timeout: 30_000 });
   await expect(page.locator('h1').first()).toBeVisible();
   const { vt, groups } = await page.evaluate(() => {
     const w = window as unknown as { __vt: { types: string[] | null }[]; __groups: string[] };
@@ -315,7 +318,8 @@ test('the ledger is one tab stop and the arrow keys move between its lines; Esca
 });
 
 test('the claim field shows a focus ring, and the message sits under it', async ({ page }) => {
-  await page.goto('/dev/desk');
+  await mockBackend(page, { libraries: [], runId: 'sample-exercise-mixed' });
+  await page.goto('/');
   await page.getByRole('textbox').focus();
   const ring = await page.locator('[data-claim-input] > div').first().evaluate((el) => {
     const c = getComputedStyle(el);

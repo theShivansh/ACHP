@@ -5,9 +5,8 @@ import './globals.css';
 import Providers from './providers';
 
 export const metadata: Metadata = {
-  title: 'ACHP — Narrative Integrity System',
-  description: 'ACHP: AI Claim Hardening Pipeline — Knowledge Base Manager + 7-agent Narrative Integrity Analyzer.',
-  keywords: ['ACHP', 'AI', 'claim verification', 'NIL', 'narrative integrity', 'knowledge base'],
+  title: { default: 'ACHP · Check a message before you forward it', template: '%s' },
+  description: 'ACHP checks a claim with seven specialist agents, pins the evidence and shows every step.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

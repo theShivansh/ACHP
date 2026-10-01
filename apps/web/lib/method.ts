@@ -19,7 +19,8 @@ export const METRICS: readonly MetricDoc[] = [
     acronym: 'CTS',
     name: 'Consensus Truth Score',
     means: 'How well the facts in the message hold up against the sources found.',
-    formula: 'CTS = 0.40·factual score (Fact Challenger) + 0.35·Judge CTS + 0.15·(1 − BIS) + 0.10·EPS',
+    // BIS and EPS are spelled out here because this is the first place either appears (the full form comes on first use).
+    formula: 'CTS = 0.40·factual score (Fact Challenger) + 0.35·Judge CTS + 0.15·(1 − Bias Impact Score) + 0.10·Epistemic Position Score',
     source: 'apps/api/achp/core/core_pipeline.py:117-129',
   },
   {

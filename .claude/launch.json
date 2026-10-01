@@ -21,7 +21,6 @@
       ],
       "port": 3000,
       "env": {
-        "NEXT_PUBLIC_FF_DESK": "1",
         "NEXT_PUBLIC_API_URL": "https://theshivansh-achp-api.hf.space"
       }
     },
