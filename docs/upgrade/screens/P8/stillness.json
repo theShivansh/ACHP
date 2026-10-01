@@ -1,0 +1,52 @@
+[
+  {
+    "capture": "case-fixture-exercise-mixed-speed-1-mobile-light",
+    "route": "/case/fixture-exercise-mixed?speed=1",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-exercise-mixed-speed-1-mobile-dark",
+    "route": "/case/fixture-exercise-mixed?speed=1",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-exercise-mixed-speed-1-desktop-light",
+    "route": "/case/fixture-exercise-mixed?speed=1",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-exercise-mixed-speed-1-desktop-dark",
+    "route": "/case/fixture-exercise-mixed?speed=1",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-exercise-mixed-speed-1-mobile-light-reduced",
+    "route": "/case/fixture-exercise-mixed?speed=1",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-1-mobile-light",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=1",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-1-mobile-dark",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=1",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-1-desktop-light",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=1",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-1-desktop-dark",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=1",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-quiet-falsehood-speed-1-mobile-light-reduced",
+    "route": "/case/fixture-synthetic-quiet-falsehood?speed=1",
+    "running": []
+  }
+]

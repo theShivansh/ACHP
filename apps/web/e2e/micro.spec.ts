@@ -194,12 +194,12 @@ test('the Tipping dot slides in and the leader draws out, then everything is sti
   await recordAnimations(page);
   await page.goto(quiet('assay'));
   await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
-  const names = await seen(page);
   if (reduced(info)) {
-    expect(names).not.toContain('tip-dot-in');
+    expect(await seen(page)).not.toContain('tip-dot-in');
   } else {
-    expect(names).toContain('tip-dot-in');
-    expect(names).toContain('tip-leader-in');
+    // The leader waits --dur-base for the dot, and an event batch paints as a transition (a frame or two later).
+    await expect.poll(() => seen(page)).toContain('tip-dot-in');
+    await expect.poll(() => seen(page)).toContain('tip-leader-in');
   }
   await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'), null, { timeout: 5000 });
 });
