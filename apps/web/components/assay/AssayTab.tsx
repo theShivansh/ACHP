@@ -1,6 +1,7 @@
 import { HUMAN_AGREEMENT_R, METRIC_INFO, METRICS, score100 } from '@/lib/assay/present';
 import type { AssayComputed } from '@/lib/runs/types';
 import { AssayDrawers } from './AssayDrawers';
+import { AssayLinkProvider } from './assayLink';
 import { Hallmark } from './Hallmark';
 import { IntegrityLedger } from './IntegrityLedger';
 import { MaskingNotice } from './MaskingNotice';
@@ -65,6 +66,7 @@ export function AssayTab({ assay }: { assay: AssayComputed | null }) {
   }
   const metricsOnly = assay.mode === 'metrics_only';
   return (
+    <AssayLinkProvider>
     <section aria-labelledby="assay-title" data-assay={assay.mode} className="flex flex-col gap-6">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div>
@@ -103,5 +105,6 @@ export function AssayTab({ assay }: { assay: AssayComputed | null }) {
 
       <AssayDrawers assay={assay} />
     </section>
+    </AssayLinkProvider>
   );
 }

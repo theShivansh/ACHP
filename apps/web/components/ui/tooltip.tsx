@@ -3,9 +3,10 @@
 import * as React from "react"
 import { cn } from "cn"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
+import { tooltipDelay } from "@/lib/motion"
 
 function TooltipProvider({
-  delayDuration = 300,
+  delayDuration = tooltipDelay * 1000, // a hover waits (05 §4); focus opens it at once; it leaves at once
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
   return (

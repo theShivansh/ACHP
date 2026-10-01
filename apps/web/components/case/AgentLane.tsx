@@ -1,6 +1,8 @@
 'use client';
 
 import { cn } from 'cn';
+import { useState } from 'react';
+import { Roll } from '@/components/ui/roll';
 import { agentIdentity, deskInkClass } from '@/lib/agents.config';
 import { skipWords } from '@/lib/runs/announcer';
 import type { Lane, LaneGroup } from '@/lib/runs/reducer';
@@ -24,7 +26,7 @@ function chipText(lane: Lane): string | null {
     case 'waiting':
       return 'Second round';
     case 'done':
-      return lane.durationMs != null ? `Done · ${formatSeconds(lane.durationMs)}` : 'Done';
+      return null; // "Done · 3.2s" is rendered with its number (settles with a roll when the lane finishes)
     case 'skipped':
       return 'Skipped';
     case 'failed':
@@ -71,6 +73,15 @@ export function AgentLane({
   const line = actionLine(lane, debateReason);
   const chip = chipText(lane);
   const actionKey = lane.state === 'working' ? `${lane.action?.kind}:${lane.action?.label}` : lane.state;
+  // The line crossfades when it changes while you watch (a new action; working → done); a lane that opens
+  // already in its state, such as a stored case, is simply there. The duration rolls only when a lane finishes live.
+  const [firstKey] = useState(actionKey);
+  const [seenState, setSeenState] = useState(lane.state);
+  const [finishedLive, setFinishedLive] = useState(false);
+  if (lane.state !== seenState) {
+    setSeenState(lane.state);
+    setFinishedLive(seenState === 'working' && lane.state === 'done');
+  }
 
   return (
     <li
@@ -104,7 +115,14 @@ export function AgentLane({
               lane.state === 'failed' ? 'text-desk-red' : 'text-desk-ink-2',
             )}
           >
-            {chip ?? (
+            {lane.state === 'done' && lane.durationMs != null ? (
+              <>
+                Done · <Roll value={formatSeconds(lane.durationMs)} onMount={finishedLive} />
+              </>
+            ) : lane.state === 'done' ? (
+              'Done'
+            ) : (
+              chip ?? (
               <>
                 Working ·{' '}
                 <Elapsed
@@ -114,6 +132,7 @@ export function AgentLane({
                   rate={clock.rate}
                 />
               </>
+              )
             )}
           </span>
         </div>
@@ -124,7 +143,10 @@ export function AgentLane({
           className={cn(
             'min-h-[1.4em] truncate type-meta',
             lane.state === 'failed' ? 'text-desk-red' : 'text-desk-ink-2',
-            lane.state === 'working' && 'animate-[fade-in_var(--dur-quick)_var(--ease-out)]',
+            actionKey !== firstKey &&
+              (lane.state === 'done'
+                ? 'animate-[fade-in_var(--dur-base)_var(--ease-out)]'
+                : 'animate-[fade-in_var(--dur-quick)_var(--ease-out)]'),
           )}
           title={line ?? undefined}
         >

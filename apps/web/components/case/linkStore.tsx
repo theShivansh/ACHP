@@ -10,7 +10,7 @@ import { createContext, useContext, useState, useSyncExternalStore, type ReactNo
 export type LinkKind = 'evidence' | 'claim';
 export type LinkState = 'idle' | 'active' | 'related' | 'dimmed';
 
-interface Focus {
+export interface Focus {
   kind: LinkKind;
   id: string;
   /** Ids of the other kind that this one is tied to (from marks and the verdict). */
@@ -19,6 +19,8 @@ interface Focus {
 
 export interface LinkStore {
   set(focus: Focus | null): void;
+  /** What is lit right now (null: nothing). Read through `useLinkSelector`, never held in React state. */
+  peek(): Focus | null;
   stateOf(kind: LinkKind, id: string): LinkState;
   subscribe(listener: () => void): () => void;
 }
@@ -32,6 +34,7 @@ export function createLinkStore(): LinkStore {
       focus = next;
       for (const l of listeners) l();
     },
+    peek: () => focus,
     stateOf(kind, id) {
       if (!focus) return 'idle';
       if (focus.kind === kind) return focus.id === id ? 'active' : 'dimmed';
@@ -51,10 +54,24 @@ export function LinkProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }
 
-const NOOP: LinkStore = { set() {}, stateOf: () => 'idle', subscribe: () => () => {} };
+const NOOP: LinkStore = { set() {}, peek: () => null, stateOf: () => 'idle', subscribe: () => () => {} };
 
 export function useLinkStore(): LinkStore {
   return useContext(Ctx) ?? NOOP;
+}
+
+/**
+ * Anything an element wants to know about what is lit, as a primitive (a string, a number, a boolean), so it
+ * re-renders only when its own answer changes. The strips use it to draw the rule under the exact words a
+ * hovered source bears on.
+ */
+export function useLinkSelector<T extends string | number | boolean | null>(select: (focus: Focus | null) => T): T {
+  const store = useLinkStore();
+  return useSyncExternalStore(
+    store.subscribe,
+    () => select(store.peek()),
+    () => select(null),
+  );
 }
 
 /** This element's link state; re-renders only when it changes. */

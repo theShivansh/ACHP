@@ -24,6 +24,16 @@ const STROKE: Record<MarkInk, string> = {
   highlighter: 'stroke-highlighter',
 };
 
+/** The same inks as CSS values, for a rule drawn in the relation's colour (the evidence ↔ span link). */
+export const INK_VAR: Record<MarkInk, string> = {
+  'pencil-red': 'var(--pencil-red)',
+  'pencil-blue': 'var(--pencil-blue)',
+  ochre: 'var(--ochre)',
+  support: 'var(--support)',
+  graphite: 'var(--graphite)',
+  highlighter: 'var(--ochre)',
+};
+
 /**
  * The ink for a mark. Once the Judge has labelled the part, a challenger's red finding that the
  * ruling didn't uphold (anything but Contradicted) is kept in graphite: the finding stays visible,

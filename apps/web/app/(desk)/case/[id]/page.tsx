@@ -73,6 +73,9 @@ export default async function CasePage({ params, searchParams }: Props) {
       <CaseLive
         key={`${loaded.fixture}:${opts.speed}:${opts.drop}`}
         runId={loaded.events[0].run_id}
+        // Like a real run opened right after POST /runs, the first paint already has the stored head of the
+        // log (the claim the reader just typed), and the replay streams the rest after it.
+        initialEvents={loaded.events.slice(0, loaded.events.findIndex((e) => e.type === 'run.started') + 1)}
         baseUrl={`/api/dev/fixture/${loaded.fixture}/${replayOptionsSegment(opts)}`}
         fixture={{ name: loaded.fixture, speed: opts.speed }}
         benchmark={readBenchmark()}

@@ -4,6 +4,7 @@ import { cn } from 'cn';
 import { useState } from 'react';
 import { lineageEdges, lineageSignals, pathCounts, reaches, type LineageMode } from '@/lib/assay/lineage';
 import { METRICS, signalWords, type MetricName } from '@/lib/assay/present';
+import { useAssayFocus, useSignalLit } from './assayLink';
 import { MetricTerm } from './MetricTerm';
 
 // Signal Lineage (04 §7.1, 11 §3.6): where every number comes from. Three columns (raw signals → the five
@@ -41,6 +42,56 @@ function Segmented({ value, onChange }: { value: LineageMode; onChange: (m: Line
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * A raw signal's row in the drawing. It lights (a ring and bolder words) while its Ledger row is hovered or focused, or
+ * a mark it feeds is (05 §4.2), and it points the Ledger the other way when the pointer is on it.
+ */
+function SignalNode({
+  signal,
+  y,
+  rowHeight,
+  label,
+  shared,
+  onPick,
+}: {
+  signal: string;
+  y: number;
+  rowHeight: number;
+  label: string;
+  shared: boolean;
+  onPick: (s: string | null) => void;
+}) {
+  const lit = useSignalLit(signal);
+  const link = useAssayFocus('signal', signal);
+  return (
+    <g
+      data-signal={signal}
+      data-link={lit}
+      onPointerEnter={() => {
+        onPick(signal);
+        link.onPointerEnter();
+      }}
+      onPointerLeave={() => {
+        onPick(null);
+        link.onPointerLeave();
+      }}
+      className="cursor-default"
+    >
+      <rect x="0" y={y - rowHeight / 2 + 1} width={X_SIG} height={rowHeight - 2} className="fill-transparent" />
+      <text
+        x={X_SIG - 8}
+        y={y + 4}
+        textAnchor="end"
+        className={cn('font-sans text-[12px]', shared ? 'fill-ochre font-semibold' : 'fill-ink', lit !== 'idle' && 'font-semibold')}
+      >
+        {label}
+      </text>
+      {lit !== 'idle' && <circle cx={X_SIG} cy={y} r="6.5" fill="none" className="stroke-ink" strokeWidth="1.5" />}
+      <circle cx={X_SIG} cy={y} r="3" className={shared ? 'fill-ochre' : 'fill-ink-2'} />
+    </g>
   );
 }
 
@@ -116,20 +167,15 @@ export function LineageDiagram({ judgeNss = true }: { judgeNss?: boolean }) {
           />
         ))}
         {signals.map((s, i) => (
-          <g
+          <SignalNode
             key={s}
-            data-signal={s}
-            onPointerEnter={() => setPicked(s)}
-            onPointerLeave={() => setPicked(null)}
-            className="cursor-default"
-          >
-            <rect x="0" y={ySig(i) - ROW / 2 + 1} width={X_SIG} height={ROW - 2} className="fill-transparent" />
-            <text x={X_SIG - 8} y={ySig(i) + 4} textAnchor="end" className={cn('font-sans text-[12px]', s === SHARED ? 'fill-ochre font-semibold' : 'fill-ink')}>
-              {signalWords(s)}
-              {s === SHARED ? ` · ${counts[s]} paths` : ''}
-            </text>
-            <circle cx={X_SIG} cy={ySig(i)} r="3" className={s === SHARED ? 'fill-ochre' : 'fill-ink-2'} />
-          </g>
+            signal={s}
+            y={ySig(i)}
+            rowHeight={ROW}
+            label={`${signalWords(s)}${s === SHARED ? ` · ${counts[s]} paths` : ''}`}
+            shared={s === SHARED}
+            onPick={setPicked}
+          />
         ))}
         {METRICS.map((m) => (
           <g key={m} data-metric={m}>

@@ -3,7 +3,7 @@
 import { cn } from 'cn';
 import { ChevronRight, Download } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { ConfirmButton } from '@/components/ui/confirm-button';
 import { agentIdentity } from '@/lib/agents.config';
 import { fetchEventsJsonText } from '@/lib/runs/api';
 import type { RunState } from '@/lib/runs/reducer';
@@ -53,7 +53,7 @@ export function TraceTable({ state, runId, baseUrl }: { state: RunState; runId: 
       return next;
     });
 
-  async function download() {
+  async function download(): Promise<boolean> {
     setError(null);
     try {
       const text = await fetchEventsJsonText(runId, baseUrl);
@@ -63,8 +63,10 @@ export function TraceTable({ state, runId, baseUrl }: { state: RunState; runId: 
       a.download = `${runId}-events.json`;
       a.click();
       URL.revokeObjectURL(url);
+      return true;
     } catch {
       setError('The event file could not be downloaded. Try again in a moment.');
+      return false;
     }
   }
 
@@ -81,15 +83,19 @@ export function TraceTable({ state, runId, baseUrl }: { state: RunState; runId: 
       <p className="mt-1 max-w-[68ch] type-meta text-ink-2">
         Everything the agents did, in order, exactly as the server logged it. Nothing on this page is shown that is not here.
       </p>
-      <Button className="mt-3" variant="secondary" onClick={download}>
-        <Download aria-hidden="true" />
-        Download events.json
-      </Button>
-      {error && (
-        <p role="alert" className="mt-2 type-meta text-pencil-red">
-          {error}
-        </p>
-      )}
+      <div className="mt-3">
+        <ConfirmButton
+          icon={Download}
+          label="Download events.json"
+          doneLabel="Downloaded"
+          announcement="events.json downloaded."
+          run={download}
+        />
+      </div>
+      {/* Always in the page, so the words are announced when they arrive. */}
+      <p role="alert" className={error ? 'mt-2 type-meta text-pencil-red' : 'sr-only'}>
+        {error}
+      </p>
 
       <div
         ref={box}
@@ -151,7 +157,7 @@ export function TraceTable({ state, runId, baseUrl }: { state: RunState; runId: 
                     >
                       <ChevronRight
                         aria-hidden="true"
-                        className={cn('size-3.5 shrink-0 stroke-[1.5] transition-transform duration-(--dur-quick)', expanded && 'rotate-90')}
+                        className={cn('size-3.5 shrink-0 stroke-[1.5] transition-transform duration-(--dur-quick) motion-reduce:transition-none', expanded && 'rotate-90')}
                       />
                       <span className="truncate">{e.type}</span>
                       <span className="sr-only"> ({expanded ? 'hide' : 'show'} the raw event)</span>

@@ -221,8 +221,11 @@ test('"N sources" on a part in the verdict chapter opens the report’s Evidence
   await page.goto(url('exercise-mixed'));
   const btn = page.locator('#chapter-verdict li[data-claim]').getByRole('button', { name: /source/ }).first();
   await btn.scrollIntoViewIfNeeded();
-  await btn.click();
-  await expect(page).toHaveURL(/\/case\/fixture-exercise-mixed.*tab=evidence/);
+  // A click before hydration is inert, so click until the page has taken it (the button is real once it navigates).
+  await expect(async () => {
+    await btn.click();
+    await expect(page).toHaveURL(/\/case\/fixture-exercise-mixed.*tab=evidence/, { timeout: 1500 });
+  }).toPass({ timeout: 15_000 });
 });
 
 test('"Skip to verdict" and the End key reach the verdict at once; the rail follows', async ({ page }) => {

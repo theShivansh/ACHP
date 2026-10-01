@@ -4,7 +4,8 @@ import { cn } from 'cn';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useId, useMemo, useRef, useState, ViewTransition } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Roll } from '@/components/ui/roll';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AssayTab } from '@/components/assay/AssayTab';
 import { Hallmark } from '@/components/assay/Hallmark';
@@ -16,6 +17,7 @@ import { agentIdentity } from '@/lib/agents.config';
 import { useHealth } from '@/lib/api';
 import { createAnnouncer, stageWords } from '@/lib/runs/announcer';
 import { apiBase, startRun } from '@/lib/runs/api';
+import { openCase } from '@/lib/transitions';
 import type { ConnectionStatus } from '@/lib/runs/connection';
 import {
   claimLabel,
@@ -36,6 +38,7 @@ import { METRIC_INFO, METRICS, tippingSentence } from '@/lib/assay/present';
 import type { BandKey } from '@/lib/verdict';
 import { useRunEvents } from '@/lib/runs/useRunEvents';
 import { LaneList, type LaneClock } from './AgentLane';
+import { ClaimMorph } from './ClaimMorph';
 import { ClaimStrip } from './ClaimStrip';
 import { EvidenceTray } from './EvidenceTray';
 import { LaneRail, LaneStrip } from './LaneStrip';
@@ -189,7 +192,9 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
     const q = new URLSearchParams(search.toString());
     if (next === 'report') q.delete('tab');
     else q.set('tab', next);
-    router.replace(q.size ? `${pathname}?${q}` : pathname, { scroll: false });
+    // The native history call, which Next syncs into useSearchParams: the tab (and the sliding rule under it) changes
+    // at once instead of waiting on a server round trip for a change that has no new data.
+    window.history.replaceState(null, '', q.size ? `${pathname}?${q}` : pathname);
   };
   const apiUrl = baseUrl ?? apiBase();
   const phase = casePhase(state, connection, {
@@ -276,7 +281,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
     if (fixture || !text) return null;
     return async () => {
       const created = await startRun(text, state.kb?.id);
-      router.push(`/case/${created.run_id}`);
+      openCase(router, created.run_id);
     };
   }, [fixture, text, state.kb?.id, router]);
 
@@ -337,7 +342,9 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
               className="ml-auto inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-button px-2 type-ui text-desk-ink hover:bg-desk-raised md:ml-0 xl:hidden"
             >
               <PaperclipGlyph aria-hidden="true" className="size-5 text-desk-graphite" />
-              <span className="tabular-nums">{cards.length === 1 ? '1 source' : `${cards.length} sources`}</span>
+              <span>
+                <Roll value={cards.length} /> {cards.length === 1 ? 'source' : 'sources'}
+              </span>
               <span className="sr-only">: open the evidence</span>
             </button>
           )}
@@ -375,7 +382,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                 >
                   <ChevronRight
                     aria-hidden="true"
-                    className={cn('mr-1 size-4 stroke-[1.5] transition-transform duration-(--dur-quick)', lanesOpen && 'rotate-90')}
+                    className={cn('mr-1 size-4 stroke-[1.5] transition-transform duration-(--dur-quick) motion-reduce:transition-none', lanesOpen && 'rotate-90')}
                   />
                   {laneSummary(state)}
                 </button>
@@ -406,7 +413,10 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
               <TabsList aria-label="Case sections">
                 <TabsTrigger value="report">Report</TabsTrigger>
                 <TabsTrigger value="evidence">
-                  Evidence <span className="tabular-nums">({cards.length})</span>
+                  Evidence{' '}
+                  <span>
+                    (<Roll value={cards.length} />)
+                  </span>
                 </TabsTrigger>
                 {phase === 'completed' && !blocked && <TabsTrigger value="assay">The Assay</TabsTrigger>}
                 <TabsTrigger value="trace">Trace</TabsTrigger>
@@ -424,9 +434,9 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                     {text ? (
                       <>
                         <p className="type-meta font-semibold text-ink-2">The message you were forwarded</p>
-                        <ViewTransition name="claim-text">
+                        <ClaimMorph>
                           <h1 className="mt-3 max-w-[68ch] font-display type-claim text-balance text-ink">{text}</h1>
-                        </ViewTransition>
+                        </ClaimMorph>
                       </>
                     ) : (
                       <h1 className="sr-only">Case {runId}</h1>

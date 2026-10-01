@@ -1,10 +1,10 @@
 'use client';
 
 import { cn } from 'cn';
-import { Check, Copy, Share2 } from 'lucide-react';
-import { useState } from 'react';
+import { Copy, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { ConfirmButton } from '@/components/ui/confirm-button';
 import { shareSummary } from '@/lib/report';
 import { BANDS, excerpt, VERDICTS, type BandKey } from '@/lib/verdict';
 import type { Label, VerdictFinal } from '@/lib/runs/types';
@@ -112,10 +112,13 @@ function caseUrl(runId: string): string {
   return `${u.origin}/case/${runId}`;
 }
 
-async function copy(text: string, done: string) {
+/**
+ * Copies and says so in place: the button's check and "Copied" are the confirmation (ConfirmButton), so a success
+ * has no toast on top of it. Only a failure needs a message, and it gets one the reader can see and hear.
+ */
+async function copy(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
-    toast(done);
     return true;
   } catch {
     toast('Copying was blocked by the browser. Select the text and copy it by hand.');
@@ -135,44 +138,37 @@ export function ShareBar({
   verdict: VerdictFinal;
   fixture: boolean;
 }) {
-  const [copied, setCopied] = useState<'summary' | 'link' | null>(null);
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
-  const flash = (what: 'summary' | 'link') => {
-    setCopied(what);
-    setTimeout(() => setCopied(null), 1600);
-  };
   return (
     <div data-share-bar className="mt-8 flex flex-wrap items-center gap-2 border-t-(length:--rule) border-sheet-line pt-6">
-      <Button
+      <ConfirmButton
         variant="primary"
-        onClick={async () => {
-          if (await copy(shareSummary({ claim, verdict, url: caseUrl(runId) }), 'Summary copied')) flash('summary');
-        }}
-      >
-        {copied === 'summary' ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-        Copy summary
-      </Button>
-      <Button
-        variant="secondary"
-        onClick={async () => {
-          if (await copy(caseUrl(runId), 'Link copied')) flash('link');
-        }}
-      >
-        {copied === 'link' ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-        Copy link
-      </Button>
+        icon={Copy}
+        label="Copy summary"
+        doneLabel="Copied"
+        announcement="Summary copied."
+        run={() => copy(shareSummary({ claim, verdict, url: caseUrl(runId) }))}
+      />
+      <ConfirmButton
+        icon={Copy}
+        label="Copy link"
+        doneLabel="Copied"
+        announcement="Link copied."
+        run={() => copy(caseUrl(runId))}
+      />
       {canShare && (
-        <Button
-          variant="secondary"
-          onClick={() =>
-            void navigator
+        <ConfirmButton
+          icon={Share2}
+          label="Share"
+          doneLabel="Shared"
+          announcement="Shared."
+          // Cancelling the browser's share sheet is not an error: nothing is confirmed and nothing is said.
+          run={() =>
+            navigator
               .share({ title: 'ACHP', text: shareSummary({ claim, verdict, url: caseUrl(runId) }), url: caseUrl(runId) })
-              .catch(() => {})
+              .then(() => true, () => false)
           }
-        >
-          <Share2 aria-hidden="true" />
-          Share
-        </Button>
+        />
       )}
       {/* The replay itself is built in P6; the link is the contract (?replay=1). */}
       {!fixture && (
@@ -183,9 +179,6 @@ export function ShareBar({
           Replay the investigation
         </a>
       )}
-      <span role="status" className="sr-only">
-        {copied === 'summary' ? 'Summary copied.' : copied === 'link' ? 'Link copied.' : ''}
-      </span>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { assay as computeAssay, FRAMES, type Frame, type Signals } from '@/lib/a
 import { signalValue, signalWords, tippingSentence, verdictName, type SignalGroup } from '@/lib/assay/present';
 import { Button } from '@/components/ui/button';
 import type { AssayComputed } from '@/lib/runs/types';
+import { AssayLinkProvider } from './assayLink';
 import { Hallmark } from './Hallmark';
 import { IntegrityLedger } from './IntegrityLedger';
 import { MaskingNotice } from './MaskingNotice';
@@ -184,6 +185,8 @@ export function AssayBench({ assay }: { assay: AssayComputed }) {
   const changed = (Object.keys(real) as Key[]).some((k) => values[k] !== real[k]);
 
   return (
+    // Its own link scope: hovering a mark here lights the Bench's ledger, never the one on the tab behind the drawer.
+    <AssayLinkProvider>
     <section aria-labelledby="bench-title" data-bench className="flex flex-col gap-4">
       <div>
         <h3 id="bench-title" className="type-ui font-semibold text-ink">
@@ -225,6 +228,7 @@ export function AssayBench({ assay }: { assay: AssayComputed }) {
 
       {result.ledger && <IntegrityLedger ledger={result.ledger} className="mt-2" />}
     </section>
+    </AssayLinkProvider>
   );
 }
 

@@ -15,6 +15,12 @@ export const ease = {
   exit: [0.4, 0, 1, 1],
 } as const satisfies Record<string, readonly [number, number, number, number]>;
 
+/** A hover waits this long before a definition appears (05 §4); focus shows it at once. Mirrors `--dur-tooltip-delay`. */
+export const tooltipDelay = 0.4;
+
+/** How long a copy button says "Copied" before it reverts (05 §4). Display only; never run state. */
+export const copiedMs = 1600;
+
 /** One frame at 12fps, for stop-motion (Language C). */
 export const fpsStop = 0.083;
 

@@ -4,6 +4,7 @@ import { cn } from 'cn';
 import { ExternalLink, Globe } from 'lucide-react';
 import { useState } from 'react';
 import { PaperclipGlyph } from '@/components/glyphs';
+import { Roll } from '@/components/ui/roll';
 import type { EvidenceCard as Card, EvidenceUse } from '@/lib/runs/reducer';
 import { useLinkState, useLinkStore } from './linkStore';
 
@@ -114,9 +115,11 @@ export function EvidenceCard({ card, uses, n, stopped = false }: { card: Card; u
       onFocus={lit}
       onBlur={off}
       className={cn(
-        'paper relative rounded-card border-(length:--rule) border-sheet-line px-4 pt-4 pb-3 shadow-lift-card transition-opacity duration-(--dur-quick) animate-[rise-in_var(--dur-base)_var(--ease-out)]',
-        link === 'dimmed' && 'opacity-45',
+        'paper relative rounded-card border-(length:--rule) border-sheet-line px-4 pt-4 pb-3 shadow-lift-card animate-[rise-in_var(--dur-base)_var(--ease-out)]',
+        // In over --dur-quick, out at once: only the dimmed state declares the transition.
+        link === 'dimmed' && 'opacity-60 transition-opacity duration-(--dur-quick) motion-reduce:transition-none',
         link === 'active' && 'outline-2 outline-pencil-blue',
+        link === 'related' && 'outline-2 outline-ink-3',
       )}
     >
       <PaperclipGlyph aria-hidden="true" className="absolute -top-2 left-3 size-5 text-graphite" />
@@ -202,7 +205,7 @@ export function EvidenceTray({
           Evidence
         </h2>
         <p className="type-meta text-surface-fg-2 tabular-nums">
-          {cards.length === 1 ? '1 source' : `${cards.length} sources`}
+          <Roll value={cards.length} /> {cards.length === 1 ? 'source' : 'sources'}
         </p>
       </header>
       {filter && (

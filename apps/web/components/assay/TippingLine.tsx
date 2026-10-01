@@ -74,14 +74,18 @@ export function TippingLine({ assay, className }: { assay: AssayComputed; classN
             {t === 0 ? '0' : t === 1 ? '1' : t.toFixed(2).replace(/0$/, '')}
           </text>
         ))}
+        {/* On load the dot slides from the start of the axis to its value, then the leader draws out to the
+            nearest edge (--dur-base each). Only positions move; every number and label is already in place. */}
         {boundary != null && (
-          <g className="stroke-ink" strokeWidth="1.5">
+          <g className={cn('tip-leader stroke-ink', boundary >= c ? 'origin-left' : 'origin-right')} strokeWidth="1.5">
             <path d={`M${x(c)} 49 H${x(boundary)}`} />
             <path d={`M${x(boundary)} 40 V58`} />
           </g>
         )}
-        <circle cx={x(c)} cy="49" r="6" className="fill-sheet" />
-        <circle cx={x(c)} cy="49" r="4" className="fill-mark-focus" data-composite={c} />
+        <g className="tip-dot-move" style={{ '--dx': `${x(c) - x(0)}px` } as React.CSSProperties}>
+          <circle cx={x(c)} cy="49" r="6" className="fill-sheet" />
+          <circle cx={x(c)} cy="49" r="4" className="fill-mark-focus" data-composite={c} />
+        </g>
         {lever && (
           <text x={mid} y="98" textAnchor="middle" className="fill-ink font-sans text-[12px]">
             {lever} flips to {verdictName(flip!.new_verdict)}

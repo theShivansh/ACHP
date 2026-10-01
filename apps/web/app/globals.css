@@ -211,6 +211,7 @@
   --dur-base: 240ms;
   --dur-deliberate: 360ms;
   --dur-narrative: 600ms;
+  --dur-tooltip-delay: 400ms; /* a hover waits this long before a definition appears; focus shows it at once (05 §4) */
   --fps-stop: 83ms;
   --boil-period: 400ms;
 }
@@ -362,6 +363,75 @@ html[data-lowfx] .boil-once {
 @keyframes slide-in-bottom { from { translate: 0 100%; } }
 @keyframes slide-out-bottom { to { translate: 0 100%; } }
 
+/* ── Utility micro-interactions (P7, Language B, 05 §4) ───────────────────────────────────────
+   Quiet and silent: each has a job (state change, cause → effect, or attention) and ends. Entrances use the
+   --dur-* tokens; exits are instant or shorter. Numbers are never tweened: a digit that changed appears once,
+   rising 0.6em, so the value on screen is always a value that was computed (achp-motion §6). */
+@keyframes roll-in { from { opacity: 0; translate: 0 0.6em; } }
+.roll { display: inline-block; animation: roll-in var(--dur-quick) var(--ease-out) backwards; }
+
+/* A rejected input: 3 cycles of 4px across --dur-base, then the helper text says what is wrong. */
+@keyframes shake { 25% { translate: -4px 0; } 75% { translate: 4px 0; } }
+[data-shake] { animation: shake calc(var(--dur-base) / 3) var(--ease-in-out) 3; }
+
+/* Evidence ↔ span linking and the Assay's Hallmark ↔ Ledger link: a 2px rule that draws in --dur-quick and
+   leaves at once. The colour is the relation's (--ul). transform only. */
+/* The element must be positioned (relative or absolute); the rule sits 2px under its box. */
+.link-ul::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -2px;
+  height: 2px;
+  background: var(--ul, currentColor);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.link-ul[data-lit]::after {
+  transform: scaleX(1);
+  transition: transform var(--dur-quick) var(--ease-out);
+}
+/* On the strips a faint wash of the same colour sits behind the words, so the rule can't be mistaken for the
+   verdict mark's own underline. opacity only. */
+.link-tint::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ul, currentColor);
+  opacity: 0;
+}
+.link-tint[data-lit]::before {
+  opacity: 0.14;
+  transition: opacity var(--dur-quick) var(--ease-out);
+}
+
+/* The Tipping Point: the dot slides to its value, then the leader to the nearest edge draws on. Positions only;
+   the sentence and the axis labels never move. */
+@keyframes tip-dot-in { from { translate: calc(var(--dx) * -1) 0; } }
+@keyframes tip-leader-in { from { scale: 0 1; } }
+.tip-dot-move { animation: tip-dot-in var(--dur-base) var(--ease-in-out) backwards; }
+.tip-leader { transform-box: fill-box; animation: tip-leader-in var(--dur-base) var(--ease-out) var(--dur-base) backwards; }
+
+/* The Two-Key's second key turns in two stepped frames (Language C timing) when the Bench moves the formula
+   away from, or back to, the Judge's reading. Only a change of --turn animates; the first paint does not. */
+.key-turn {
+  transform-origin: 14px 14px;
+  transform: rotate(var(--turn, 0deg));
+  transition: transform calc(2 * var(--fps-stop)) steps(2, end);
+}
+
+/* Desk → Case: the claim you typed becomes the case's headline (React <ViewTransition share="morph">). The page
+   itself does not crossfade: the browser's default fade of the whole document is switched off, so the only thing
+   that moves is the claim. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-group(.morph) {
+  animation-duration: var(--dur-deliberate);
+  animation-timing-function: var(--ease-in-out);
+}
+
 /* ── Replay story (P6, Language A, 05 §2) ─────────────────────────────────────────────────────
    Friction is a longer scroll track, never a hijacked wheel: the stage pins (position: sticky) inside a
    220vh container (180vh on a phone) while its lines reveal across the `contain` range. Without
@@ -458,6 +528,20 @@ html[data-lowfx] .boil-once {
   [data-slot] {
     animation: none !important;
     transition-duration: 0ms !important;
+  }
+  /* Micro-interactions land in their final state (the words and marks still say what happened). */
+  .roll,
+  [data-shake],
+  .tip-dot-move,
+  .tip-leader { animation: none; }
+  .link-ul[data-lit]::after,
+  .link-tint[data-lit]::before,
+  .key-turn { transition: none; }
+  /* The claim does not fly to the case; every other transition is a crossfade of at most 120ms. */
+  ::view-transition-group(.morph),
+  ::view-transition-old(.morph),
+  ::view-transition-new(.morph) {
+    animation: none;
   }
   ::view-transition-group(*),
   ::view-transition-old(*),

@@ -7,8 +7,8 @@ import { measureSpan, type MarkRect } from '@/lib/marks/measure';
 import type { ClaimStrip as Strip, Mark as StripMark, StripEvidence } from '@/lib/runs/reducer';
 import type { Label } from '@/lib/runs/types';
 import { verdictInfo } from '@/lib/verdict';
-import { useLinkState, useLinkStore } from './linkStore';
-import { Mark, markInk } from './Mark';
+import { useLinkSelector, useLinkState, useLinkStore } from './linkStore';
+import { INK_VAR, Mark, markInk } from './Mark';
 import { Stamp } from './Stamp';
 import { Tick, VerdictMark } from './VerdictMark';
 
@@ -70,6 +70,10 @@ export function ClaimStrip({
   const [whole, setWhole] = useState<MarkRect[]>([]);
   const store = useLinkStore();
   const link = useLinkState('claim', strip.claim_id);
+  // The marks whose evidence the pointer (or focus) is on: their words get a rule in the relation's colour.
+  const litMarks = useLinkSelector((f) =>
+    f?.kind === 'evidence' ? strip.marks.filter((m) => m.evidence_ids?.includes(f.id)).map((m) => m.seq).join(',') : '',
+  ).split(',');
 
   useLayoutEffect(() => {
     const box = boxRef.current;
@@ -112,10 +116,11 @@ export function ClaimStrip({
       onFocus={lit}
       onBlur={off}
       className={cn(
-        'grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-4 border-t-(length:--rule) border-sheet-line transition-opacity duration-(--dur-quick) animate-[fade-in_var(--dur-base)_var(--ease-out)] scroll-mt-16 focus-visible:outline-2 focus-visible:outline-offset-4',
+        'grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-4 border-t-(length:--rule) border-sheet-line animate-[fade-in_var(--dur-base)_var(--ease-out)] scroll-mt-16 focus-visible:outline-2 focus-visible:outline-offset-4',
         compact ? 'py-4' : 'py-6',
         compact && !hasMargin ? 'md:grid-cols-[1.5rem_minmax(0,1fr)]' : 'md:grid-cols-[1.5rem_minmax(0,1fr)_120px]',
-        link === 'dimmed' && 'opacity-45',
+        // In over --dur-quick, out at once: only the dimmed state declares the transition.
+        link === 'dimmed' && 'opacity-60 transition-opacity duration-(--dur-quick) motion-reduce:transition-none',
       )}
     >
       <span className="pt-1 type-meta text-ink-3 tabular-nums" aria-hidden="true">
@@ -141,6 +146,29 @@ export function ClaimStrip({
             )),
           )}
           {label && whole.map((rect, i) => <VerdictMark key={`v-${i}`} rect={rect} label={label} line={i} />)}
+          {/* The link rule: drawn under the words a hovered or focused source bears on, then gone at once. */}
+          {strip.marks
+            .filter((m) => m.evidence_ids?.length)
+            .map((m) =>
+              (measured.find((x) => x.seq === m.seq)?.rects ?? []).map((rect, i) => (
+                <span
+                  key={`link-${m.seq}-${i}`}
+                  aria-hidden="true"
+                  data-link-rule={m.seq}
+                  data-lit={litMarks.includes(String(m.seq)) || undefined}
+                  className="link-ul link-tint pointer-events-none absolute top-(--y) left-(--x) h-(--h) w-(--w)"
+                  style={
+                    {
+                      '--x': `${rect.x}px`,
+                      '--y': `${rect.y}px`,
+                      '--w': `${rect.width}px`,
+                      '--h': `${rect.height}px`,
+                      '--ul': INK_VAR[markInk(m.agent, m.relation, label, stopped)],
+                    } as React.CSSProperties
+                  }
+                />
+              )),
+            )}
         </p>
         {strip.marks.length > 0 && (
           <p className="sr-only">

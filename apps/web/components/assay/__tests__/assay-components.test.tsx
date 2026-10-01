@@ -78,7 +78,9 @@ describe('Hallmark sizes and the tooltip', () => {
     render(<Hallmark metrics={a.metrics} />);
     const cts = screen.getByRole('img', { name: /^Consensus Truth Score/ });
     expect(cts.getAttribute('data-dismissed')).toBeNull();
-    fireEvent.keyDown(cts, { key: 'Escape' });
+    // Escape works while the mark is hovered or focused, wherever the keyboard focus is.
+    fireEvent.pointerEnter(cts);
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(cts.getAttribute('data-dismissed')).toBe('true');
     fireEvent.focus(cts);
     expect(cts.getAttribute('data-dismissed')).toBeNull();
