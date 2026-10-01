@@ -42,7 +42,7 @@ import type { BandKey } from '@/lib/verdict';
 import { useRunEvents } from '@/lib/runs/useRunEvents';
 import { LaneFx, LaneList, type LaneClock } from './AgentLane';
 import { ArrivalProvider } from './arrival';
-import { ClaimHeadline, flaggedWordsSentence } from './ClaimHeadline';
+import { ClaimHeadline, HighlightKey } from './ClaimHeadline';
 import { ClaimMorph } from './ClaimMorph';
 import { ClaimStrip } from './ClaimStrip';
 import { ScissorsCut } from './ScissorsCut';
@@ -456,7 +456,6 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                             className="mt-3 max-w-[68ch] font-display type-claim text-balance text-ink"
                           />
                         </ClaimMorph>
-                        {flaggedWordsSentence(text, flagged) && <p className="sr-only">{flaggedWordsSentence(text, flagged)}</p>}
                       </>
                     ) : (
                       <h1 className="sr-only">Case {runId}</h1>
@@ -491,6 +490,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                         <TwoKey assay={state.assay} arrive className="mt-4" />
                       </>
                     )}
+                    {text && <HighlightKey text={text} spans={flagged} className="mt-4" />}
                   </header>
 
                   <TabsContent value="report">

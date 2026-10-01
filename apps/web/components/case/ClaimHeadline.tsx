@@ -22,9 +22,10 @@ function Highlight({ rect, spanKey, line }: { rect: MarkRect; spanKey: string; l
       style={
         {
           '--x': `${rect.x - 1}px`,
-          '--y': `${rect.y + rect.height * 0.12}px`,
+          // A marker stroke through the lower half of the letters, not a selection box: it never bridges two lines.
+          '--y': `${rect.y + rect.height * 0.42}px`,
           '--w': `${rect.width + 2}px`,
-          '--h': `${rect.height * 0.8}px`,
+          '--h': `${rect.height * 0.46}px`,
           // A wrapped span: the next line's swipe starts when the line before it ends.
           '--at': `calc(${line * 5} * var(--fps-stop))`,
         } as React.CSSProperties
@@ -82,4 +83,31 @@ export function ClaimHeadline({
 export function flaggedWordsSentence(text: string, spans: readonly { span: readonly [number, number] }[]): string | null {
   const words = spans.map((s) => text.slice(s.span[0], s.span[1]).trim()).filter(Boolean);
   return words.length ? `Wording flagged as loaded or absolute: ${words.map((w) => `"${w}"`).join(', ')}.` : null;
+}
+
+/**
+ * What the highlight means, said under the verdict (never above it): it marks how the message is worded, not whether
+ * it is true. A highlight with no key reads as "these words are wrong" (P8 design review). The swatch repeats the mark;
+ * the sentence carries it, and names the words for screen readers.
+ */
+export function HighlightKey({
+  text,
+  spans,
+  className,
+}: {
+  text: string;
+  spans: readonly { span: readonly [number, number] }[];
+  className?: string;
+}) {
+  const words = flaggedWordsSentence(text, spans);
+  if (!words) return null;
+  return (
+    <p data-highlight-key className={cn('flex max-w-[68ch] items-baseline gap-2 type-meta text-ink-2', className)}>
+      <span aria-hidden="true" className="hl inline-block h-2 w-5 shrink-0 translate-y-px rounded-[2px]" />
+      <span>
+        Highlighted: loaded or absolute wording the wording checks flagged. It is about tone, not about whether the
+        message is true.<span className="sr-only"> {words}</span>
+      </span>
+    </p>
+  );
 }
