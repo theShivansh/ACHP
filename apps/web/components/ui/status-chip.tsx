@@ -38,18 +38,21 @@ function StatusChip({
   onRetry?: () => void
 }) {
   // The seconds appear once the wait is noticeable, so a fast answer never flashes a number.
-  const text =
+  // The spoken text stays put ("Waking the desk"); the counting is a visual aside, so a screen reader is not
+  // interrupted every second.
+  const aside =
     status === "waking" && elapsedSeconds != null && elapsedSeconds >= 3
-      ? `${label.waking} · ${elapsedSeconds}s`
+      ? ` · ${elapsedSeconds}s`
       : status === "unreachable" && retryInSeconds != null
-        ? `${label.unreachable} · retrying in ${retryInSeconds}s`
-        : label[status]
+        ? ` · retrying in ${retryInSeconds}s`
+        : ""
 
   return (
     <span
       data-slot="status-chip"
       data-status={status}
       data-waking={status === "waking" || undefined}
+      tabIndex={-1}
       role="status"
       className={cn(
         "inline-flex h-7 items-center gap-2 whitespace-nowrap rounded-chip border-(length:--rule) border-desk-line bg-desk-raised px-2.5 type-meta text-desk-ink-2",
@@ -63,11 +66,16 @@ function StatusChip({
         <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", dot[status])} />
       )}
       <span className="sr-only">Backend: </span>
-      {text}
+      {label[status]}
+      {aside && <span aria-hidden="true">{aside}</span>}
       {status === "unreachable" && onRetry && (
         <button
           type="button"
-          onClick={onRetry}
+          onClick={(e) => {
+            // The button goes away while the retry is in flight: keep keyboard focus on the chip.
+            e.currentTarget.closest<HTMLElement>('[data-slot="status-chip"]')?.focus()
+            onRetry()
+          }}
           className="-my-1 -mr-1.5 ml-0.5 min-h-6 cursor-pointer rounded-chip px-1.5 type-meta text-desk-ink underline decoration-(length:--rule) underline-offset-4 pointer-coarse:min-h-11"
         >
           Retry

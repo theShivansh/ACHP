@@ -33,7 +33,7 @@ export function QuoteCard({
       data-quote-card={citation.chunk_index}
       data-active={active || undefined}
       className={cn(
-        'paper rounded-card border-(length:--rule) border-sheet-line px-4 py-3 shadow-lift-card outline-none focus-visible:outline-2 focus-visible:outline-offset-2',
+        'rounded-card border-(length:--rule) border-sheet-line px-4 py-3 outline-none focus-visible:outline-2 focus-visible:outline-offset-2',
         active && 'outline-2 outline-pencil-blue',
         className,
       )}

@@ -86,7 +86,7 @@ export function LibraryDetail({ kbId }: { kbId: string }) {
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className="mt-1 block min-h-10 w-full max-w-md rounded-button border-(length:--rule) border-desk-line bg-desk-raised px-3 type-ui text-desk-ink pointer-coarse:min-h-11"
+              className="mt-1 block min-h-10 w-full max-w-md rounded-button border-(length:--rule) border-desk-ink-2 bg-desk-raised px-3 type-ui text-desk-ink pointer-coarse:min-h-11"
             />
           </div>
           <p role="status" className="mt-2 type-meta text-desk-ink-2">

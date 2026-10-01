@@ -107,7 +107,7 @@ test('empty: it says so and shows three recorded samples, labelled as samples', 
   await expect(empty.locator('[data-sample]').first()).toContainText('Sample, a recorded check');
   await empty.locator('[data-sample]').first().getByRole('link').click();
   await expect(page).toHaveURL(/\/case\/sample-/);
-  await expect(page.getByText('a recorded example, not a new check')).toBeVisible();
+  await expect(page.locator('[data-recorded-notice]')).toBeVisible();
 });
 
 test('it works with storage blocked', async ({ page }) => {

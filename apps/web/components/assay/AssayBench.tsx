@@ -88,11 +88,13 @@ function Slider({
   control,
   value,
   real,
+  subject,
   onChange,
 }: {
   control: Control;
   value: Signals[Key];
   real: Signals[Key];
+  subject: string;
   onChange: (v: number | string) => void;
 }) {
   const label = signalWords(control.key);
@@ -106,7 +108,7 @@ function Slider({
             <label key={f} className="inline-flex min-h-6 cursor-pointer items-center gap-1.5 type-meta text-ink pointer-coarse:min-h-11">
               <input type="radio" name={id} value={f} checked={value === f} onChange={() => onChange(f)} className="accent-ink" />
               {f}
-              {real === f && <span className="text-ink-3">(the case)</span>}
+              {real === f && <span className="text-ink-3">(the {subject})</span>}
             </label>
           ))}
         </div>
@@ -129,7 +131,7 @@ function Slider({
         <label htmlFor={id}>{label}</label>
         <span id={`${id}-value`} className="tabular-nums" data-value>
           {signalValue(control.key, value as number)}
-          <span className="text-ink-3"> (the case: {signalValue(control.key, real as number)})</span>
+          <span className="text-ink-3"> (the {subject}: {signalValue(control.key, real as number)})</span>
         </span>
       </div>
       <div className="relative mt-1 flex min-h-6 items-center pointer-coarse:min-h-11">
@@ -156,7 +158,17 @@ function Slider({
   );
 }
 
-export function AssayBench({ assay }: { assay: AssayComputed }) {
+export function AssayBench({
+  assay,
+  subject = 'case',
+  title = 'Try the formula',
+}: {
+  assay: AssayComputed;
+  /** What the starting values belong to: the case of a report, or the sample on /method. */
+  subject?: 'case' | 'sample';
+  /** The block's own heading (the page around it may already have one with the same words). */
+  title?: string;
+}) {
   const [real] = useState(() => signalsOf(assay));
   const [values, setValues] = useState<Signals>(real);
   const [result, setResult] = useState<AssayComputed>(assay);
@@ -190,7 +202,7 @@ export function AssayBench({ assay }: { assay: AssayComputed }) {
     <section aria-labelledby="bench-title" data-bench className="flex flex-col gap-4">
       <div>
         <h3 id="bench-title" className="type-ui font-semibold text-ink">
-          Try the formula
+          {title}
         </h3>
       </div>
 
@@ -201,18 +213,19 @@ export function AssayBench({ assay }: { assay: AssayComputed }) {
         </p>
         <Hallmark metrics={result.metrics} size={28} />
         <p role="status" aria-live="polite" aria-atomic="true" className="type-body text-ink">
-          The formula reads <span className="font-semibold">{verdictName(result.formula_verdict)}</span> at an overall score of{' '}
+          The Judge says <span className="font-semibold">{verdictName(result.judge_verdict)}</span>. The formula reads{' '}
+          <span className="font-semibold">{verdictName(result.formula_verdict)}</span> at an overall score of{' '}
           <span className="tabular-nums" data-bench-composite>
             {result.composite.toFixed(2)}
           </span>
-          . The case&apos;s own was {assay.composite.toFixed(2)}.
+          {changed && <>; the {subject}&apos;s own was {assay.composite.toFixed(2)}</>}.
         </p>
         <TwoKey assay={result} />
         <MaskingNotice assay={result} />
         {result.tipping_point && <p className="type-meta text-ink-2">{tippingSentence(result.tipping_point)}</p>}
         <div>
           <Button variant="secondary" onClick={() => changed && reset()} aria-disabled={!changed} className={changed ? undefined : 'opacity-60'}>
-            Reset to the case
+            Reset to the {subject}
           </Button>
         </div>
       </div>
@@ -221,12 +234,19 @@ export function AssayBench({ assay }: { assay: AssayComputed }) {
         <fieldset key={group} className="flex flex-col gap-3">
           <legend className="type-meta font-semibold text-ink-2">{group}</legend>
           {CONTROLS[group].map((c) => (
-            <Slider key={c.key} control={c} value={values[c.key]} real={real[c.key]} onChange={(v) => set(c.key, v)} />
+            <Slider key={c.key} control={c} value={values[c.key]} real={real[c.key]} subject={subject} onChange={(v) => set(c.key, v)} />
           ))}
         </fieldset>
       ))}
 
-      {result.ledger && <IntegrityLedger ledger={result.ledger} className="mt-2" />}
+      {result.ledger && (
+        <>
+          <p data-whatif-ledger className="border-y-(length:--rule) border-ochre py-1 type-meta text-ink">
+            What-if figures: this ledger follows the sliders above.
+          </p>
+          <IntegrityLedger ledger={result.ledger} className="mt-2" />
+        </>
+      )}
     </section>
     </AssayLinkProvider>
   );

@@ -254,7 +254,8 @@ test('a too-short claim shakes the field three times by 4px, says what is missin
   }
   // Three iterations of 80ms: 240ms, 4px each way.
   expect(await seen(page)).toContain('timing:shake:0.08s:3');
-  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
+  // The Desk's scroll story below the fold is driven by scrolling, not by time: it is still while nobody scrolls.
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running' || !(a.timeline instanceof DocumentTimeline)));
 });
 
 test("submitting a claim morphs it into the case's headline (a to-case view transition); not when reduced", async ({ page }, info) => {

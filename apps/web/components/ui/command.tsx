@@ -45,15 +45,15 @@ function CommandDialog({
 }) {
   return (
     <Dialog {...props}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
-      </DialogHeader>
       <DialogContent
         className={cn("overflow-hidden p-0 sm:max-w-xl", className)}
         showCloseButton={showCloseButton}
       >
-        <Command>{children}</Command>
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <Command label={title}>{children}</Command>
       </DialogContent>
     </Dialog>
   )
@@ -70,6 +70,7 @@ function CommandInput({
     >
       <SearchIcon aria-hidden="true" className="size-4 shrink-0 stroke-[1.5] text-surface-fg-2" />
       <CommandPrimitive.Input
+        aria-label="Search places and actions"
         data-slot="command-input"
         className={cn(
           "flex h-12 w-full bg-transparent type-body outline-none placeholder:text-surface-fg-2 disabled:cursor-not-allowed disabled:opacity-50",

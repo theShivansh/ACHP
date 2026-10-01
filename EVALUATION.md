@@ -34,4 +34,4 @@ Every component added a gain reported as statistically significant (p < 0.01, Mc
 
 ## Provenance
 
-These figures are transcribed from the project's own write-up. They have not been re-run here. The paper's Table III reports a different per-benchmark mean (62.2% vs 57.2% for GPT-4 zero-shot) that cannot be reconciled without the paper's source tables; it is listed under 'other_published' and is never averaged with these.
+These figures are transcribed from the project's own write-up. They have not been re-run here. The paper's Table III reports a different per-benchmark mean (62.2% vs 57.2% for GPT-4 zero-shot) that cannot be reconciled without the paper's source tables; it is listed below under other published figures and is never averaged with these.

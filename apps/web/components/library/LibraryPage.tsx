@@ -40,6 +40,7 @@ function IndexCard({ kb, active, onDelete }: { kb: KBItem; active: boolean; onDe
       >
         {STATUS_WORDS[kb.status]}
         {kb.status === 'indexing' && <span className="text-ink-2"> · checking every few seconds</span>}
+        {kb.status === 'error' && <span className="text-ink-2"> · delete it and add the document again</span>}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Link href={`/library/${encodeURIComponent(kb.kb_id)}`} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
@@ -61,7 +62,7 @@ function IndexCard({ kb, active, onDelete }: { kb: KBItem; active: boolean; onDe
             )}
           </>
         )}
-        <Button type="button" variant="destructive" size="sm" onClick={() => onDelete(kb)}>
+        <Button type="button" variant="ghost" size="sm" className="text-surface-red hover:text-surface-red" onClick={() => onDelete(kb)}>
           Delete<span className="sr-only"> {kb.name}</span>
         </Button>
       </div>
@@ -149,7 +150,7 @@ function DropZone() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://"
-            className="min-h-10 min-w-0 flex-1 rounded-button border-(length:--rule) border-desk-line bg-desk-raised px-3 type-ui text-desk-ink placeholder:text-desk-ink-3 pointer-coarse:min-h-11"
+            className="min-h-10 min-w-0 flex-1 rounded-button border-(length:--rule) border-desk-ink-2 bg-desk-raised px-3 type-ui text-desk-ink placeholder:text-desk-ink-2 pointer-coarse:min-h-11"
           />
           <Button type="submit" variant="secondary" className="text-desk-ink" disabled={upload.isPending || !url.trim()}>
             Add
@@ -172,7 +173,7 @@ function DropZone() {
           rows={3}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          className="rounded-button border-(length:--rule) border-desk-line bg-desk-raised px-3 py-2 type-ui text-desk-ink placeholder:text-desk-ink-3"
+          className="rounded-button border-(length:--rule) border-desk-ink-2 bg-desk-raised px-3 py-2 type-ui text-desk-ink placeholder:text-desk-ink-2"
         />
         <label htmlFor="kb-name" className="type-meta text-desk-ink-2">
           Name it (optional)
@@ -181,7 +182,7 @@ function DropZone() {
           id="kb-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="min-h-10 rounded-button border-(length:--rule) border-desk-line bg-desk-raised px-3 type-ui text-desk-ink pointer-coarse:min-h-11"
+          className="min-h-10 rounded-button border-(length:--rule) border-desk-ink-2 bg-desk-raised px-3 type-ui text-desk-ink pointer-coarse:min-h-11"
         />
         <Button type="submit" variant="secondary" className="w-fit text-desk-ink" disabled={upload.isPending || !text.trim()}>
           Add text
@@ -205,6 +206,7 @@ export function LibraryPage() {
   const [target, setTarget] = useState<KBItem | null>(null);
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
+  const doneRef = useRef<HTMLParagraphElement>(null);
   const items = list.data?.knowledge_bases ?? [];
 
   const confirmDelete = () => {
@@ -216,6 +218,8 @@ export function LibraryPage() {
         if (active === kb.kb_id) setActiveLibrary(null);
         setDone(`Deleted “${kb.name}”.`);
         setTarget(null);
+        // The card (and the button the dialog would return to) is gone: focus lands on the confirmation instead.
+        requestAnimationFrame(() => doneRef.current?.focus());
       },
       onError: (e) => setError(e.message || 'It could not be deleted. Try again.'),
     });
@@ -243,7 +247,7 @@ export function LibraryPage() {
         </Button>
       </div>
 
-      <p role="status" className="mt-4 type-meta text-desk-ink-2">
+      <p role="status" ref={doneRef} tabIndex={-1} className="mt-4 type-meta text-desk-ink-2 outline-none">
         {done}
       </p>
       {list.isError && (

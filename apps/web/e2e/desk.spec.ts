@@ -133,3 +133,24 @@ test('below the fold the recorded check replays, and ends by taking you back to 
   await page.getByRole('button', { name: 'Check a message' }).click();
   await expect(page.getByRole('textbox', { name: /The message you want checked/ })).toBeFocused();
 });
+
+test('the story rail belongs to the story: it is not on screen above the fold, and appears with the story', async ({ page }) => {
+  await mockBackend(page, { libraries: [] });
+  await page.goto('/');
+  await expect(page.locator('[data-story-rail]')).toBeHidden();
+  await page.locator('#how-it-works').scrollIntoViewIfNeeded();
+  // The observer may not have taken its first reading under load, so scroll again until the rail answers.
+  await expect(async () => {
+    await page.evaluate(() => document.querySelector('[data-chapter="sources"]')?.scrollIntoView({ block: 'center' }));
+    await expect(page.locator('[data-story-rail]')).toBeVisible({ timeout: 1500 });
+  }).toPass({ timeout: 15_000 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(page.locator('[data-story-rail]')).toBeHidden();
+});
+
+test('a recorded example says so on every screen size, so it is never taken for a new check', async ({ page }) => {
+  await mockBackend(page, { libraries: [] });
+  await page.goto('/case/sample-exercise-mixed');
+  await expect(page.locator('[data-recorded-notice]')).toHaveText('A recorded example, not a new check.');
+  await expect(page.locator('[data-recorded-notice]')).toBeVisible();
+});

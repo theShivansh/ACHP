@@ -24,7 +24,7 @@ export function LibrarySelect({ id: idProp, className, label = 'Library' }: { id
         id={id}
         value={value}
         onChange={(e) => setActiveLibrary(e.target.value || null)}
-        className="min-h-9 cursor-pointer rounded-button border-(length:--rule) border-desk-line bg-desk-raised px-2 type-ui text-desk-ink pointer-coarse:min-h-11"
+        className="min-h-9 cursor-pointer rounded-button border-(length:--rule) border-desk-ink-2 bg-desk-raised px-2 type-ui text-desk-ink pointer-coarse:min-h-11"
       >
         <option value="">None</option>
         {ready.map((k) => (

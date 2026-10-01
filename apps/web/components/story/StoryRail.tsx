@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from 'cn';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { CHAPTER_IDS, CHAPTER_TITLES, type ChapterId } from '@/lib/runs/chapters';
 
 // The story's rail (05 §2.2): seven ticks, the current one filled, each a real link to its chapter, and a
@@ -12,13 +12,21 @@ import { CHAPTER_IDS, CHAPTER_TITLES, type ChapterId } from '@/lib/runs/chapters
 export function StoryRail({ className, embedded = false }: { className?: string; embedded?: boolean }) {
   const [current, setCurrent] = useState<ChapterId>('claim');
   // On a page with other content (the Desk), the rail belongs to the story only: shown while the story is on screen.
-  const [shown, setShown] = useState(() => !embedded || typeof IntersectionObserver === 'undefined');
+  const [inView, setInView] = useState(false);
+  // Without IntersectionObserver the rail cannot tell, so it stays on screen. The server and the first client render
+  // agree (supported), so a Desk never paints the rail before the story.
+  const observable = useSyncExternalStore(
+    () => () => {},
+    () => typeof IntersectionObserver !== 'undefined',
+    () => true,
+  );
+  const shown = !embedded || !observable || inView;
 
   useEffect(() => {
     if (!embedded) return;
     const story = document.querySelector('[data-story]');
     if (!story || typeof IntersectionObserver === 'undefined') return;
-    const io = new IntersectionObserver(([e]) => setShown(e.isIntersecting), { rootMargin: '-35% 0px -35% 0px', threshold: 0 });
+    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { rootMargin: '-35% 0px -35% 0px', threshold: 0 });
     io.observe(story);
     return () => io.disconnect();
   }, [embedded]);

@@ -4,7 +4,7 @@ import { MenuIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { deskNav, isCurrent } from './nav';
 import { nextTheme, useThemeChoice } from './ThemeToggle';
 
@@ -22,6 +22,7 @@ export function MobileMenu({ className }: { className?: string }) {
       <SheetContent side="right" surface="desk">
         <SheetHeader>
           <SheetTitle>Menu</SheetTitle>
+          <SheetDescription className="sr-only">The places in ACHP, and the theme.</SheetDescription>
         </SheetHeader>
         <nav aria-label="Main" className="px-2">
           <ul className="flex flex-col">

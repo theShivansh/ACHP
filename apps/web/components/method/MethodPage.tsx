@@ -153,7 +153,7 @@ function Findings() {
           <h3 className="type-ui font-semibold text-ink">Wording moves the overall score more than facts do.</h3>
           <p className="mt-1 max-w-[64ch] type-body text-ink-2">
             Moving the framing score by a tenth moves the overall score about {ratio.toFixed(1)}{' '}
-            times as much as moving the Fact Challenger&apos;s factual score by a
+            times as much as moving the {agentIdentity('adversary_a').displayName}&apos;s factual score by a
             tenth. Framing also feeds four of the five scores; no other signal feeds more than one.
           </p>
         </li>
@@ -213,7 +213,7 @@ function MethodBench() {
         {sample.shows} <span className="text-ink-3">These are illustrative signals, not a real check.</span>
       </p>
       <div className="mt-4 border-t-(length:--rule) border-sheet-line pt-4">
-        <AssayBench key={id} assay={assay} />
+        <AssayBench key={id} assay={assay} subject="sample" title="The formula on this sample" />
       </div>
     </Sheet>
   );
@@ -222,12 +222,13 @@ function MethodBench() {
 function BenchmarkSection({ b }: { b: Benchmark }) {
   return (
     <Sheet>
-      <p data-headline className="font-display text-[2rem] leading-tight font-medium text-ink [font-variation-settings:'opsz'_48]">
+      <p className="max-w-[64ch] type-body text-ink-2">
+        On the project&apos;s own factual, opinion and prediction claims, the checked pipeline got this far. It is a measure of the method on a test set, not a promise about any one claim.
+      </p>
+      <p data-headline className="mt-2 type-h2 text-ink">
         {pct(b.headline.value)} {b.headline.metric}
       </p>
-      <p className="mt-1 max-w-[64ch] type-body text-ink-2">
-        On the project&apos;s own factual, opinion and prediction claims. {b.provenance.note}
-      </p>
+      <p className="mt-2 max-w-[64ch] type-meta text-ink-2">{b.provenance.note}</p>
 
       <h3 className="mt-6 type-ui font-semibold text-ink">By kind of claim</h3>
       <div tabIndex={0} role="region" aria-label="Accuracy by kind of claim, scrolls sideways on a narrow screen" className="mt-2 overflow-x-auto">

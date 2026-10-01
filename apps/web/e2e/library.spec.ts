@@ -15,7 +15,7 @@ test('index cards say what each library is and what state it is really in', asyn
   await expect(ready).toContainText('3 docs · 48 chunks · 117 KB');
   await expect(ready.locator('[data-kb-status]')).toHaveText('Ready');
   await expect(page.locator('[data-kb="kb2"] [data-kb-status]')).toContainText('Indexing');
-  await expect(page.locator('[data-kb="kb3"] [data-kb-status]')).toHaveText('Could not be indexed');
+  await expect(page.locator('[data-kb="kb3"] [data-kb-status]')).toContainText('Could not be indexed');
   // Only a ready library can be asked or made active.
   await expect(page.locator('[data-kb="kb2"]').getByRole('link', { name: /^Ask/ })).toHaveCount(0);
   await expect(page.locator('[data-kb="kb1"]').getByRole('link', { name: /^Ask/ })).toBeVisible();

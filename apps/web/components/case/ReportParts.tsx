@@ -85,7 +85,14 @@ export function PartsThatDontHold({
   return (
     <div data-not-holding className="mt-4 max-w-[68ch]">
       <p className="type-meta font-semibold text-ink-2">
-        {parts.length === 1 ? 'The part that does not hold' : 'The parts that do not hold'}
+        {/* A part nobody could settle is not a part that is wrong: say which it is. */}
+        {parts.every((p) => p.label === 'unverifiable' || p.label === 'missing_context')
+          ? parts.length === 1
+            ? 'The part we could not settle'
+            : 'The parts we could not settle'
+          : parts.length === 1
+            ? 'The part that does not hold'
+            : 'The parts that do not hold'}
       </p>
       <ul className="mt-1 flex flex-col gap-1">
         {parts.map((p) => {

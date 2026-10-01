@@ -62,7 +62,7 @@ export function DeskHome({ story }: { story?: React.ReactNode }) {
           />
         </div>
 
-        <div className="mt-5" aria-labelledby="try-one">
+        <div className="mt-5" role="group" aria-labelledby="try-one">
           <p id="try-one" className="type-meta text-desk-ink-2">
             Try one. It fills the field; you decide when to check it.
           </p>

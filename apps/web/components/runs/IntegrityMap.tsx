@@ -59,16 +59,18 @@ export function IntegrityMap({
             </li>
           ))}
         </ul>
+        {/* On a narrow screen the plot keeps its size and scrolls sideways, so a dot stays 8px+ and a hit area 24px+. */}
+        <div tabIndex={0} role="region" aria-label="Integrity Map plot, scrolls sideways on a narrow screen" className="overflow-x-auto max-[22.5rem]:hidden">
         <svg
           viewBox={`0 0 ${W} ${H}`}
           role="group"
           aria-label={`Integrity Map: ${rows.length} checks. ${summary}.`}
-          className="mx-auto h-auto w-full max-w-[640px] text-ink max-[22.5rem]:hidden"
+          className="mx-auto h-auto w-full min-w-[440px] max-w-[640px] text-ink"
         >
           {/* Frame, the 0.5 lines that make the four quadrants, and the axes. */}
           <rect x={L} y={T} width={R - L} height={B - T} fill="none" className="stroke-sheet-line" strokeWidth={1} />
-          <line x1={px(0.5)} x2={px(0.5)} y1={T} y2={B} className="stroke-ink-3" strokeWidth={1} strokeDasharray="3 4" />
-          <line x1={L} x2={R} y1={py(0.5)} y2={py(0.5)} className="stroke-ink-3" strokeWidth={1} strokeDasharray="3 4" />
+          <line x1={px(0.5)} x2={px(0.5)} y1={T} y2={B} className="stroke-sheet-line" strokeWidth={1} />
+          <line x1={L} x2={R} y1={py(0.5)} y2={py(0.5)} className="stroke-sheet-line" strokeWidth={1} />
           {[0, 0.5, 1].map((t) => (
             <g key={t} className="fill-ink-2 text-[11px]">
               <text x={px(t)} y={B + 16} textAnchor="middle">
@@ -91,7 +93,7 @@ export function IntegrityMap({
               x={l.x}
               y={l.y}
               textAnchor={l.anchor}
-              className={cn('text-[12px]', l.q === 'quiet_falsehood' ? 'fill-pencil-red font-semibold' : 'fill-ink-2')}
+              className={cn('fill-ink-2 text-[12px]', l.q === 'quiet_falsehood' && 'font-semibold')}
             >
               {QUADRANT_WORDS[l.q].name}
             </text>
@@ -109,14 +111,17 @@ export function IntegrityMap({
                 onPointerLeave={() => onFocus(null)}
                 onFocus={() => onFocus(r.id)}
                 onBlur={() => onFocus(null)}
-                className="outline-none [&:focus-visible>circle:last-child]:stroke-pencil-blue [&:focus-visible>circle:last-child]:stroke-2"
+                className="group outline-none"
               >
-                <circle data-hit cx={px(p.x)} cy={py(p.y)} r={12} fill="transparent" stroke="none" />
+                <circle data-hit cx={px(p.x)} cy={py(p.y)} r={14} fill="transparent" stroke="none" />
+                {/* The keyboard ring is its own circle with a gap, so it is never mistaken for a bigger dot. */}
+                <circle cx={px(p.x)} cy={py(p.y)} r={11} fill="none" strokeWidth={2} className="hidden stroke-pencil-blue group-focus-visible:block" />
                 <circle data-dot={r.id} cx={px(p.x)} cy={py(p.y)} r={on ? 6.5 : 4.5} className={on ? 'fill-pencil-blue' : 'fill-ink'} />
               </Link>
             );
           })}
         </svg>
+        </div>
         <p role="status" data-map-readout className="mt-2 min-h-[2.8em] max-w-[68ch] type-meta text-ink-2">
           {focused ? (
             <>
@@ -131,7 +136,8 @@ export function IntegrityMap({
 
       <table data-map-table className="mt-4 w-full border-collapse text-left type-meta text-desk-ink">
         <caption className="pb-2 text-left type-meta text-desk-ink-2">
-          The same points as a table. Facts is the Consensus Truth Score and Calm is how measured the wording reads, both out of 100.
+          The same points as a table. Facts is the Consensus Truth Score and Calm is how measured the wording reads, both out of 100. The quiet falsehood flag is experimental until it has been
+          validated.
         </caption>
         <thead>
           <tr className="border-b-(length:--rule) border-desk-line text-desk-ink-2">

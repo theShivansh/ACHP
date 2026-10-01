@@ -25,7 +25,19 @@ interface Exchange {
 }
 
 /** The answer's prose with its [N] markers turned into numbered chips (1, 2, 3 in order of first citation). */
-function Answer({ result, numbers, onOpen, active }: { result: QAResponse; numbers: Map<number, number>; onOpen: (chunk: number) => void; active: number | null }) {
+function Answer({
+  result,
+  numbers,
+  onOpen,
+  active,
+  cardId,
+}: {
+  result: QAResponse;
+  numbers: Map<number, number>;
+  onOpen: (chunk: number) => void;
+  active: number | null;
+  cardId: (chunk: number) => string;
+}) {
   return (
     <p className="max-w-[68ch] font-display type-claim text-ink">
       {splitAnswer(result.answer).map((part, i) =>
@@ -36,7 +48,8 @@ function Answer({ result, numbers, onOpen, active }: { result: QAResponse; numbe
             key={i}
             type="button"
             data-cite={part.chunk}
-            aria-pressed={active === part.chunk}
+            aria-controls={cardId(part.chunk)}
+            aria-current={active === part.chunk ? 'true' : undefined}
             aria-label={`Passage ${numbers.get(part.chunk) ?? part.chunk}, chunk ${part.chunk}`}
             onClick={() => onOpen(part.chunk)}
             className={cn(
@@ -65,7 +78,7 @@ function Result({ ex }: { ex: Exchange }) {
     requestAnimationFrame(() => document.getElementById(`${base}-${chunk}`)?.focus());
   };
   return (
-    <section data-exchange={ex.id} aria-label={`Question: ${ex.question}`} className="paper rounded-sheet px-5 py-6 shadow-lift-sheet md:px-8">
+    <section data-exchange={ex.id} tabIndex={-1} aria-label={`Question: ${ex.question}`} className="paper rounded-sheet px-5 py-6 shadow-lift-sheet outline-none md:px-8">
       <p className="type-meta font-semibold text-ink-2">You asked</p>
       <h2 className="mt-1 max-w-[68ch] font-display type-claim text-ink">{ex.question}</h2>
 
@@ -92,7 +105,7 @@ function Result({ ex }: { ex: Exchange }) {
       ) : (
         <>
           <div className="mt-5 border-t-(length:--rule) border-sheet-line pt-4">
-            <Answer result={result} numbers={numbers} onOpen={open} active={active} />
+            <Answer result={result} numbers={numbers} onOpen={open} active={active} cardId={(c) => `${base}-${c}`} />
             <p className="mt-2 type-meta text-ink-2">From {result.kb_name}. Every sentence comes from the passages below.</p>
           </div>
           <ul aria-label="Passages the answer comes from" className="mt-5 flex flex-col gap-3">
@@ -130,6 +143,7 @@ export function AskPage() {
   const field = useRef<HTMLTextAreaElement>(null);
   const questionId = useId();
   const next = useRef(1);
+  const [ready, setReady] = useState('');
 
   const submit = async () => {
     const q = question.trim();
@@ -146,8 +160,16 @@ export function AskPage() {
     setBusy(true);
     try {
       const result = await askLibrary(q, chosen.kb_id);
-      setThread((t) => [...t.slice(-9), { id: next.current++, question: q, result }]);
+      const id = next.current++;
+      setThread((t) => [...t.slice(-9), { id, question: q, result }]);
       setQuestion('');
+      setReady(
+        isOutOfLibrary(result)
+          ? `Not in this library. ${result.citations.length} nearest passages are shown.`
+          : `Answer ready, from ${orderedCitations(result).cited.length} passages of ${result.kb_name}.`,
+      );
+      // The reader's place is the new answer, not the field that was sending.
+      requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-exchange="${id}"]`)?.focus());
     } catch (e) {
       setProblem(e instanceof QAError ? e.message : 'The question could not be answered. Try again in a moment.');
     } finally {
@@ -209,7 +231,8 @@ export function AskPage() {
                 ref={field}
                 rows={2}
                 value={question}
-                disabled={busy}
+                readOnly={busy}
+                aria-busy={busy}
                 placeholder="How much exercise does WHO recommend per week?"
                 aria-describedby={`${questionId}-problem`}
                 aria-invalid={problem ? true : undefined}
@@ -234,7 +257,7 @@ export function AskPage() {
                 Ask
               </Button>
               <p role="status" className="type-meta text-desk-ink-2">
-                {busy ? 'Reading the library…' : 'Enter asks. Shift and Enter adds a line.'}
+                {busy ? 'Reading the library…' : ready || 'Enter asks. Shift and Enter adds a line.'}
               </p>
             </div>
           </form>

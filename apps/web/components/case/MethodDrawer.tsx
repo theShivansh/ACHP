@@ -70,7 +70,7 @@ export function MethodDrawer({ benchmark, onOpenAssay }: { benchmark: string | n
 
           <section aria-labelledby="m-bench">
             <h3 id="m-bench" className="type-ui font-semibold text-ink">
-              How the scores compare with people
+              How well it works
             </h3>
             <p className="mt-3 max-w-[68ch] type-body text-ink-2">
               {benchmark ??

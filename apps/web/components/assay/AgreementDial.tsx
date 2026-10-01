@@ -23,7 +23,7 @@ export function AgreementDial() {
               <span className="sr-only">Bar from 0 to 1</span>
             </th>
             <th scope="col" className="py-1 text-right font-semibold">
-              r
+              Agreement (r)
             </th>
           </tr>
         </thead>

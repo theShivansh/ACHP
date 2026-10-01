@@ -4,6 +4,11 @@
 // the Assay module (P5), and the case page shows the server's values. Benchmark numbers are never
 // written here; they are read from EVALUATION.md once that file exists (audit 01 G5).
 
+import { agentIdentity } from '@/lib/agents.config';
+
+/** An agent's name as the desk shows it (visual identity and names live in agents.config; none is typed into prose). */
+const agent = (id: string) => agentIdentity(id).displayName;
+
 export interface MetricDoc {
   acronym: string;
   name: string;
@@ -20,14 +25,14 @@ export const METRICS: readonly MetricDoc[] = [
     name: 'Consensus Truth Score',
     means: 'How well the facts in the message hold up against the sources found.',
     // BIS and EPS are spelled out here because this is the first place either appears (the full form comes on first use).
-    formula: 'CTS = 0.40·factual score (Fact Challenger) + 0.35·Judge CTS + 0.15·(1 − Bias Impact Score) + 0.10·Epistemic Position Score',
+    formula: `CTS = 0.40·factual score (${agent('adversary_a')}) + 0.35·Judge CTS + 0.15·(1 − Bias Impact Score) + 0.10·Epistemic Position Score`,
     source: 'apps/api/achp/core/core_pipeline.py:117-129',
   },
   {
     acronym: 'PCS',
     name: 'Perspective Completeness Score',
     means: 'How many of the viewpoints a reader would need are present, not left out.',
-    formula: 'PCS = 0.50·PCS (Narrative Auditor) + 0.30·PCS (Framing Lens) + 0.20·(1 − min(missing perspectives ÷ 10, 1))',
+    formula: `PCS = 0.50·PCS (${agent('adversary_b')}) + 0.30·PCS (${agent('nil_supervisor')}) + 0.20·(1 − min(missing perspectives ÷ 10, 1))`,
     source: 'apps/api/achp/core/core_pipeline.py:132-143',
   },
   {
@@ -65,8 +70,8 @@ export const OVERALL = {
 export const CONFIDENCE_RULES: readonly string[] = [
   'A part nobody could settle, or a message that was not checked, is Weak evidence.',
   'Sources that point both ways make a part Weak evidence.',
-  'Two or more sources for the label, with the Fact Challenger reaching the same finding, make it Strong evidence.',
-  'Two or more sources, or one source the Fact Challenger agrees with, make it Moderate evidence.',
+  `Two or more sources for the label, with the ${agent('adversary_a')} reaching the same finding, make it Strong evidence.`,
+  `Two or more sources, or one source the ${agent('adversary_a')} agrees with, make it Moderate evidence.`,
   'Anything else is Weak evidence.',
   "The whole case takes its weakest rated part, one step lower when the Judge's own confidence is below one half.",
 ];

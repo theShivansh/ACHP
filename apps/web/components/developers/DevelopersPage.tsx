@@ -20,6 +20,7 @@ function Code({ code, label }: { code: string; label: string }) {
     <div className="relative">
       <pre
         tabIndex={0}
+        role="region"
         aria-label={label}
         className="overflow-x-auto rounded-card border-(length:--rule) border-desk-line bg-desk-raised px-4 py-3 font-code text-[0.8125rem] leading-relaxed text-desk-ink"
       >
@@ -145,7 +146,7 @@ export function DevelopersPage() {
           <p className="mt-1 max-w-[64ch] type-body text-desk-ink-2">
             <span className="font-code text-[0.9375rem] text-desk-ink">assay.computed</span> arrives right after the verdict and before the run completes. It carries the signals, the five scores, the
             overall score, the formula&apos;s verdict beside the Judge&apos;s, the ledger, the tipping point, the masking check and the Integrity Map point. Nothing is sent for a blocked or failed
-            check. Below, the same event for an illustrative case (shortened to two ledger entries and one flip); the signals are made up for the example.
+            check. Below, the same event for an illustrative case. It is shortened to two ledger entries and one flip, so its balances are those of the full ledger, not of the entries shown; the signals are made up for the example.
           </p>
           <div className="mt-3">
             <Code code={sample} label="Sample assay.computed event" />

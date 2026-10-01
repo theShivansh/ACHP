@@ -374,6 +374,17 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
         </div>
       </section>
 
+      {/* A recorded or test case says what it is at every width: never mistakable for a real check (07 §3.3, rule 4). */}
+      {(sample || fixture) && (
+        <aside aria-label="Recorded example" data-recorded-notice className="border-b-(length:--rule) border-desk-line bg-desk-raised px-4 py-2 text-center type-meta text-desk-ink md:px-6">
+          {sample
+            ? 'A recorded example, not a new check.'
+            : fixture?.name.startsWith('synthetic-')
+              ? 'A synthetic test log, not a real check.'
+              : 'A recorded check, replayed.'}
+        </aside>
+      )}
+
       <LaneStrip
         lanes={laneList}
         groups={groups}

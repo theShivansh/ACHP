@@ -62,7 +62,7 @@ test('the Bench keeps its what-if label wherever it is read, and a sample can be
   await page.keyboard.press('End');
   await expect(whatIf).toBeVisible();
   await expect(page.locator('[data-bench-composite]')).not.toHaveText('');
-  await page.getByRole('button', { name: 'Reset to the case' }).click();
+  await page.getByRole('button', { name: 'Reset to the sample' }).click();
   await expect(slider).toHaveValue('0.08');
   // Nothing on the Bench can be copied, shared or stamped.
   await expect(page.locator('[data-bench]').getByRole('button', { name: /copy|share|download/i })).toHaveCount(0);

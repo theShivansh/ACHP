@@ -3,7 +3,7 @@
 import { useQueries } from '@tanstack/react-query';
 import { cn } from 'cn';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Hallmark } from '@/components/assay/Hallmark';
 import { Stamp } from '@/components/case/Stamp';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -57,7 +57,7 @@ function RunRow({ row, focused, onFocus, onForget }: { row: Row; focused: boolea
             {s.label ? <Stamp label={s.label} id={id} size="strip" /> : <span className="type-meta text-desk-ink-2">No verdict</span>}
           </div>
           <div className="col-span-2 flex items-center gap-3 md:col-span-1 md:justify-self-end">
-            {s.assay ? <Hallmark metrics={s.assay.metrics} size={24} /> : <span className="type-meta text-desk-ink-3">{s.label === 'blocked' ? 'Not scored' : 'No scores'}</span>}
+            {s.assay ? <span className="paper inline-flex rounded-card px-2 py-1"><Hallmark metrics={s.assay.metrics} size={24} /></span> : <span className="type-meta text-desk-ink-2">{s.label === 'blocked' ? 'Not scored' : 'No scores'}</span>}
             {onForget && (
               <Button type="button" variant="ghost" size="sm" className="text-desk-ink-2" onClick={() => onForget(id)}>
                 Remove<span className="sr-only"> from this list: {excerpt(s.claim, 40)}</span>
@@ -85,6 +85,8 @@ export function RunsPage({ samples }: { samples: SampleRow[] }) {
   const history = useHistory();
   const [tab, setTab] = useState('list');
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [removed, setRemoved] = useState('');
+  const removedRef = useRef<HTMLParagraphElement>(null);
 
   const results = useQueries({
     queries: (history ?? []).map((e) => ({
@@ -103,7 +105,12 @@ export function RunsPage({ samples }: { samples: SampleRow[] }) {
       loading: !r || r.isLoading,
     };
   });
-  const forget = (id: string) => void forgetRun(id);
+  const forget = (id: string) => {
+    void forgetRun(id);
+    setRemoved('Removed from this list.');
+    // The row with the focused button is gone: focus lands on the confirmation.
+    requestAnimationFrame(() => removedRef.current?.focus());
+  };
   const scored = plotted(rows.flatMap((r) => (r.summary ? [r.summary] : [])));
   const empty = history !== null && history.length === 0;
 
@@ -114,6 +121,10 @@ export function RunsPage({ samples }: { samples: SampleRow[] }) {
       </h1>
       <p className="mt-2 max-w-[60ch] type-body text-desk-ink-2">
         The checks you opened on this device. Nothing is shared: the list lives in this browser, and each row is read from the check itself.
+      </p>
+
+      <p role="status" ref={removedRef} tabIndex={-1} className="mt-2 type-meta text-desk-ink-2 outline-none">
+        {removed}
       </p>
 
       {history === null ? (
@@ -148,6 +159,10 @@ export function RunsPage({ samples }: { samples: SampleRow[] }) {
             <TabsTrigger value="map">Map</TabsTrigger>
           </TabsList>
           <TabsContent value="list" className="mt-4">
+            <p data-hallmark-key className="mb-2 max-w-[68ch] type-meta text-desk-ink-2">
+              The five marks on each row, left to right: Consensus Truth Score, Perspective Completeness Score, Bias Impact Score (hatched; lower is better), Narrative Stance Score and Epistemic Position
+              Score. Point at a mark for its name and value.
+            </p>
             <ul data-runs-list>
               {rows.map((r) => (
                 <RunRow key={r.entry.id} row={r} focused={focusId === r.entry.id} onFocus={setFocusId} onForget={forget} />
