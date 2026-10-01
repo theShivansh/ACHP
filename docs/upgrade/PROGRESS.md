@@ -377,6 +377,28 @@ Deferred:
 - The slider thumbs on `/method` and in the Bench are under 44px on touch (P7's deferral stands).
 - Real Firefox and Safari checks, and the one-time MCP server (v2 FR4).
 
+## P9.5 — MCP server and ACHP Bench (interlude before P10)  ◐ 2026-10-01
+- [x] S8.5 MCP: `apps/mcp` (FastMCP 4). Tools `check_claim` (waits for the verdict, progress from agent events), `start_check`, `get_check`, `get_check_events`, `list_libraries`, `ask_library`, `search_library`, `backend_status`; resources `achp://runs/{run_id}/case`, `achp://runs/{run_id}/events`, `achp://method/scores`; prompt `check_before_forwarding`. A client of the public REST API: no model keys, no server change (commit d22e420)
+- [x] `/developers` MCP tab: opens first; install, Claude Code, Claude Desktop and HTTP commands against the configured backend; the tool list is generated from the server's own discovery (`scripts/gen_mcp_manifest.py`, pinned by `apps/mcp/tests/test_manifest.py`); says plainly that this deployment does not host it
+- [x] ACHP Bench tooling: `bench/` suites (120 AVeriTeC dev claims, stratified and seeded; 40 safety; 60 metamorphic; 20 abstention), a resumable runner that stores every run's gzipped event log, a quota guard and a daily cap, an offline scorer (Wilson and bootstrap intervals, the Judge against the reference Assay's formula, grounding, operations), `bench/README.md`, `bench/RESUME.md`
+- [x] `scripts/gen_evaluation.py`: measured results lead EVALUATION.md and `/method` once the run is complete; until then the earlier figures lead, labelled "not re-run here", with ACHP Bench's progress. The earlier figures are never averaged in
+- [ ] ACHP Bench run `2026-10-01`: 48 of 240 checks have a verdict. Stopped when the hosted backend's Groq free-tier daily quota ran out. Resume with `bench/RESUME.md` (about 35 checks a day)
+
+Gate evidence (so far): `apps/mcp` pytest 13 ✓ (against a fake backend serving the recorded runs) · a live stdio check against the hosted backend: progress 1/7 → 7/7, "Contradicted" with five verbatim quotes · `bench` + `reference/benchmark` pytest 18 ✓ · web typecheck ✓ lint ✓ (0 errors) · vitest (developers, benchmark) ✓ · e2e `developers`, `method` benchmark, routes (axe, 360px) on desktop-light and mobile-reduced ✓ · anti-slop `--strict` on changed web files: 0 · captures `docs/upgrade/screens/P9.5/` (developers MCP and REST)
+
+Decisions:
+- Decision: the MCP server is a client of the public REST API, not code mounted inside the backend, because it then needs no deployment change, no keys, and works against any ACHP backend (`ACHP_API_URL`).
+- Decision: tools are `check_claim` and friends, not 07 §9's `verify_claim` / `retrieve_evidence` / `get_claim_breakdown`, because the backend has no evidence-only or split-only call; one real run returns both the parts and their sources.
+- Decision: a failed check is a `ToolError` and never a verdict; a check that outlasts `wait_seconds` returns its run id with status "running" and no verdict.
+- Decision: ACHP Bench's headline is four-label agreement with professional fact-checkers on a fixed AVeriTeC sample, with a failed run counted as wrong, because it is real-world, independently labelled, and maps one-to-one onto ACHP's labels.
+- Decision: measured results are published only when every item was tried and at least 90% of each suite has a verdict, so a quota outage is never reported as accuracy.
+- Decision: the runner checks one claim at a time; two at once halved throughput on the shared rate limit and caused failures.
+
+Deferred / needs a decision:
+- AVeriTeC is CC BY-NC 4.0. If ACHP is used commercially, `bench/suites/averitec.jsonl` must be removed or replaced.
+- Running the bench on the hosted backend uses the live site's daily model quota. A paid key on a local backend (new tag) would finish in about 3 hours.
+- The `design-critic` and `assay-auditor` reviews of `/method#benchmark` wait for the measured results.
+
 ## P10 — Hardening
 - [ ] S9.1 · [ ] S9.3 · [ ] a11y, perf budgets, Lighthouse CI, e2e matrix, `/impeccable audit` + `harden` · [ ] anti-slop full scan = 0
 - Gate: axe clean · budgets met · all Playwright projects green

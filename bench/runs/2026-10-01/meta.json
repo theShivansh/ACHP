@@ -1,0 +1,14 @@
+{
+  "api": "https://theshivansh-achp-api.hf.space",
+  "tag": "2026-10-01",
+  "health_at_start": {
+    "status": "ok",
+    "project": "ACHP",
+    "version": "1.0.0",
+    "timestamp": "2026-10-01T15:57:40Z",
+    "pipeline_mode": "online",
+    "kb_count": 0,
+    "uptime_s": 245094.3
+  },
+  "started_at": "2026-10-01T15:57:40+00:00"
+}
