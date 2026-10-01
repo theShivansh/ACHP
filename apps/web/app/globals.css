@@ -578,13 +578,13 @@ html[data-lowfx] .mark[data-play][data-boil] {
    to an image; the browser prints the page itself, so the text stays text. */
 @media print {
   @page { margin: 16mm; }
-  html, body { background: #fff !important; color: #000 !important; }
+  html, body { background: #fff !important; color: #000 !important; } /* slop-allow: print is ink on the paper's own white, never a tinted sheet */
   header[class*="sticky"], nav, aside, [role="tablist"], [data-share-bar], [data-announcer], [data-story-rail],
   [role="status"].sr-only, button, [data-run-status] > section[aria-label="Case"] {
     display: none !important;
   }
   /* The sheet fills the page: no shadow, no grain, no rounded card. */
-  .paper { box-shadow: none !important; background: #fff !important; border-radius: 0 !important; padding: 0 !important; }
+  .paper { box-shadow: none !important; background: #fff !important; border-radius: 0 !important; padding: 0 !important; } /* slop-allow: print on white */
   main { padding: 0 !important; max-width: none !important; }
   [data-claim], [data-evidence], [data-verdict], [data-slot="stamp"], [data-hallmark], [data-two-key] { break-inside: avoid; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.8em; }
