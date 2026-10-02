@@ -43,6 +43,15 @@ test('nothing settled and no sources: every part says so, nothing is called fals
   await expect(page.locator('main')).toContainText(/no source|No sources/i);
 });
 
+test('a claim nobody could settle still gets an Assay readout: the five scores are on The Assay tab, not a no-readout notice', async ({ page }) => {
+  await open(page, 'all-unverifiable');
+  await page.getByRole('tab', { name: 'The Assay' }).click();
+  await expect(page.locator('[data-assay="none"]')).toHaveCount(0);
+  await expect(page.locator('[data-assay]:not([data-assay="none"])')).toBeVisible();
+  for (const code of ['CTS', 'PCS', 'BIS', 'NSS', 'EPS']) await expect(page.locator(`tr[data-metric="${code}"]`).first()).toBeVisible();
+  await expect(page.getByText(/no score readout/i)).toHaveCount(0);
+});
+
 test('a very long source title and quote wrap inside the card', async ({ page }) => {
   await open(page, 'long-source');
   await page.getByRole('tab', { name: /Evidence/ }).click();

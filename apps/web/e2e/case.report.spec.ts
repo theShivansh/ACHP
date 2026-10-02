@@ -165,3 +165,26 @@ test('the page title and the share image name the verdict', async ({ page, reque
   expect(res.headers()['content-type']).toBe('image/png');
   expect((await res.body()).length).toBeGreaterThan(10_000);
 });
+
+test('the stamp says which part: each part that did not come out Supported carries its mark over its own words', async ({ page }) => {
+  await page.goto(url);
+  await expect(page.locator(done)).toBeVisible({ timeout: 60_000 });
+  const unheld = verdict.claims.filter((c) => c.label !== 'supported' && c.label !== 'blocked');
+  test.skip(unheld.length === 0, 'this log has no unsettled part');
+  // Marks that have a drawing of their own over the headline (a half-underline, a dashed box, a strike, a caret).
+  const marks = page.locator('h1 [data-verdict-mark], h1 svg[data-label]');
+  await expect(marks.first()).toBeAttached();
+  const head = (await page.locator('h1').boundingBox())!;
+  const box = (await marks.first().boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(head.y - 4);
+  expect(box.y).toBeLessThanOrEqual(head.y + head.height + 8);
+  // The list that names the part sits in the header, under the stamp and before the reading.
+  const named = page.locator('article > header [data-not-holding] a');
+  await expect(named).toHaveCount(unheld.length);
+  const order = await page.evaluate(() => {
+    const list = document.querySelector('article > header [data-not-holding]');
+    const reading = document.querySelector('[data-interpretation]');
+    return !!list && !!reading && !!(list.compareDocumentPosition(reading) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  expect(order).toBe(true);
+});

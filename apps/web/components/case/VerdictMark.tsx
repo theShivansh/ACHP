@@ -15,10 +15,25 @@ import type { Label } from '@/lib/runs/types';
 // mark becomes the strike once ruled; see Mark). Blocked has no mark. Same stepped draw as the other marks: the
 // half-underline 6 frames, the caret 4, the dashed box swiped round in 9 (05 §3.1).
 
-export function VerdictMark({ rect, label, line, seed }: { rect: MarkRect; label: Label; line: number; /** The part's claim id. */ seed: string }) {
+export function VerdictMark({
+  rect,
+  label,
+  line,
+  seed,
+  strike = false,
+}: {
+  rect: MarkRect;
+  label: Label;
+  line: number;
+  /** The part's claim id (the headline's copy of a mark uses its own seed, so each plays once). */
+  seed: string;
+  /** Also draw the strike for a Contradicted part. Only the headline asks: on a strip the Fact Challenger's mark is the strike. */
+  strike?: boolean;
+}) {
   const info = verdictInfo(label);
   const play = usePlayOnce(`verdict:${seed}:${label}`);
-  if (!info || (info.mark !== 'half-underline' && info.mark !== 'dashed-box' && info.mark !== 'bracket-caret')) {
+  const struck = strike && info?.mark === 'strike';
+  if (!info || (info.mark !== 'half-underline' && info.mark !== 'dashed-box' && info.mark !== 'bracket-caret' && !struck)) {
     return null;
   }
   const w = Math.max(6, rect.width);
@@ -30,6 +45,7 @@ export function VerdictMark({ rect, label, line, seed }: { rect: MarkRect; label
       focusable="false"
       data-verdict-mark={info.mark}
       data-relation={dashed ? 'unclear' : 'verdict'}
+      data-label={label}
       data-play={play || undefined}
       data-draw={dashed ? 'swipe' : 'line'}
       className="mark pointer-events-none absolute overflow-visible"
@@ -41,7 +57,7 @@ export function VerdictMark({ rect, label, line, seed }: { rect: MarkRect; label
           '--x': `${rect.x}px`,
           '--y': `${rect.y}px`,
           '--line': line,
-          '--frames': MARK_FRAMES[dashed ? 'circle' : info.mark === 'bracket-caret' ? 'caret' : 'underline'],
+          '--frames': MARK_FRAMES[dashed ? 'circle' : info.mark === 'bracket-caret' ? 'caret' : struck ? 'strike' : 'underline'],
         } as React.CSSProperties
       }
     >
@@ -50,6 +66,9 @@ export function VerdictMark({ rect, label, line, seed }: { rect: MarkRect; label
           <path d={`M1 ${h + 2} L${w / 2} ${h + 2}`} pathLength={1} strokeDasharray={1} className="stroke-support" fill="none" strokeWidth={2} strokeLinecap="round" />
           <path d={`M${w / 2} ${h + 2} L${w - 1} ${h + 2.5}`} pathLength={1} strokeDasharray={1} className="stroke-pencil-red" fill="none" strokeWidth={2} strokeLinecap="round" />
         </>
+      )}
+      {struck && (
+        <path d={`M0 ${h * 0.58} L${w} ${h * 0.54}`} pathLength={1} strokeDasharray={1} className="stroke-pencil-red" fill="none" strokeWidth={2} strokeLinecap="round" />
       )}
       {dashed && (
         <rect x={-3} y={-1} width={w + 6} height={h + 2} rx={2} fill="none" className="stroke-graphite" strokeWidth={1.5} strokeDasharray="4 3" />

@@ -3,13 +3,20 @@
 import { cn } from 'cn';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { measureSpan, type MarkRect } from '@/lib/marks/measure';
+import type { Label } from '@/lib/runs/types';
 import { usePlayOnce } from './arrival';
+import { VerdictMark } from './VerdictMark';
 
 // The forwarded message as the case's headline, with the Framing Lens's highlighter over the words its wording checks
 // flagged (signal.computed spans over the input: loaded words, absolutes). A highlight is swiped on left → right in 5
 // stepped frames when its check arrives while you watch (05 §3.4), and is simply there otherwise. The words stay
 // crisp; the highlight blends with them (multiply in light, screen in dark). The flagged words are said in text by
 // `flaggedWordsSentence`, outside the headline (the headline is the shared element of the Desk → Case morph).
+//
+// Once the Judge has ruled, each part that did not come out Supported carries its own verdict mark (04 §3.3: a half
+// underline for Mixed, a dashed box for Unverifiable, a strike for Contradicted, a caret for Missing context) over its
+// own words in the message, so the stamp below it answers "which part?" without a scroll. The same mark is on the part's
+// strip further down.
 
 function Highlight({ rect, spanKey, line }: { rect: MarkRect; spanKey: string; line: number }) {
   const play = usePlayOnce(`hl:${spanKey}`);
@@ -34,27 +41,48 @@ function Highlight({ rect, spanKey, line }: { rect: MarkRect; spanKey: string; l
   );
 }
 
+export interface RuledPart {
+  claimId: string;
+  /** The part's [start, end) range in the message (`claim.extracted` source_span). */
+  span: readonly [number, number];
+  label: Label;
+}
+
 export function ClaimHeadline({
   text,
   spans,
+  ruled = [],
   className,
 }: {
   text: string;
   /** Flagged [start, end) ranges of `text`, merged and in order (reducer `flaggedSpans`). */
   spans: readonly { span: readonly [number, number] }[];
+  /** The parts that did not come out Supported, once the Judge has ruled. */
+  ruled?: readonly RuledPart[];
   className?: string;
 }) {
   const boxRef = useRef<HTMLHeadingElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
   const [rects, setRects] = useState<{ key: string; rects: MarkRect[] }[]>([]);
+  const [ruledRects, setRuledRects] = useState<{ key: string; part: RuledPart; rects: MarkRect[] }[]>([]);
   const spanList = spans.map((s) => `${s.span[0]}-${s.span[1]}`).join(',');
+  const ruledList = ruled.map((r) => `${r.claimId}:${r.label}:${r.span[0]}-${r.span[1]}`).join(',');
 
   useLayoutEffect(() => {
     const box = boxRef.current;
     const node = textRef.current?.firstChild;
-    if (!box || !(node instanceof Text) || !spanList) return;
-    const ranges = spanList.split(',').map((k) => k.split('-').map(Number) as [number, number]);
-    const measure = () => setRects(ranges.map((r) => ({ key: `${r[0]}-${r[1]}`, rects: measureSpan(node, r, box) })));
+    if (!box || !(node instanceof Text) || (!spanList && !ruledList)) return;
+    const ranges = spanList ? spanList.split(',').map((k) => k.split('-').map(Number) as [number, number]) : [];
+    const parts = ruledList
+      ? ruledList.split(',').map((k) => {
+          const [claimId, label, range] = k.split(':');
+          return { claimId, label: label as Label, span: range.split('-').map(Number) as [number, number] };
+        })
+      : [];
+    const measure = () => {
+      setRects(ranges.map((r) => ({ key: `${r[0]}-${r[1]}`, rects: measureSpan(node, r, box) })));
+      setRuledRects(parts.map((part) => ({ key: `${part.claimId}:${part.label}`, part, rects: measureSpan(node, part.span, box) })));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(box);
@@ -64,9 +92,10 @@ export function ClaimHeadline({
       live = false;
       ro.disconnect();
     };
-  }, [spanList, text]);
+  }, [spanList, ruledList, text]);
 
   const current = new Set(spanList.split(','));
+  const currentRuled = new Set(ruledList.split(',').map((k) => k.split(':').slice(0, 2).join(':')));
   return (
     <h1 ref={boxRef} dir="auto" className={cn('relative', className)}>
       <span ref={textRef}>{text}</span>
@@ -74,6 +103,13 @@ export function ClaimHeadline({
         .filter(({ key }) => current.has(key))
         .map(({ key, rects: lines }) =>
           lines.map((rect, i) => <Highlight key={`${key}-${i}`} rect={rect} spanKey={key} line={i} />),
+        )}
+      {ruledRects
+        .filter(({ key }) => currentRuled.has(key))
+        .map(({ key, part, rects: lines }) =>
+          lines.map((rect, i) => (
+            <VerdictMark key={`${key}-${i}`} rect={rect} label={part.label} line={i} seed={`headline-${part.claimId}`} strike />
+          )),
         )}
     </h1>
   );

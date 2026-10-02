@@ -58,8 +58,9 @@ export function AssayTab({ assay }: { assay: AssayComputed | null }) {
           The Assay
         </h2>
         <p className="mt-2 max-w-[60ch] type-body text-ink-2">
-          This check has no score readout. It was recorded before the Assay existed, so the five scores and the
-          ledger behind them were never stored.
+          This check has no score readout. The server that ran it did not store the five scores and the ledger behind
+          them, so they cannot be shown or rebuilt here. A check run on an up-to-date server has them, including for a
+          claim nobody could settle.
         </p>
       </section>
     );

@@ -44,7 +44,7 @@ import type { BandKey } from '@/lib/verdict';
 import { useRunEvents } from '@/lib/runs/useRunEvents';
 import { LaneFx, LaneList, type LaneClock } from './AgentLane';
 import { ArrivalProvider } from './arrival';
-import { ClaimHeadline, HighlightKey } from './ClaimHeadline';
+import { ClaimHeadline, HighlightKey, type RuledPart } from './ClaimHeadline';
 import { ClaimMorph } from './ClaimMorph';
 import { ClaimStrip } from './ClaimStrip';
 import { ScissorsCut } from './ScissorsCut';
@@ -281,6 +281,14 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
     const l = claimLabel(state, c.claim_id);
     return l && l !== 'supported' && l !== 'blocked' ? [{ claimId: c.claim_id, part: i + 1, label: l, text: c.text }] : [];
   });
+  // Each part the Judge did not rule Supported, at its own words in the message, so its mark sits under them.
+  const ruled: RuledPart[] =
+    phase === 'completed' && !blocked
+      ? claims.flatMap((c) => {
+          const l = claimLabel(state, c.claim_id);
+          return l && l !== 'supported' && l !== 'blocked' ? [{ claimId: c.claim_id, span: c.source_span, label: l }] : [];
+        })
+      : [];
   const openSource = (evidenceId: string) => {
     focusCard.current = evidenceId;
     setTab('evidence');
@@ -474,6 +482,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                           <ClaimHeadline
                             text={text}
                             spans={flagged}
+                            ruled={ruled}
                             className="mt-3 max-w-[68ch] font-display type-claim text-balance text-ink"
                           />
                         </ClaimMorph>
@@ -487,6 +496,8 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                         {state.assay && !blocked && tab === 'report' && <Hallmark metrics={state.assay.metrics} size={40} punch />}
                       </div>
                     )}
+                    {/* Which part? Said right under the stamp, with the same marks drawn on those words above. */}
+                    {phase === 'completed' && state.verdict && !blocked && <PartsThatDontHold parts={notHolding} />}
                     {phase === 'completed' && state.assay && !blocked && tab === 'report' && (
                       <>
                         {/* Touch readers never see the tooltips, so the five scores are named here, in full, once. */}
@@ -534,7 +545,6 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                           <InterpretationNote sources={cited} onOpenSource={openSource}>
                             {state.verdict.overall.summary}
                           </InterpretationNote>
-                          <PartsThatDontHold parts={notHolding} />
                           {state.assay && <MaskingNotice assay={state.assay} className="mt-4 max-w-[68ch]" />}
                           <ConfidenceBand
                             className="mt-4"
