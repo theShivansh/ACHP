@@ -16,6 +16,7 @@ export const EVENT_TYPES = [
   'claim.marked',
   'signal.computed',
   'debate.round',
+  'findings.recorded',
   'verdict.final',
   'assay.computed',
   'run.completed',
@@ -159,6 +160,12 @@ export interface DebateRound {
   round: number;
   reason: string;
 }
+/** What each reviewer concluded (never how it got there), sent just before verdict.final. */
+export interface FindingsRecorded {
+  challenger: { held: number; failed: number; unsettled: number; flaws: string[] };
+  auditor: { stance: string; missing: { who: string; viewpoint: string; significance: number }[]; represented: string[] };
+  integrity: { verdict: string; summary: string };
+}
 export interface Metrics {
   CTS: number;
   PCS: number;
@@ -262,6 +269,7 @@ export interface PayloadMap {
   'claim.marked': ClaimMarked;
   'signal.computed': SignalComputed;
   'debate.round': DebateRound;
+  'findings.recorded': FindingsRecorded;
   'verdict.final': VerdictFinal;
   'assay.computed': AssayComputed;
   'run.completed': RunCompleted;
@@ -300,6 +308,7 @@ export const REQUIRED_FIELDS: Record<EventType, readonly string[]> = {
   'claim.marked': ['claim_id', 'relation', 'span'],
   'signal.computed': ['signal', 'label'],
   'debate.round': ['round', 'reason'],
+  'findings.recorded': ['challenger', 'auditor', 'integrity'],
   'verdict.final': ['overall', 'claims'],
   'assay.computed': [
     'formula_version',

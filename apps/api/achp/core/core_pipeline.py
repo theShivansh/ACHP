@@ -549,6 +549,13 @@ class CorePipeline:
             judge.verdict, judge.claims, reconciled = reconcile_judge(judge.verdict, judge.claims, ev.evidence_ids)
             for why in reconciled:
                 logger.info(f"[{run_id}] verdict reconciled: {why}")
+            verdicts = [c.verdict for c in mem.adversary_a.challenges]
+            held, failed = verdicts.count("supported"), verdicts.count("refuted")
+            ev.hold_findings(
+                flaws=mem.adversary_a.critical_flaws, held=held, failed=failed, unsettled=len(verdicts) - held - failed,
+                stance=mem.adversary_b.narrative_stance, missing=mem.adversary_b.missing_perspectives,
+                represented=mem.adversary_b.represented_stakeholders, integrity_verdict=nil_result.nil_verdict,
+                integrity_summary=nil_result.nil_summary)
             mem.judge = judge
             mem.models["judge"] = res.model
             latencies["judge"] = (time.perf_counter() - t0) * 1000

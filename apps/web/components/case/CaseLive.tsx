@@ -45,6 +45,7 @@ import { useRunEvents } from '@/lib/runs/useRunEvents';
 import { LaneFx, LaneList, type LaneClock } from './AgentLane';
 import { ArrivalProvider } from './arrival';
 import { notSettledReading } from '@/lib/notSettled';
+import { DebateTab } from './DebateTab';
 import { ClaimHeadline, HighlightKey, type RuledPart } from './ClaimHeadline';
 import { ClaimMorph } from './ClaimMorph';
 import { ClaimStrip } from './ClaimStrip';
@@ -158,7 +159,7 @@ function activityLine(phase: CasePhase, state: RunState): string {
 
 
 
-const TABS = ['report', 'evidence', 'assay', 'trace'] as const;
+const TABS = ['report', 'evidence', 'debate', 'assay', 'trace'] as const;
 type TabId = (typeof TABS)[number];
 
 export interface CaseLiveProps {
@@ -463,6 +464,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                     (<Roll value={cards.length} />)
                   </span>
                 </TabsTrigger>
+                {phase === 'completed' && !blocked && <TabsTrigger value="debate">The debate</TabsTrigger>}
                 {phase === 'completed' && !blocked && <TabsTrigger value="assay">The Assay</TabsTrigger>}
                 <TabsTrigger value="trace">Trace</TabsTrigger>
               </TabsList>
@@ -631,6 +633,19 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                         </ul>
                       </section>
                     )}
+                  </TabsContent>
+
+                  <TabsContent value="debate" className="mt-8">
+                    <DebateTab
+                      findings={state.findings}
+                      names={{
+                        challenger: state.lanes.adversary_a?.name ?? 'Fact Challenger',
+                        auditor: state.lanes.adversary_b?.name ?? 'Narrative Auditor',
+                        integrity: state.lanes.nil_supervisor?.name ?? 'Wording check',
+                      }}
+                      claims={state.verdict?.claims ?? []}
+                      onOpenSources={() => setTab('evidence')}
+                    />
                   </TabsContent>
 
                   <TabsContent value="assay" className="mt-8">

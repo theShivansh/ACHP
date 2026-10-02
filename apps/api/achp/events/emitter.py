@@ -162,6 +162,7 @@ class RunEvents:
         self.evidence_ids: List[str] = []
         self._verdict: Optional[Tuple[Optional[str], Dict[str, Any]]] = None
         self._assay: Optional[Dict[str, Any]] = None
+        self._findings: Optional[Dict[str, Any]] = None
         self._ended = False
 
     @property
@@ -234,6 +235,7 @@ class RunEvents:
         """agent.failed for every lane still working, then run.failed. A held verdict is dropped."""
         self._verdict = None
         self._assay = None
+        self._findings = None
         if self._ended:
             return
         self._ended = True
@@ -402,6 +404,39 @@ class RunEvents:
         self._verdict = ("judge" if label != "blocked" else None, data)
         return data
 
+    def hold_findings(self, *, flaws: Sequence[Any], held: int, failed: int, unsettled: int, stance: str,
+                      missing: Sequence[Any], represented: Sequence[Any], integrity_verdict: str,
+                      integrity_summary: str) -> Optional[Dict[str, Any]]:
+        """What the reviewers concluded, cleaned and held for complete(). Text that is empty, links out or narrates a
+        process is dropped; a failure here never fails the check (the report then says there is no record)."""
+        def ok(text: Any, limit: int) -> Optional[str]:
+            clean = notes.clean_text(str(text) if text is not None else "")
+            if not clean or notes._URL.search(clean) or notes._PROCESS.search(clean):
+                return None
+            return notes.clip(clean, limit)
+
+        try:
+            miss = []
+            for m in list(missing or [])[:5]:
+                who = ok(getattr(m, "stakeholder", None) or (m.get("stakeholder") if isinstance(m, dict) else None), 80)
+                view = ok(getattr(m, "viewpoint", None) or (m.get("viewpoint") if isinstance(m, dict) else None), 240)
+                sig = getattr(m, "significance", None) if not isinstance(m, dict) else m.get("significance")
+                if who and view:
+                    miss.append({"who": who, "viewpoint": view, "significance": round(max(0.0, min(1.0, float(sig or 0.0))), 2)})
+            data = {
+                "challenger": {"held": held, "failed": failed, "unsettled": unsettled,
+                               "flaws": [t for t in (ok(f, 200) for f in list(flaws or [])[:5]) if t]},
+                "auditor": {"stance": ok(stance, 40) or "unknown", "missing": miss,
+                            "represented": [t for t in (ok(r, 80) for r in list(represented or [])[:6]) if t]},
+                "integrity": {"verdict": ok(integrity_verdict, 40) or "unknown", "summary": ok(integrity_summary, 300) or ""},
+            }
+            from achp.events.models import validate_payload
+            self._findings = validate_payload("findings.recorded", data)
+            return self._findings
+        except Exception:  # noqa: BLE001 - a record of conclusions must never fail a check
+            self._findings = None
+            return None
+
     def hold_assay(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate the Assay readout now and hold it; it goes out right after verdict.final (06 §3.1)."""
         from achp.events.models import validate_payload
@@ -418,10 +453,13 @@ class RunEvents:
         if self._verdict is not None:
             agent, data = self._verdict
             self._verdict = None
+            if self._findings is not None:
+                items.append(("findings.recorded", None, self._findings))
             items.append(("verdict.final", agent, data))
             if self._assay is not None:
                 items.append(("assay.computed", None, self._assay))
         self._assay = None
+        self._findings = None
         items.append(("run.completed", None, {"total_ms": max(0, int(total_ms)), "cache_hit": bool(cache_hit)}))
         if self.enabled:
             # One transaction: a verdict is never logged without the run.completed that closes it.

@@ -10,6 +10,7 @@ import type {
   AssayComputed,
   ClaimMarked,
   DebateRound,
+  FindingsRecorded,
   EvidenceObject,
   ExtractedClaim,
   Label,
@@ -90,6 +91,7 @@ export interface RunState {
   claims: Record<string, ClaimStrip>;
   signals: Partial<Record<SignalKind, SignalComputed & { seq: number }>>;
   debateRounds: (DebateRound & { seq: number })[];
+  findings: FindingsRecorded | null;
   verdict: VerdictFinal | null;
   assay: AssayComputed | null;
   completed: { totalMs: number; cacheHit: boolean } | null;
@@ -118,6 +120,7 @@ export function initialRunState(runId: string | null = null): RunState {
     claims: {},
     signals: {},
     debateRounds: [],
+    findings: null,
     verdict: null,
     assay: null,
     completed: null,
@@ -315,6 +318,9 @@ export function reduceRun(state: RunState, event: RunEvent): RunState {
       const next = withLane(s, event.agent ?? 'judge', (l) => ({ ...l, state: 'waiting', action: null }));
       return { ...next, debateRounds: [...next.debateRounds, { ...event.data, seq: event.seq }] };
     }
+
+    case 'findings.recorded':
+      return { ...s, findings: event.data };
 
     case 'verdict.final':
       return { ...s, verdict: event.data };

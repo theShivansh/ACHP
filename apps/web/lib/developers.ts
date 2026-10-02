@@ -18,6 +18,7 @@ export const EVENT_DOCS: Record<EventType, { by: string; carries: string }> = {
   'claim.marked': { by: 'adversaries', carries: 'a relation to a span of a part, a severity, the evidence ids and a note' },
   'signal.computed': { by: 'wording checks', carries: 'one of sentiment, bias, perspective, framing, hedging, with spans over the input' },
   'debate.round': { by: 'judge', carries: 'the round and the reason for asking the challengers again' },
+  'findings.recorded': { by: 'server', carries: 'what the reviewers concluded: the flaws the Fact Challenger named, the viewpoints the Narrative Auditor found missing, and the verdict of the wording check. Conclusions only, never reasoning' },
   'verdict.final': { by: 'judge', carries: 'the overall label and summary, a label per part, the confidence band and the five scores' },
   'assay.computed': { by: 'server', carries: 'the Assay: signals, scores, overall score, formula verdict, two keys, ledger, tipping point, masking and the Integrity Map point' },
   'run.completed': { by: 'server', carries: 'the total time and whether it came from the cache' },

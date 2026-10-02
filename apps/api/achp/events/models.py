@@ -24,7 +24,7 @@ EventType = Literal[
     "agent.started", "agent.action", "agent.note", "agent.done", "agent.skipped", "agent.failed",
     "evidence.found", "evidence.verified",
     "claim.extracted", "claim.marked",
-    "signal.computed", "debate.round", "verdict.final", "assay.computed",
+    "signal.computed", "debate.round", "findings.recorded", "verdict.final", "assay.computed",
     "run.completed", "run.failed",
 ]
 TERMINAL_TYPES = frozenset({"run.completed", "run.failed"})
@@ -197,6 +197,41 @@ class DebateRound(_Payload):
     reason: str = Field(max_length=140)
 
 
+class ChallengerFindings(_Payload):
+    """What the Fact Challenger concluded (never how it got there): how its tests came out and the flaws it named."""
+    held: int = Field(ge=0)
+    failed: int = Field(ge=0)
+    unsettled: int = Field(ge=0)
+    flaws: List[str] = Field([], max_length=5)
+
+
+class MissingPerspective(_Payload):
+    who: str = Field(max_length=80)
+    viewpoint: str = Field(max_length=240)
+    significance: float = Field(ge=0.0, le=1.0)
+
+
+class AuditorFindings(_Payload):
+    """What the Narrative Auditor concluded: the stance it read and the viewpoints the message leaves out."""
+    stance: str = Field(max_length=40)
+    missing: List[MissingPerspective] = Field([], max_length=5)
+    represented: List[str] = Field([], max_length=6)
+
+
+class IntegrityFindings(_Payload):
+    """The wording and integrity check's verdict, in its own words (NIL)."""
+    verdict: str = Field(max_length=40)
+    summary: str = Field("", max_length=300)
+
+
+class FindingsRecorded(_Payload):
+    """What each reviewer concluded, held and sent just before verdict.final so it is never logged without a verdict.
+    Conclusions only: no reasoning is requested, stored or shown (non-negotiable 2)."""
+    challenger: ChallengerFindings
+    auditor: AuditorFindings
+    integrity: IntegrityFindings
+
+
 class OverallVerdict(_Payload):
     label: Label
     summary: str = Field(max_length=140)
@@ -310,6 +345,7 @@ PAYLOADS: Dict[str, Type[_Payload]] = {
     "claim.marked": ClaimMarked,
     "signal.computed": SignalComputed,
     "debate.round": DebateRound,
+    "findings.recorded": FindingsRecorded,
     "verdict.final": VerdictFinal,
     "assay.computed": AssayComputed,
     "run.completed": RunCompleted,

@@ -982,6 +982,77 @@
       "title": "AssayTwoKey",
       "type": "object"
     },
+    "AuditorFindings": {
+      "additionalProperties": false,
+      "description": "What the Narrative Auditor concluded: the stance it read and the viewpoints the message leaves out.",
+      "properties": {
+        "stance": {
+          "maxLength": 40,
+          "title": "Stance",
+          "type": "string"
+        },
+        "missing": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/MissingPerspective"
+          },
+          "maxItems": 5,
+          "title": "Missing",
+          "type": "array"
+        },
+        "represented": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "title": "Represented",
+          "type": "array"
+        }
+      },
+      "required": [
+        "stance"
+      ],
+      "title": "AuditorFindings",
+      "type": "object"
+    },
+    "ChallengerFindings": {
+      "additionalProperties": false,
+      "description": "What the Fact Challenger concluded (never how it got there): how its tests came out and the flaws it named.",
+      "properties": {
+        "held": {
+          "minimum": 0,
+          "title": "Held",
+          "type": "integer"
+        },
+        "failed": {
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "unsettled": {
+          "minimum": 0,
+          "title": "Unsettled",
+          "type": "integer"
+        },
+        "flaws": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 5,
+          "title": "Flaws",
+          "type": "array"
+        }
+      },
+      "required": [
+        "held",
+        "failed",
+        "unsettled"
+      ],
+      "title": "ChallengerFindings",
+      "type": "object"
+    },
     "ClaimExtracted": {
       "additionalProperties": false,
       "properties": {
@@ -1731,6 +1802,107 @@
       "title": "ExtractedClaim",
       "type": "object"
     },
+    "FindingsRecorded": {
+      "additionalProperties": false,
+      "description": "What each reviewer concluded, held and sent just before verdict.final so it is never logged without a verdict.\nConclusions only: no reasoning is requested, stored or shown (non-negotiable 2).",
+      "properties": {
+        "challenger": {
+          "$ref": "#/$defs/ChallengerFindings"
+        },
+        "auditor": {
+          "$ref": "#/$defs/AuditorFindings"
+        },
+        "integrity": {
+          "$ref": "#/$defs/IntegrityFindings"
+        }
+      },
+      "required": [
+        "challenger",
+        "auditor",
+        "integrity"
+      ],
+      "title": "FindingsRecorded",
+      "type": "object"
+    },
+    "FindingsRecordedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 2,
+          "title": "V",
+          "type": "integer"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "string"
+        },
+        "t_ms": {
+          "title": "T Ms",
+          "type": "integer"
+        },
+        "type": {
+          "const": "findings.recorded",
+          "title": "Type",
+          "type": "string"
+        },
+        "agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent"
+        },
+        "data": {
+          "$ref": "#/$defs/FindingsRecorded"
+        }
+      },
+      "required": [
+        "v",
+        "run_id",
+        "seq",
+        "ts",
+        "t_ms",
+        "type",
+        "data"
+      ],
+      "title": "FindingsRecordedEvent",
+      "type": "object"
+    },
+    "IntegrityFindings": {
+      "additionalProperties": false,
+      "description": "The wording and integrity check's verdict, in its own words (NIL).",
+      "properties": {
+        "verdict": {
+          "maxLength": 40,
+          "title": "Verdict",
+          "type": "string"
+        },
+        "summary": {
+          "default": "",
+          "maxLength": 300,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "verdict"
+      ],
+      "title": "IntegrityFindings",
+      "type": "object"
+    },
     "KBRef": {
       "additionalProperties": false,
       "properties": {
@@ -1782,6 +1954,34 @@
         "EPS"
       ],
       "title": "Metrics",
+      "type": "object"
+    },
+    "MissingPerspective": {
+      "additionalProperties": false,
+      "properties": {
+        "who": {
+          "maxLength": 80,
+          "title": "Who",
+          "type": "string"
+        },
+        "viewpoint": {
+          "maxLength": 240,
+          "title": "Viewpoint",
+          "type": "string"
+        },
+        "significance": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Significance",
+          "type": "number"
+        }
+      },
+      "required": [
+        "who",
+        "viewpoint",
+        "significance"
+      ],
+      "title": "MissingPerspective",
       "type": "object"
     },
     "OverallVerdict": {
@@ -2442,6 +2642,7 @@
       "debate.round": "#/$defs/DebateRoundEvent",
       "evidence.found": "#/$defs/EvidenceFoundEvent",
       "evidence.verified": "#/$defs/EvidenceVerifiedEvent",
+      "findings.recorded": "#/$defs/FindingsRecordedEvent",
       "run.completed": "#/$defs/RunCompletedEvent",
       "run.failed": "#/$defs/RunFailedEvent",
       "run.queued": "#/$defs/RunQueuedEvent",
@@ -2495,6 +2696,9 @@
       "$ref": "#/$defs/DebateRoundEvent"
     },
     {
+      "$ref": "#/$defs/FindingsRecordedEvent"
+    },
+    {
       "$ref": "#/$defs/VerdictFinalEvent"
     },
     {
@@ -2525,6 +2729,7 @@
     "claim.marked",
     "signal.computed",
     "debate.round",
+    "findings.recorded",
     "verdict.final",
     "assay.computed",
     "run.completed",

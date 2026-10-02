@@ -96,6 +96,7 @@ function chapterOf(e: RunEvent, groups: Map<string, string>): ChapterId {
     case 'debate.round':
     case 'claim.marked':
       return chapterOfAgent(e.agent, groups) ?? 'challenge';
+    case 'findings.recorded':
     case 'verdict.final':
     case 'assay.computed':
     case 'run.completed':

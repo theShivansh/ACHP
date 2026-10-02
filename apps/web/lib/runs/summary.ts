@@ -42,6 +42,8 @@ export function eventSummary(e: RunEvent): string {
       return clip(`Round ${e.data.round}: ${e.data.reason}`);
     case 'verdict.final':
       return `Verdict: ${e.data.overall.label.replace(/_/g, ' ')}`;
+    case 'findings.recorded':
+      return 'Findings of the reviewers recorded';
     case 'assay.computed':
       return 'Scores computed';
     case 'run.completed':

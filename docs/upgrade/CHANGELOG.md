@@ -87,3 +87,6 @@ A failed run shows an error, never a verdict. ACHP is silent.
   a softer headline. `scripts/live_battery.py` runs a dozen real claims against a backend after a deploy.
 - A "Not settled" stamp explains itself: not the same as false, why, the Assay's closest reading as a hint (no number,
   not a verdict), and what would settle it.
+- A new tab, "The debate": what the Fact Challenger, the Narrative Auditor and the wording check concluded (flaws named,
+  viewpoints left out, the wording verdict, where the sources stand), from a new `findings.recorded` event. Conclusions
+  only, never reasoning.
