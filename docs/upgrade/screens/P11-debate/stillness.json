@@ -1,7 +1,12 @@
 [
   {
-    "capture": "case-fixture-synthetic-second-round-speed-50-tab-debate-desktop-light",
-    "route": "/case/fixture-synthetic-second-round?speed=50&tab=debate",
+    "capture": "case-fixture-synthetic-edge-all-unverifiable-speed-50-desktop-light",
+    "route": "/case/fixture-synthetic-edge-all-unverifiable?speed=50",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-edge-all-unverifiable-speed-50-tab-debate-desktop-light",
+    "route": "/case/fixture-synthetic-edge-all-unverifiable?speed=50&tab=debate",
     "running": []
   }
 ]

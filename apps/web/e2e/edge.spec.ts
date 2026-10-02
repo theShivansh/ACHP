@@ -60,6 +60,8 @@ test('a Not settled stamp still says what it can: not false, why, how it is writ
   await expect(block).toContainText('Not settled is not the same as false.');
   await expect(block).toContainText(/We found no source that decides it|none decides it|opinion or a preference/);
   await expect(block).toContainText(/say exactly what|say what you mean exactly/);
+  // The reading pulls it together: what the reviewers published, in their own sentences.
+  await expect(page.locator('[data-not-settled-reviewers] li').first()).toBeVisible();
   // What the Assay says is about how the message is written: no number, and no true-or-false lean.
   const hint = page.locator('[data-not-settled-scores]');
   await expect(hint).toContainText('not whether it is true');

@@ -117,6 +117,9 @@ test('the tabs work by keyboard, live in the URL, and the Trace lists every even
   await expect(tabs.getByRole('tab', { name: /Evidence/ })).toHaveAttribute('aria-selected', 'true');
   await expect(page).toHaveURL(/tab=evidence/);
   await page.keyboard.press('ArrowRight');
+  await expect(tabs.getByRole('tab', { name: 'The debate' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page).toHaveURL(/tab=debate/);
+  await page.keyboard.press('ArrowRight');
   await expect(tabs.getByRole('tab', { name: 'The Assay' })).toHaveAttribute('aria-selected', 'true');
   await expect(page).toHaveURL(/tab=assay/);
   await page.keyboard.press('ArrowRight');

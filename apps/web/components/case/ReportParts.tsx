@@ -82,6 +82,21 @@ export function NotSettled({ reading, className }: { reading: NotSettledReading;
     <div data-not-settled className={cn('max-w-[68ch]', className)}>
       <p className="type-meta font-semibold text-ink-2">{reading.lead}</p>
       <p className="mt-1 type-body text-ink-2">{reading.why}</p>
+      {reading.found && (
+        <p data-not-settled-found className="mt-2 type-body text-ink-2" dir="auto">
+          {reading.found}
+        </p>
+      )}
+      {reading.reviewers.length > 0 && (
+        <ul data-not-settled-reviewers className="mt-2 flex flex-col gap-1 type-body text-ink-2">
+          {reading.reviewers.map((r) => (
+            <li key={r.who}>
+              <span className="font-semibold text-ink">{r.who}: </span>
+              <span dir="auto">{r.said}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {reading.scores && (
         <p data-not-settled-scores className="mt-2 type-body text-ink-2">
           {reading.scores}

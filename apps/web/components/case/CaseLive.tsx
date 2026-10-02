@@ -45,6 +45,7 @@ import { useRunEvents } from '@/lib/runs/useRunEvents';
 import { LaneFx, LaneList, type LaneClock } from './AgentLane';
 import { ArrivalProvider } from './arrival';
 import { notSettledReading } from '@/lib/notSettled';
+import { debateView } from '@/lib/debate';
 import { DebateTab } from './DebateTab';
 import { ClaimHeadline, HighlightKey, type RuledPart } from './ClaimHeadline';
 import { ClaimMorph } from './ClaimMorph';
@@ -456,7 +457,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
 
           <Tabs value={tab} onValueChange={setTab} className="mx-auto max-w-[760px]">
             {phase !== 'expired' && (
-              <TabsList aria-label="Case sections" className="max-[22.5rem]:gap-2.5">
+              <TabsList aria-label="Case sections" className="max-[23rem]:gap-1 max-[21rem]:gap-0">
                 <TabsTrigger value="report">Report</TabsTrigger>
                 <TabsTrigger value="evidence">
                   Evidence{' '}
@@ -464,8 +465,14 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                     (<Roll value={cards.length} />)
                   </span>
                 </TabsTrigger>
-                {phase === 'completed' && !blocked && <TabsTrigger value="debate">The debate</TabsTrigger>}
-                {phase === 'completed' && !blocked && <TabsTrigger value="assay">The Assay</TabsTrigger>}
+                {phase === 'completed' && !blocked && <TabsTrigger value="debate" aria-label="The debate">
+                    <span className="max-sm:hidden">The debate</span>
+                    <span className="sm:hidden">Debate</span>
+                  </TabsTrigger>}
+                {phase === 'completed' && !blocked && <TabsTrigger value="assay" aria-label="The Assay">
+                    <span className="max-sm:hidden">The Assay</span>
+                    <span className="sm:hidden">Assay</span>
+                  </TabsTrigger>}
                 <TabsTrigger value="trace">Trace</TabsTrigger>
               </TabsList>
             )}
@@ -555,6 +562,11 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                                 verifiable: claims.map((c) => c.verifiable),
                                 sources: cards.length,
                                 assay: state.assay,
+                                titles: cards.map((c) => c.source.title || c.source.domain || ''),
+                                reviewers: [
+                                  { who: state.lanes.adversary_a?.name ?? 'Fact Challenger', said: debateView(state).notes.challenger },
+                                  { who: state.lanes.adversary_b?.name ?? 'Narrative Auditor', said: debateView(state).notes.auditor },
+                                ],
                               })}
                             />
                           )}
@@ -637,8 +649,10 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
 
                   <TabsContent value="debate" className="mt-8">
                     <DebateTab
+                      view={debateView(state)}
                       findings={state.findings}
                       names={{
+                        retriever: state.lanes.retriever?.name ?? 'Retriever',
                         challenger: state.lanes.adversary_a?.name ?? 'Fact Challenger',
                         auditor: state.lanes.adversary_b?.name ?? 'Narrative Auditor',
                         integrity: state.lanes.nil_supervisor?.name ?? 'Wording check',

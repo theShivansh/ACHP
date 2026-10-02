@@ -12,6 +12,10 @@ export interface NotSettledReading {
   lead: string;
   /** Why nothing settled it. */
   why: string;
+  /** What the search came back with, by page title (verbatim), or null when it found nothing. */
+  found: string | null;
+  /** The sentence each reviewer published about its own work. */
+  reviewers: { who: string; said: string }[];
   /** What the Assay says about how the message is written, or null when the run has no Assay. */
   scores: string | null;
   /** What would settle it. */
@@ -33,15 +37,34 @@ function viewpointWords(pcs: number): string {
   return pcs < 0.5 ? 'other viewpoints left out' : 'several viewpoints covered';
 }
 
+function clip(text: string, n = 80): string {
+  const t = text.replace(/\s+/g, ' ').trim();
+  return t.length <= n ? t : `${t.slice(0, n - 1).trimEnd()}…`;
+}
+
+function foundSentence(titles: readonly string[]): string | null {
+  const t = titles.map((x) => clip(x)).filter(Boolean).slice(0, 3);
+  if (!t.length) return null;
+  const quoted = t.map((x) => `“${x}”`);
+  const list = quoted.length === 1 ? quoted[0] : `${quoted.slice(0, -1).join(', ')} and ${quoted[quoted.length - 1]}`;
+  return `The search turned up pages such as ${list}.`;
+}
+
 export function notSettledReading({
   verifiable,
   sources,
   assay,
+  titles = [],
+  reviewers = [],
 }: {
   /** Per part: is it a statement a source could settle? */
   verifiable: readonly boolean[];
   sources: number;
   assay: AssayComputed | null;
+  /** The titles of the pinned sources, in order. */
+  titles?: readonly string[];
+  /** The sentence each reviewer published (name from the run). Empty or missing notes are skipped. */
+  reviewers?: readonly { who: string; said: string | null }[];
 }): NotSettledReading {
   const opinions = verifiable.filter((v) => !v).length;
   const allOpinion = verifiable.length > 0 && opinions === verifiable.length;
@@ -68,5 +91,12 @@ export function notSettledReading({
     ? 'To get something checkable, say what you mean exactly: what is being compared, by which measure, and from which source.'
     : 'To settle it, say exactly what, where and when, or add a library with a source you trust and ask again.';
 
-  return { lead: 'Not settled is not the same as false.', why, scores, next };
+  return {
+    lead: 'Not settled is not the same as false.',
+    why,
+    found: foundSentence(titles),
+    reviewers: reviewers.flatMap((r) => (r.said ? [{ who: r.who, said: r.said }] : [])),
+    scores,
+    next,
+  };
 }

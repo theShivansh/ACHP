@@ -58,4 +58,23 @@ describe('what a Not settled stamp can still say', () => {
     expect(r.scores).toContain('calm wording');
     expect(r.scores).toContain('several viewpoints covered');
   });
+
+  it('says what the search turned up, by title, and what each reviewer published', () => {
+    const r = notSettledReading({
+      verifiable: [true],
+      sources: 3,
+      assay: null,
+      titles: ['IPL head to head records', 'CSK vs RCB head to head', 'Which is best, CSK or RCB?', 'A fourth page'],
+      reviewers: [
+        { who: 'Fact Challenger', said: 'It cannot be confirmed with the provided evidence.' },
+        { who: 'Narrative Auditor', said: null },
+      ],
+    });
+    expect(r.found).toBe('The search turned up pages such as “IPL head to head records”, “CSK vs RCB head to head” and “Which is best, CSK or RCB?”.');
+    expect(r.reviewers).toEqual([{ who: 'Fact Challenger', said: 'It cannot be confirmed with the provided evidence.' }]);
+  });
+
+  it('has nothing to say about pages when the search found none', () => {
+    expect(notSettledReading({ verifiable: [true], sources: 0, assay: null, titles: [] }).found).toBeNull();
+  });
 });

@@ -90,3 +90,6 @@ A failed run shows an error, never a verdict. ACHP is silent.
 - A new tab, "The debate": what the Fact Challenger, the Narrative Auditor and the wording check concluded (flaws named,
   viewpoints left out, the wording verdict, where the sources stand), from a new `findings.recorded` event. Conclusions
   only, never reasoning.
+- The debate tab shows the search, every excerpt the retriever pinned (verbatim, with what it was used for), each
+  reviewer's published sentence and why a part was left unsettled; the Not settled reading adds the pages found and
+  what each reviewer said. On phones the five case tabs fit down to 320px.
