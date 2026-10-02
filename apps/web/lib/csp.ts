@@ -5,6 +5,8 @@
 // every page dynamic; there is no 'unsafe-eval'. Fonts are self-hosted by next/font. Images: our own, data/blob URLs
 // (the OG image, the print view) and the source favicons from DuckDuckGo's icon service (no referrer is sent).
 
+import { resolveApi } from './apiUrl';
+
 export const FAVICON_HOST = 'https://icons.duckduckgo.com';
 
 export function originOf(url: string | undefined): string | null {
@@ -16,11 +18,8 @@ export function originOf(url: string | undefined): string | null {
   }
 }
 
-/** The backend the client talks to; the same default as lib/runs/api.ts. */
-export const DEFAULT_API = 'http://localhost:8000';
-
 export function contentSecurityPolicy(apiUrl: string | undefined): string {
-  const api = originOf(apiUrl ?? DEFAULT_API);
+  const api = originOf(resolveApi(apiUrl));
   const connect = ["'self'", api].filter(Boolean).join(' ');
   return [
     "default-src 'self'",

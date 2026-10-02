@@ -1,10 +1,9 @@
 // HTTP calls for the runs protocol (06 §2). The backend URL is public config; no secrets here.
 
+import { apiBase } from '../apiUrl';
 import { isRunEvent, type RunEvent } from './types';
 
-export function apiBase(): string {
-  return (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/+$/, '');
-}
+export { apiBase } from '../apiUrl';
 
 export interface RunCreated {
   run_id: string;

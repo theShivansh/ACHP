@@ -1,10 +1,11 @@
 /**
  * ACHP API client — TanStack Query hooks
- * Calls FastAPI backend at http://localhost:8000 directly.
+ * Calls the FastAPI backend directly (address: lib/apiUrl.ts).
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiBase } from '@/lib/apiUrl';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+const API = apiBase();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

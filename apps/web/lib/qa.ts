@@ -2,9 +2,10 @@
 // retrieved chunk and writes the [N] markers itself, so every marker here points at a passage the reader can open.
 // Nothing here writes an answer: it only splits the server's text at its markers.
 
+import { apiBase } from '@/lib/apiUrl';
 import type { QACitation, QAResponse } from '@/lib/qaTypes';
 
-const API = () => (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/+$/, '');
+const API = apiBase;
 
 export class QAError extends Error {
   constructor(
