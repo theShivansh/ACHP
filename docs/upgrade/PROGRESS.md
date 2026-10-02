@@ -457,7 +457,7 @@ Deferred:
 
 Decided (2026-10-02): the performance budgets are dropped as a release gate; see P11.
 
-## P11 — Polish & ship  ◐ 2026-10-02 (the production promotion and the designmd drift check wait on the Vercel side, see below)
+## P11 — Polish & ship  ✅ 2026-10-02 (live on Vercel; the designmd drift check and `/impeccable` are not run, see below)
 - [x] Performance budgets: **dropped as a release gate by you (2026-10-02)**; the P10 numbers stay recorded above as the baseline
 - [x] Final critique: `shoot-p9.mjs --phase P11` (every route, 1440 · 390 · 360, light and dark, a phone with reduced motion) plus the case at 390 live and done in light, dark and reduced (`docs/upgrade/screens/P11/`, 98 captures); `design-critic` reviewed them with "be strict: what would make a senior product designer say this is generic?"
 - [x] Critic fixes, each checked against the code first: one "recorded example" notice instead of two (the header text is gone, the banner stays and is tested); no leading dot before "Date not given" and "Older source"; the blocked notice ends with a next step ("To try again, paste only the claim you want checked."); the missing 390px case captures were taken
@@ -465,11 +465,12 @@ Decided (2026-10-02): the performance budgets are dropped as a release gate; see
 - [x] A production build with `NEXT_PUBLIC_API_URL` unset used `http://localhost:8000`, so a Vercel deploy without the variable called the reader's own machine. It now uses the hosted backend (`lib/apiUrl.ts`; one resolver for the client, Ask, runs and the CSP; CI pins localhost so tests never reach the live backend)
 - [x] Docs: README section for the Desk (screenshots, the event-log diagram, how to run the recorded cases, `/method` and `/developers`), `docs/upgrade/CHANGELOG.md` by story id, a 7-second recording of a run in `docs/upgrade/launch/live-run-desktop.webm`
 - [ ] `/impeccable polish` and the designmd drift check: not available here (no CLI or skill); needs a Vercel preview URL to run against, so it is yours or a later pass
-- [ ] Production promotion: see "Release" below
+- [x] Released on your instruction ("push code so the online ACHP works on vercel site"): the branch was pushed, all three Vercel projects built it (success), then `main` was fast-forwarded to `716fe39` (no merge commit, nothing rewritten) and they built again (success)
 
 Gate evidence: typecheck ✓ · lint ✓ (0 warnings) · vitest **423/423** · e2e (case report, blocked, case failure, Desk, route smoke with axe, edge cases) on a production build, desktop-light and mobile-reduced: **82 passed, 16 skipped by design** · honesty check ✓ · anti-slop full scan 0 · stillness pass (0 running animations 2s after done) · `design-critic`: 3 P0, 6 P1 (see Deferred; 1 P0 was the missing captures, now taken)
 
 Release:
+- Live check on `https://achp-seven.vercel.app` after the deploy: title "ACHP · Check a message before you forward it"; the CSP header names the hosted backend; the status chip reads Ready; one real check ("The Berlin Wall fell in 1989.") ran end to end in 7.3s with a Supported stamp, 5 sources and the four tabs; `/`, `/ask`, `/library`, `/runs`, `/method`, `/developers`, `/case/sample-exercise-mixed` and its share image return 200; `/case/fixture-*` returns 404 (fixtures stay off in production). One real claim was run, not the three the prompt suggests, to spare the model quota.
 - The hosted backend (`https://theshivansh-achp-api.hf.space`) answers `/health` and serves `/runs`, `/runs/{id}/events(.json)`, `/qa` and `/kb/*`. Its CORS accepts `https://achp.vercel.app` and `achp-*.vercel.app` (checked with a live preflight from `https://achp.vercel.app`), which covers the README's `achp-seven.vercel.app`.
 - The Vercel API in this session needs a re-login for the team (403 on project settings), so the project's environment variables could not be read. They no longer matter for the site to work: `NEXT_PUBLIC_API_URL` is optional now. Set it to the hosted backend explicitly if you want the CSP's `connect-src` pinned in the dashboard.
 - Reading `EVALUATION.md` from outside `apps/web` is guarded; if the Vercel root directory excludes it, only the Method drawer's benchmark note is missing.
