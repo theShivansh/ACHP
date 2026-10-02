@@ -85,3 +85,5 @@ A failed run shows an error, never a verdict. ACHP is silent.
   library can no longer be pointed at the backend's own network. A library keeps the name it was given.
 - The overall stamp and the part stamps are reconciled once after the Judge, so a refuted part is never hidden under
   a softer headline. `scripts/live_battery.py` runs a dozen real claims against a backend after a deploy.
+- A "Not settled" stamp explains itself: not the same as false, why, the Assay's closest reading as a hint (no number,
+  not a verdict), and what would settle it.

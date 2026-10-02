@@ -1,0 +1,12 @@
+[
+  {
+    "capture": "case-fixture-synthetic-edge-all-unverifiable-speed-20-mobile-light",
+    "route": "/case/fixture-synthetic-edge-all-unverifiable?speed=20",
+    "running": []
+  },
+  {
+    "capture": "case-fixture-synthetic-edge-all-unverifiable-speed-20-desktop-light",
+    "route": "/case/fixture-synthetic-edge-all-unverifiable?speed=20",
+    "running": []
+  }
+]

@@ -6,6 +6,7 @@ import { notify } from '@/lib/notify';
 import { Button } from '@/components/ui/button';
 import { ConfirmButton } from '@/components/ui/confirm-button';
 import { shareSummary } from '@/lib/report';
+import type { NotSettledReading } from '@/lib/notSettled';
 import { BANDS, excerpt, VERDICTS, type BandKey } from '@/lib/verdict';
 import type { Label, VerdictFinal } from '@/lib/runs/types';
 
@@ -68,6 +69,25 @@ export function InterpretationNote({
           ))}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Under a "Not settled" stamp: why nothing settled it, the Assay's closest reading (a hint, never a verdict) and what
+ * would settle it. Sheet prose in --ink-2 with a label and no rule (a rule marks a quotation).
+ */
+export function NotSettled({ reading, className }: { reading: NotSettledReading; className?: string }) {
+  return (
+    <div data-not-settled className={cn('max-w-[68ch]', className)}>
+      <p className="type-meta font-semibold text-ink-2">{reading.lead}</p>
+      <p className="mt-1 type-body text-ink-2">{reading.why}</p>
+      {reading.scores && (
+        <p data-not-settled-scores className="mt-2 type-body text-ink-2">
+          {reading.scores}
+        </p>
+      )}
+      <p className="mt-2 type-body text-ink-2">{reading.next}</p>
     </div>
   );
 }

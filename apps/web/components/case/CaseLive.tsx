@@ -44,6 +44,7 @@ import type { BandKey } from '@/lib/verdict';
 import { useRunEvents } from '@/lib/runs/useRunEvents';
 import { LaneFx, LaneList, type LaneClock } from './AgentLane';
 import { ArrivalProvider } from './arrival';
+import { notSettledReading } from '@/lib/notSettled';
 import { ClaimHeadline, HighlightKey, type RuledPart } from './ClaimHeadline';
 import { ClaimMorph } from './ClaimMorph';
 import { ClaimStrip } from './ClaimStrip';
@@ -51,7 +52,7 @@ import { ScissorsCut } from './ScissorsCut';
 import { EvidenceTray } from './EvidenceTray';
 import { LaneRail, LaneStrip } from './LaneStrip';
 import { LinkProvider } from './linkStore';
-import { ConfidenceBand, EditorsDesk, InterpretationNote, PartsThatDontHold, ShareBar } from './ReportParts';
+import { ConfidenceBand, EditorsDesk, InterpretationNote, NotSettled, PartsThatDontHold, ShareBar } from './ReportParts';
 import { Stamp } from './Stamp';
 import {
   BlockedNotice,
@@ -545,6 +546,16 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
                           <InterpretationNote sources={cited} onOpenSource={openSource}>
                             {state.verdict.overall.summary}
                           </InterpretationNote>
+                          {state.verdict.overall.label === 'unverifiable' && (
+                            <NotSettled
+                              className="mt-4"
+                              reading={notSettledReading({
+                                verifiable: claims.map((c) => c.verifiable),
+                                sources: cards.length,
+                                assay: state.assay,
+                              })}
+                            />
+                          )}
                           {state.assay && <MaskingNotice assay={state.assay} className="mt-4 max-w-[68ch]" />}
                           <ConfidenceBand
                             className="mt-4"

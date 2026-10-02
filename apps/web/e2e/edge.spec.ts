@@ -38,7 +38,9 @@ test('one part, and the most parts the backend allows (eight), each with its own
 test('nothing settled and no sources: every part says so, nothing is called false', async ({ page }) => {
   await open(page, 'all-unverifiable');
   await expect(page.locator('[data-verdict]')).toHaveAttribute('data-verdict', 'unverifiable');
-  await expect(page.locator('main')).not.toContainText(/does not hold|false/i);
+  // Nothing is called false or "does not hold": the only place the word appears is the reminder that unsettled is not false.
+  const text = (await page.locator('main').innerText()).replaceAll('Not settled is not the same as false.', '');
+  expect(text).not.toMatch(/does not hold|false/i);
   await page.getByRole('tab', { name: /Evidence/ }).click();
   await expect(page.locator('main')).toContainText(/no source|No sources/i);
 });
@@ -50,6 +52,23 @@ test('a claim nobody could settle still gets an Assay readout: the five scores a
   await expect(page.locator('[data-assay]:not([data-assay="none"])')).toBeVisible();
   for (const code of ['CTS', 'PCS', 'BIS', 'NSS', 'EPS']) await expect(page.locator(`tr[data-metric="${code}"]`).first()).toBeVisible();
   await expect(page.getByText(/no score readout/i)).toHaveCount(0);
+});
+
+test('a Not settled stamp still says what it can: not false, why, the Assay hint, and what would settle it', async ({ page }) => {
+  await open(page, 'all-unverifiable');
+  const block = page.locator('[data-not-settled]');
+  await expect(block).toContainText('Not settled is not the same as false.');
+  await expect(block).toContainText(/We found no source that decides it|none decides it|opinion or a preference/);
+  await expect(block).toContainText(/say exactly what|say what you mean exactly/);
+  // The Assay's closest reading is a hint with no number, and says it does not check facts.
+  const hint = page.locator('[data-not-settled-scores]');
+  await expect(hint).toContainText('do not check facts');
+  expect(await hint.innerText()).not.toMatch(/\d/);
+  // The stamp itself did not change: nothing was called true or false.
+  await expect(page.locator('[data-verdict]')).toHaveAttribute('data-verdict', 'unverifiable');
+  // A settled verdict does not get this block.
+  await open(page, 'one-part');
+  await expect(page.locator('[data-not-settled]')).toHaveCount(0);
 });
 
 test('a very long source title and quote wrap inside the card', async ({ page }) => {
