@@ -33,19 +33,24 @@ describe('what a Not settled stamp can still say', () => {
     expect(r.why).toContain('we found 3 sources, but none decides it.');
   });
 
-  it("gives the Assay's closest reading as a hint with no number, and says it does not check facts", () => {
+  it('describes how the message is written from the Assay, with no number and no true-or-false lean', () => {
     const r = notSettledReading({ verifiable: [false], sources: 5, assay: assay({ BIS: 0.5, PCS: 0.28 }) });
     expect(r.scores).toContain('strongly slanted wording');
     expect(r.scores).toContain('other viewpoints left out');
-    expect(r.scores).toContain('mixed');
-    expect(r.scores).toContain('do not check facts');
-    expect(r.scores).toContain('not a verdict');
+    expect(r.scores).toContain('not whether it is true');
+    expect(r.scores).toContain('do not change the stamp');
     expect(r.scores).not.toMatch(/\d/);
+    expect(r.scores).not.toMatch(/mostly|false|mixed|reads? it as/i);
   });
 
-  it('has no scores line for a run without an Assay, or one that cannot lean either way', () => {
+  it('never leans a message true because its wording is calm (gibberish scored mostly true in a live run)', () => {
+    const r = notSettledReading({ verifiable: [true], sources: 5, assay: assay({ formula_verdict: 'MOSTLY_TRUE', BIS: 0.004, PCS: 0.275 }) });
+    expect(r.scores).toContain('calm wording');
+    expect(r.scores).not.toMatch(/mostly true|reads? it as/i);
+  });
+
+  it('has no scores line for a run without an Assay', () => {
     expect(notSettledReading({ verifiable: [true], sources: 0, assay: null }).scores).toBeNull();
-    expect(notSettledReading({ verifiable: [true], sources: 0, assay: assay({ formula_verdict: 'UNVERIFIABLE' }) }).scores).toBeNull();
   });
 
   it('describes calm wording and covered viewpoints too', () => {

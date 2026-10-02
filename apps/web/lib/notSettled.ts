@@ -1,18 +1,18 @@
-import { verdictName } from '@/lib/assay/present';
 import type { AssayComputed } from '@/lib/runs/types';
 
 // What a "Not settled" stamp can still say (07 §4, 11 §4). The stamp stays Not settled: with no source behind it, calling
 // the message true or false would be a verdict nobody checked. What can be said honestly is built only from what the run
 // already logged: whether each part is a checkable statement or an opinion (the Proposer's `verifiable`), how many
 // sources were found, and, when the run has an Assay, how the message is worded and how many viewpoints it covers. No
-// number is shown (the overall score never stands alone) and the scores are called a hint, not a verdict.
+// number and no verdict word from the formula is shown: the formula scores wording, so a calm sentence with nothing behind
+// it (even gibberish) can score "mostly true", and the overall score never stands alone.
 
 export interface NotSettledReading {
   /** The one line that matters: unsettled is not false. */
   lead: string;
   /** Why nothing settled it. */
   why: string;
-  /** The Assay's closest reading, or null when the run has none (or it cannot lean either way). */
+  /** What the Assay says about how the message is written, or null when the run has no Assay. */
   scores: string | null;
   /** What would settle it. */
   next: string;
@@ -55,11 +55,13 @@ export function notSettledReading({
     why = sourceClause(sources);
   }
 
+  // The Assay describes how the message is written and which viewpoints it covers. It never leans the message true or
+  // false here: calm wording lifts the formula's overall score even for gibberish, so its verdict word would mislead.
   let scores: string | null = null;
-  if (assay && assay.formula_verdict !== 'UNVERIFIABLE' && assay.formula_verdict !== 'BLOCKED') {
+  if (assay && assay.formula_verdict !== 'BLOCKED') {
     scores =
-      `On its wording and the viewpoints it covers (${biasWords(assay.metrics.BIS)}, ${viewpointWords(assay.metrics.PCS)}), ` +
-      `the scores read it as ${verdictName(assay.formula_verdict).toLowerCase()}. They do not check facts, so that is a hint, not a verdict.`;
+      `Reading the message itself: ${biasWords(assay.metrics.BIS)}, ${viewpointWords(assay.metrics.PCS)}. ` +
+      'Those describe how it is written, not whether it is true, so they do not change the stamp.';
   }
 
   const next = allOpinion

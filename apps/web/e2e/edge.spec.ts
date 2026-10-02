@@ -54,15 +54,16 @@ test('a claim nobody could settle still gets an Assay readout: the five scores a
   await expect(page.getByText(/no score readout/i)).toHaveCount(0);
 });
 
-test('a Not settled stamp still says what it can: not false, why, the Assay hint, and what would settle it', async ({ page }) => {
+test('a Not settled stamp still says what it can: not false, why, how it is written, and what would settle it', async ({ page }) => {
   await open(page, 'all-unverifiable');
   const block = page.locator('[data-not-settled]');
   await expect(block).toContainText('Not settled is not the same as false.');
   await expect(block).toContainText(/We found no source that decides it|none decides it|opinion or a preference/);
   await expect(block).toContainText(/say exactly what|say what you mean exactly/);
-  // The Assay's closest reading is a hint with no number, and says it does not check facts.
+  // What the Assay says is about how the message is written: no number, and no true-or-false lean.
   const hint = page.locator('[data-not-settled-scores]');
-  await expect(hint).toContainText('do not check facts');
+  await expect(hint).toContainText('not whether it is true');
+  expect(await hint.innerText()).not.toMatch(/mostly|reads? it as/i);
   expect(await hint.innerText()).not.toMatch(/\d/);
   // The stamp itself did not change: nothing was called true or false.
   await expect(page.locator('[data-verdict]')).toHaveAttribute('data-verdict', 'unverifiable');
