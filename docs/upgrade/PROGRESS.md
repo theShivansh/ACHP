@@ -399,9 +399,64 @@ Deferred / needs a decision:
 - Running the bench on the hosted backend uses the live site's daily model quota. A paid key on a local backend (new tag) would finish in about 3 hours.
 - The `design-critic` and `assay-auditor` reviews of `/method#benchmark` wait for the measured results.
 
-## P10 — Hardening
-- [ ] S9.1 · [ ] S9.3 · [ ] a11y, perf budgets, Lighthouse CI, e2e matrix, `/impeccable audit` + `harden` · [ ] anti-slop full scan = 0
-- Gate: axe clean · budgets met · all Playwright projects green
+## P10 — Hardening  ◐ 2026-10-02 (engines: Chromium only; the performance budgets are not met, see Needs a decision)
+- [x] S9.1 announcer: polite live region, at most one sentence per 2s, full sentences (`lib/runs/__tests__/announcer.test.ts`; the a11y auditor measured 4 sentences in 40s of a live run, smallest gap 1,997ms against the 2,000ms throttle)
+- [ ] S9.3 performance budgets (09 §3): Lighthouse CI is in place and the pages are much lighter, but the mobile budgets are not met (numbers below)
+- [x] A11y: `e2e/a11y.spec.ts` (axe, WCAG 2.2 A/AA, serious or critical) on `/`, a case mid-run, a finished case on all four tabs, `/method`, `/library` and the replay, in light and dark; the 09 §4 checklist below; focus fixes from the `a11y-auditor`
+- [x] Lighthouse CI: `apps/web/lighthouserc.cjs` (`pnpm lhci`), the 09 §3 budgets per URL against `next start`; `scripts/ui/lhci-local.sh` runs it locally with Playwright's headless Chromium; `scripts/ui/lh-summary.mjs` prints the medians
+- [x] Perf fixes: Motion only where CSS scroll timelines are missing (it was on every page); the ⌘K dialog (cmdk), the phone menu's sheet, the trace and the method notes load on demand; `sonner` replaced by a 40-line notice host; the Radix tooltip provider moved into each tooltip; React Query devtools development-only; `recharts` removed; `/` server-rendered again (one Suspense around the whole Desk made it client-only: the hero painted after hydration); `content-visibility` on a library's chunk list; the build no longer traces the whole project into the standalone output
+- [x] Edge cases (`scripts/synthetic_run_logs.py` → `synthetic-edge-*`, `e2e/edge.spec.ts`): a 2,000-character message; one part; eight parts (the most the proposer contract allows); nothing settled and no sources; a blocked input (existing); one challenger failing while the run continues; a duplicate, out-of-order or missing event (reducer tests: deduped, a gap reported then repaired); a very long source title and quote; a right-to-left quote (`dir="auto"` on quotes, titles, the claim and strips); 200% zoom; Windows high contrast (`forced-colors`: marks in `CanvasText`, the active tab keeps a rule)
+- [x] Security and privacy: no secrets in `NEXT_PUBLIC_*` (only `NEXT_PUBLIC_API_URL` and the feature flags); external links `noopener noreferrer`; a CSP, Referrer-Policy and Permissions-Policy on every route (`lib/csp.ts` via `next.config.ts`, so the API origin follows `NEXT_PUBLIC_API_URL`); the library's upload limits checked on the page (`lib/kbLimits.ts`: the five file types, 50 MB, a full http(s) address, 10 characters of text)
+- [x] Honesty checks: `scripts/honesty-check.sh` (Node, no ripgrep needed; fails if it scans too few files): no model names in UI, no fake logs or progress, no percentage helpers in the case view, fixture replays guarded, no legacy mock proxy
+- [x] CI: `.github/workflows/web.yml` (typecheck, lint, unit, honesty, the anti-slop full scan, the silence check, e2e on the Chromium projects against a production build, Lighthouse CI, and the MCP and bench pytest); WebKit and Firefox in their own non-blocking job until a first green run
+- [x] Anti-slop full scan: 0
+- [ ] `/impeccable audit` + `harden`: not available in this environment (no CLI, no skill); the `a11y-auditor` walkthrough and the anti-slop scan stand in, and the visual critique is P11's
+
+### 09 §4 checklist (WCAG 2.2 AA)
+| Item | Result | Evidence |
+|---|---|---|
+| Contrast; marks carry text | Pass | `tokens.contrast.test.ts` (74 pairs); axe color-contrast 0 in light and dark; mark text twins (`ClaimStrip.tsx`) |
+| Keyboard order, drawers trap and return focus | Pass (after fixes) | Order header → Agents → tabs → panel → evidence; the ⌘K menu, the phone menu and the library delete dialog now return focus to what opened them (they had no Radix Trigger after P10's lazy loading); e2e asserts each |
+| Visible focus | Pass | 2px outline, 2px offset on every stop (`globals.css`) |
+| Live announcer and status region | Pass | S9.1 above; `role="status"` run line |
+| Handwritten notes | Pass | `aria-hidden` plus a sans twin (`AgentLane.tsx`, `ClaimStrip.tsx`) |
+| Stamps | Pass | `role="img"`, "Verdict: Mixed" (`Stamp.tsx`) |
+| Target size | Pass | smallest 24px; 44px on touch for the primary actions; the notice's Dismiss 28px (44 on touch) |
+| Reduced motion | Pass | 0 running animations in a live run under reduce; `reduced.spec.ts` |
+| 200% zoom, text spacing | Pass (after fixes) | the case tabs overflowed by 10px at 320px (gap tightened); `edge.spec.ts` checks `/` and a case at 720 × 450 |
+| lang, titles, landmarks | Pass | `lang="en"`, a title per route, one h1 and one main (`routes.spec.ts`) |
+| Charts: table twin, not colour alone | Pass on the case; /method charts not re-audited one by one | Hallmark `role=img` with full labels, the scores table and the ledger table |
+
+### Lighthouse (mobile, simulated Moto G Power on slow 4G; median of 3; `next start` on this machine)
+| Page | Before P10 | After P10 | Budget (09 §3) |
+|---|---|---|---|
+| `/` | perf 57 · LCP 4.71s · TBT 1,436ms · CLS 0 · JS 293KB | perf 77 · LCP 3.47s · TBT 596ms · CLS 0 · JS 215KB | perf ≥ 90 · LCP ≤ 2.0s · CLS ≤ 0.03 · JS ≤ 120KB |
+| `/case/fixture-exercise-mixed?speed=50` | perf 66 · LCP 3.76s · TBT 1,058ms · CLS 0 · JS 393KB | perf 71 · LCP 3.39s · TBT 861ms · CLS 0.005 · JS 289KB | perf ≥ 90 · LCP ≤ 2.2s · CLS ≤ 0.05 · JS ≤ 180KB |
+
+TBT varies by a factor of two between runs on this machine (the same build measured 250–600ms on `/`). With real devtools throttling instead of the simulation, `/` loads its LCP in 3.0s and the case in 2.3s. What is left: React and Next's own runtime is about 70KB of the 215KB; the rest is the Desk's client islands (ClaimInput, the library selector, the status chip, the theme) and, on the case, the reducer, the event connection and the report components. LCP is render delay, not network: the hero text paints at about 0.8s in a real throttled browser, and the simulation charges the main-thread work of hydration to it.
+
+Gate evidence: typecheck ✓ · lint ✓ (0 errors, 0 warnings) · vitest 420/420 ✓ · e2e full Chromium matrix (desktop-light, desktop-dark, mobile-reduced) against a production build: 404 passed, 51 skipped by design, 1 flaky, 9 failed under load; all 9 re-run one at a time: 18/18 passed (axe and stillness waits that exceeded 90s with 3 workers, and the ⌘K focus test, which asserted the wrong target and was fixed) · axe 0 serious or critical on every page, light and dark · `apps/mcp` pytest 13 ✓ · `bench` + `reference/benchmark` 18 ✓ · honesty check ✓ · anti-slop full scan 0 · no audio files · Lighthouse CI runs; budgets not met (above) · `a11y-auditor`: 0 P0, 3 P1 (fixed), 5 P2 (fixed: 4 in the product, 1 in a test), 4 P3 (3 fixed, 1 deferred)
+
+Decisions:
+- Decision: Motion is imported only by the gate's fallback, loaded with `next/dynamic` when the browser lacks CSS scroll timelines, because it was 58KB of gzipped JS on every page for a feature only stock Firefox uses; `useReducedMotion` is our own 15-line hook.
+- Decision: `sonner` is replaced by `lib/notify.ts` + `components/ui/notices.tsx`, because the site shows two messages (a blocked clipboard, an unconnected button) and the library cost every page; the live region carries the words only.
+- Decision: dialogs opened without a Radix Trigger (now lazy) restore focus themselves through `onCloseAutoFocus` to what had focus when they opened.
+- Decision: the 12-part edge case is tested at 8 parts, the maximum `ProposerOutput.claims` allows, because 12 cannot reach the page.
+- Decision: the "agent.failed on one adversary while the run continues" log is the `mixed` run with the Narrative Auditor's `agent.done` replaced, because today's backend emits `agent.failed` only when a run fails; the page and reducer must still handle it.
+- Decision: the CSP keeps `'unsafe-inline'` for scripts (Next's bootstrap and the theme script are inline; nonces would make every page dynamic) and never `'unsafe-eval'`; it is set in `next.config.ts` from `NEXT_PUBLIC_API_URL`, not in `vercel.json`, so the API origin cannot drift.
+- Decision: source favicons stay on DuckDuckGo's icon service with `referrerPolicy="no-referrer"` (it receives only the source's domain, never the claim or the reader's page), allowed by `img-src` alone.
+- Decision: the honesty check is a Node script (`scripts/honesty-check.mjs`, wrapped by the `.sh` 09 §5 names), because ripgrep is not on every machine, and it refuses to pass if it scanned too few files.
+- Decision: the anti-slop full scan skips Playwright and Lighthouse output (`test-results`, `.lighthouseci`), which holds generated third-party CSS.
+- Decision: a wall-clock unit test (the Bench recompute) takes the fastest of five samples, so other test workers competing for the CPU are not measured.
+
+Deferred:
+- The 09 §3 budgets (above) and the long-task count from P8.
+- `/impeccable audit` + `harden` (unavailable here): P11's visual critique.
+- A11y P3: the /method score table overflows by 13px under text-spacing overrides; the /method charts (Tipping line, Agreement Dial, Lineage) were not re-audited one by one; real NVDA/VoiceOver speech, true browser zoom and real Windows High Contrast (Chromium emulation only).
+- WebKit (mobile-light) and Firefox (firefox-fallback): in CI's non-blocking job, never run on this machine.
+
+Needs a decision:
+- The performance budgets. Options: (a) keep pushing in P11 (move more of the Desk and the case report to server components, split the case's client code by tab, drop `next-themes` for a 20-line script); (b) re-baseline the budgets to what a Next 16 + React 19 app with live client state can meet (e.g. JS ≤ 220KB on `/`, ≤ 300KB on a case, perf ≥ 80), with the reason logged; (c) both: re-baseline now, keep (a) as a stretch.
 
 ## P11 — Polish & ship
 - [ ] Final critique, `/impeccable polish`, designmd drift check, docs, product name (G8), preview deploy · [ ] production promotion **waits for your approval**
