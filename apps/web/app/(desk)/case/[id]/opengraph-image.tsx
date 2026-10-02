@@ -53,7 +53,7 @@ const TONE = { support: '#23713F', red: '#B42F28', ochre: '#8A5A00', graphite: '
  */
 async function newsreader(weight: 500 | 600) {
   try {
-    const file = path.join(process.cwd(), 'node_modules', '@fontsource', 'newsreader', 'files', `newsreader-latin-${weight}-normal.woff`);
+    const file = path.join(/*turbopackIgnore: true*/ process.cwd(), 'node_modules', '@fontsource', 'newsreader', 'files', `newsreader-latin-${weight}-normal.woff`);
     const buf = await readFile(file);
     return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
   } catch {

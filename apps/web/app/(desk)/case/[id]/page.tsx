@@ -33,7 +33,7 @@ function one(v: string | string[] | undefined): string | undefined {
 /** The repo's EVALUATION.md, if it exists (audit 01 G5: the benchmark is read, never written here). */
 function readBenchmark(): string | null {
   try {
-    const raw = readFileSync(path.resolve(process.cwd(), '..', '..', 'EVALUATION.md'), 'utf8').trim();
+    const raw = readFileSync(path.resolve(/*turbopackIgnore: true*/ process.cwd(), '..', '..', 'EVALUATION.md'), 'utf8').trim();
     if (!raw) return null;
     const firstParagraph = raw.replace(/^#[^\n]*\n+/, '').split(/\n{2,}/)[0];
     return firstParagraph.slice(0, 600);

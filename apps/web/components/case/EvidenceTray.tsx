@@ -159,10 +159,14 @@ function EvidenceCardView({ card, uses, n, stopped = false }: CardProps) {
         {aged && <span className="text-ochre">· older source</span>}
         <span className="sr-only">· source {card.evidence_id}</span>
       </p>
-      {src.title && <h3 className="mt-1 type-ui font-semibold text-ink">{src.title}</h3>}
+      {src.title && (
+        <h3 dir="auto" className="mt-1 type-ui font-semibold break-words text-ink">
+          {src.title}
+        </h3>
+      )}
       {/* The quote is verbatim, in Newsreader with a rule in the relation's color. */}
       <blockquote className={cn('mt-2 max-w-[68ch] border-l-2 pl-3 font-display type-body text-ink', rule)}>
-        <p className="line-clamp-6">“{displayQuote(card.quote)}”</p>
+        <p dir="auto" className="line-clamp-6 break-words">“{displayQuote(card.quote)}”</p>
       </blockquote>
       {card.locator && <p className="mt-1 type-meta text-ink-3">Where: {card.locator}</p>}
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">

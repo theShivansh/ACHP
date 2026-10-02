@@ -68,7 +68,7 @@ export function ClaimHeadline({
 
   const current = new Set(spanList.split(','));
   return (
-    <h1 ref={boxRef} className={cn('relative', className)}>
+    <h1 ref={boxRef} dir="auto" className={cn('relative', className)}>
       <span ref={textRef}>{text}</span>
       {rects
         .filter(({ key }) => current.has(key))

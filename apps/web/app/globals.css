@@ -652,6 +652,20 @@ html[data-lowfx] .mark[data-play][data-boil] {
 @media (prefers-contrast: more) {
   .mark path { stroke-width: 2.5; }
 }
+/* Windows high contrast (forced-colors): the marks, stamps and Hallmark keep their shapes in system colours, so
+   nothing that carries meaning disappears; each also has a text equivalent. A highlight becomes a plain underlay. */
+@media (forced-colors: active) {
+  .mark { mix-blend-mode: normal; forced-color-adjust: none; }
+  .mark path { stroke: CanvasText; stroke-width: 2.5; }
+  .mark[data-relation="supports"] path,
+  .mark[data-relation="framing"] path { stroke: Highlight; }
+  .stamp, [data-hallmark] { forced-color-adjust: none; color: CanvasText; }
+  [data-hallmark] svg * { stroke: CanvasText; }
+  /* The sliding tab rule is a background, which forced colours drop: mark the active tab with its own border. */
+  [data-slot="tabs-indicator"] { display: none; }
+  [data-slot="tabs-trigger"] { border-bottom-color: Canvas; }
+  [data-slot="tabs-trigger"][data-state="active"] { border-bottom-color: Highlight; }
+}
 @media (prefers-reduced-transparency: reduce) {
   [data-slot="dialog-overlay"],
   [data-slot="sheet-overlay"] {

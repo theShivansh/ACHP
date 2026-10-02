@@ -127,8 +127,11 @@ function ClaimStripView({
         {part}
       </span>
       <div className="min-w-0">
-        <p ref={boxRef} className="relative font-display type-strip text-ink">
-          <span className="sr-only">Part {part}: </span>
+        <p ref={boxRef} dir="auto" className="relative font-display type-strip text-ink">
+          {/* Its own dir, so dir="auto" on the paragraph takes the direction from the part, not from this prefix. */}
+          <span dir="ltr" className="sr-only">
+            Part {part}:{' '}
+          </span>
           <span ref={textRef}>{strip.text}</span>
           {strip.marks.map((m) =>
             (measured.find((x) => x.seq === m.seq)?.rects ?? []).map((rect, i, all) => (

@@ -20,11 +20,11 @@ export function fixtureEnabled(): boolean {
 
 function fixturePath(name: string): string | null {
   if (!NAME.test(name)) return null;
-  const root = process.cwd();
+  // Read at request time; next.config.ts lists these files for the standalone build (the tracer is told to ignore them).
   const file = name.startsWith('synthetic-')
-    ? path.join(root, 'lib', 'runs', '__tests__', 'logs', `${name}.jsonl`)
-    : path.join(root, 'fixtures', 'runs', `${name}.jsonl`);
-  return existsSync(file) ? file : null;
+    ? path.join(/*turbopackIgnore: true*/ process.cwd(), 'lib', 'runs', '__tests__', 'logs', `${name}.jsonl`)
+    : path.join(/*turbopackIgnore: true*/ process.cwd(), 'fixtures', 'runs', `${name}.jsonl`);
+  return existsSync(/*turbopackIgnore: true*/ file) ? file : null;
 }
 
 /** The fixture's events in seq order, or null if there is no such fixture (or fixtures are off). */
@@ -32,7 +32,7 @@ export function readFixture(name: string): RunEvent[] | null {
   if (!fixtureEnabled()) return null;
   const file = fixturePath(name);
   if (!file) return null;
-  const events = readFileSync(file, 'utf8')
+  const events = readFileSync(/*turbopackIgnore: true*/ file, 'utf8')
     .split('\n')
     .filter((l) => l.trim())
     .map((l) => JSON.parse(l) as unknown)
@@ -85,9 +85,9 @@ export function isSampleId(id: string): boolean {
 export function readSample(id: string): RunEvent[] | null {
   const sample = SAMPLES.find((s) => s.id === id);
   if (!sample) return null;
-  const file = path.join(process.cwd(), 'fixtures', 'runs', `${sample.name}.jsonl`);
-  if (!existsSync(file)) return null;
-  const events = readFileSync(file, 'utf8')
+  const file = path.join(/*turbopackIgnore: true*/ process.cwd(), 'fixtures', 'runs', `${sample.name}.jsonl`);
+  if (!existsSync(/*turbopackIgnore: true*/ file)) return null;
+  const events = readFileSync(/*turbopackIgnore: true*/ file, 'utf8')
     .split(/\r?\n/)
     .filter((l) => l.trim())
     .map((l) => JSON.parse(l) as unknown)

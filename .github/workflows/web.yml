@@ -1,0 +1,108 @@
+name: web
+# The gates in docs/upgrade/09_ACCEPTANCE_AND_QA.md §2 for the site, the MCP server and ACHP Bench.
+# Every job runs the same commands as a local check (see CLAUDE.md → Commands).
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: apps/web
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: apps/web/pnpm-lock.yaml }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - name: Honesty checks (09 §5)
+        run: bash ../../scripts/honesty-check.sh
+      - name: Anti-slop full scan (0 violations)
+        run: node ../../.claude/hooks/anti-slop-check.mjs --all
+        env: { CLAUDE_PROJECT_DIR: "${{ github.workspace }}" }
+      - name: Silence (no audio files ship)
+        run: test -z "$(find . -path ./node_modules -prune -o \( -name '*.mp3' -o -name '*.wav' -o -name '*.ogg' \) -print)"
+
+  e2e:
+    # The Chromium projects (desktop light and dark, a reduced-motion phone): the required gate.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: apps/web/pnpm-lock.yaml }
+      - run: pnpm install --frozen-lockfile
+      - run: npx playwright install --with-deps chromium
+      - run: pnpm build
+        env: { ACHP_FIXTURES: "1" }
+      - name: Playwright (desktop-light, desktop-dark, mobile-reduced)
+        run: |
+          (ACHP_FIXTURES=1 pnpm start -p 3000 &) && npx wait-on -t 60000 http://localhost:3000
+          E2E_BASE_URL=http://localhost:3000 npx playwright test --project=desktop-light --project=desktop-dark --project=mobile-reduced
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: playwright-traces, path: apps/web/test-results, retention-days: 7 }
+
+  e2e-other-engines:
+    # WebKit (mobile-light) and Firefox (firefox-fallback). Not yet run anywhere: informative until a first green run.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: apps/web/pnpm-lock.yaml }
+      - run: pnpm install --frozen-lockfile
+      - run: npx playwright install --with-deps webkit firefox
+      - run: pnpm build
+        env: { ACHP_FIXTURES: "1" }
+      - run: |
+          (ACHP_FIXTURES=1 pnpm start -p 3000 &) && npx wait-on -t 60000 http://localhost:3000
+          E2E_BASE_URL=http://localhost:3000 npx playwright test --project=mobile-light --project=firefox-fallback
+
+  lighthouse:
+    # The budgets in 09 §3 on / and a completed fixture case (S9.3). See PROGRESS.md P10 for where they stand.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: apps/web/pnpm-lock.yaml }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        env: { ACHP_FIXTURES: "1" }
+      - run: |
+          (ACHP_FIXTURES=1 pnpm start -p 3100 &) && npx wait-on -t 60000 http://localhost:3100
+          pnpm lhci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: lighthouse, path: apps/web/.lighthouseci, retention-days: 14 }
+
+  python:
+    # The MCP server and ACHP Bench's scorer and generators.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -e apps/mcp pytest pytest-asyncio
+      - run: cd apps/mcp && python -m pytest -q
+      - run: python -m pytest -q bench reference/benchmark

@@ -39,7 +39,7 @@ export function QuoteCard({
       )}
     >
       <blockquote className="max-w-[68ch] border-l-2 border-graphite pl-3 font-display type-body text-ink">
-        <p className={cn(!expanded && long && 'line-clamp-3')}>“{citation.excerpt}”</p>
+        <p dir="auto" className={cn('break-words', !expanded && long && 'line-clamp-3')}>“{citation.excerpt}”</p>
       </blockquote>
       <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 type-meta text-ink-2">
         {number != null && <span className="font-semibold text-ink">[{number}]</span>}
