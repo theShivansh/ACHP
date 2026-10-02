@@ -9,7 +9,7 @@ bias detection, and narrative integrity analysis.**
 
 [![Python](https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=nextdotjs)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=nextdotjs)](https://nextjs.org/)
 [![Groq](https://img.shields.io/badge/LLM-Groq%20Native-orange?style=flat-square)](https://groq.com/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
 [![HuggingFace](https://img.shields.io/badge/🤗%20HF%20Spaces-live-yellow?style=flat-square)](https://huggingface.co/spaces/theshivansh/ACHP-api)
@@ -36,6 +36,76 @@ Claim ──► [Security] ──► [Retriever] ──► [Proposer] ──► 
 
 ---
 
+## The Fact-Checker's Desk (the web interface)
+
+The site is a desk with a sheet of paper on it. Seven specialist agents mark up the message you paste, and every
+mark, source and score on the page comes from a stored event, never from a timer. Nothing here is a verdict unless a
+real run produced it.
+
+| The Desk | A finished case (1440) | A case on a phone (390) |
+|---|---|---|
+| ![The Desk: paste a message, pick a library, check it](docs/upgrade/screens/P11/desk-desktop-light.png) | ![A finished case: the claim, the Judge's stamp, ACHP's reading and the sources](docs/upgrade/screens/P11/case-report-desktop-light.png) | ![A case at 390px: the claim, the stamp and the reading](docs/upgrade/screens/P11/case-fixture-exercise-mixed-speed-4-mobile-light-done.png) |
+
+[A recorded run, 7 seconds](docs/upgrade/launch/live-run-desktop.webm) · Pages: **Check** (`/`), **Ask** a library
+(`/ask`), **Library** (`/library`), **Runs** (`/runs`), **[Method](https://achp-seven.vercel.app/method)** (how a
+verdict is made, the Assay's instruments, ACHP Bench) and **[Developers](https://achp-seven.vercel.app/developers)**
+(the REST API, the event stream and the MCP server).
+
+### How a check reaches the page
+
+Every emission goes through one bus and is stored as an append-only event log. The page is a projection of that log:
+live over server-sent events, or later from `events.json` (so a shared case link, a replay and a benchmark run all read
+the same thing).
+
+```mermaid
+flowchart LR
+  A[Claim pasted on the Desk] -->|POST /runs| B[FastAPI pipeline<br/>7 agents]
+  B -->|RunEventBus.emit| C[(Event log<br/>per run)]
+  C -->|SSE /runs/id/events| D[Next.js case page<br/>reducer, no timers]
+  C -->|GET /runs/id/events.json| E[Replay, share link,<br/>ACHP Bench, MCP server]
+  D --> F[Sheet: claim, stamp,<br/>evidence, the Assay]
+```
+
+- Run-state logic lives in one pure reducer (`apps/web/lib/runs/reducer.ts`); components read slices of it.
+- The Judge's stamp is the headline. The composite score never stands alone (`docs/upgrade/11_THE_ASSAY.md` section 4).
+- ACHP is silent: no audio APIs, files or toggles. Every confirmation is visible and announced.
+
+### Run it, with or without a backend
+
+```bash
+pnpm -C apps/web install
+pnpm -C apps/web dev            # http://localhost:3000, expects the API at NEXT_PUBLIC_API_URL
+```
+
+Recorded runs replay in development with no backend and no model key. Open one at its own speed:
+
+```text
+http://localhost:3000/case/fixture-exercise-mixed?speed=4
+http://localhost:3000/case/fixture-contradicted-strong?speed=4
+http://localhost:3000/case/fixture-blocked?speed=4
+```
+
+`/case/sample-exercise-mixed` opens the same recorded check in a production build, labelled as a recorded example.
+To replay fixtures from a local production build, start it with `ACHP_FIXTURES=1` (a deployment never sets it).
+
+`NEXT_PUBLIC_API_URL` is the backend's address. If it is unset, a development server uses `http://localhost:8000` and a
+production build uses the hosted backend (`https://theshivansh-achp-api.hf.space`).
+
+### Checks
+
+```bash
+pnpm -C apps/web typecheck && pnpm -C apps/web lint && pnpm -C apps/web test
+pnpm -C apps/web test:e2e                     # Chromium: desktop light and dark, phone with reduced motion
+cd apps/api && pytest -q                      # pipeline, event protocol, Assay parity
+cd apps/mcp && python -m pytest -q            # the MCP server
+python -m pytest -q bench reference/benchmark # ACHP Bench scorer and runner
+```
+
+What changed, by story: [`docs/upgrade/CHANGELOG.md`](docs/upgrade/CHANGELOG.md). Decisions, gate evidence and
+deferrals: [`docs/upgrade/PROGRESS.md`](docs/upgrade/PROGRESS.md).
+
+---
+
 ## ✨ Key Features
 
 | Feature | Detail |
@@ -53,6 +123,7 @@ Claim ──► [Security] ──► [Retriever] ──► [Proposer] ──► 
 
 ## 🗂 Table of Contents
 
+- [The Fact-Checker's Desk (the web interface)](#the-fact-checkers-desk-the-web-interface)
 - [Architecture](#-architecture)
 - [ACHP Metrics](#-achp-metrics)
 - [Narrative Integrity Layer (NIL)](#-narrative-integrity-layer-nil)
@@ -745,7 +816,8 @@ git subtree push --prefix apps/api hf main
 ```bash
 cd apps/web
 vercel deploy
-# Set NEXT_PUBLIC_API_URL to your Railway/HF backend URL in Vercel dashboard
+# Set NEXT_PUBLIC_API_URL to your backend URL in the Vercel dashboard (Production and Preview).
+# Unset, a production build uses the hosted backend. The API's CORS accepts achp*.vercel.app.
 ```
 
 ### Docker Compose (Self-hosted)

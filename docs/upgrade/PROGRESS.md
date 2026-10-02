@@ -399,7 +399,7 @@ Deferred / needs a decision:
 - Running the bench on the hosted backend uses the live site's daily model quota. A paid key on a local backend (new tag) would finish in about 3 hours.
 - The `design-critic` and `assay-auditor` reviews of `/method#benchmark` wait for the measured results.
 
-## P10 — Hardening  ◐ 2026-10-02 (engines: Chromium only; the performance budgets are not met, see Needs a decision)
+## P10 — Hardening  ◐ 2026-10-02 (engines: Chromium only; the performance budgets are not met; dropped as a gate in P11)
 - [x] S9.1 announcer: polite live region, at most one sentence per 2s, full sentences (`lib/runs/__tests__/announcer.test.ts`; the a11y auditor measured 4 sentences in 40s of a live run, smallest gap 1,997ms against the 2,000ms throttle)
 - [ ] S9.3 performance budgets (09 §3): Lighthouse CI is in place and the pages are much lighter, but the mobile budgets are not met (numbers below)
 - [x] A11y: `e2e/a11y.spec.ts` (axe, WCAG 2.2 A/AA, serious or critical) on `/`, a case mid-run, a finished case on all four tabs, `/method`, `/library` and the replay, in light and dark; the 09 §4 checklist below; focus fixes from the `a11y-auditor`
@@ -455,12 +455,38 @@ Deferred:
 - A11y P3: the /method score table overflows by 13px under text-spacing overrides; the /method charts (Tipping line, Agreement Dial, Lineage) were not re-audited one by one; real NVDA/VoiceOver speech, true browser zoom and real Windows High Contrast (Chromium emulation only).
 - WebKit (mobile-light) and Firefox (firefox-fallback): in CI's non-blocking job, never run on this machine.
 
-Needs a decision:
-- The performance budgets. Options: (a) keep pushing in P11 (move more of the Desk and the case report to server components, split the case's client code by tab, drop `next-themes` for a 20-line script); (b) re-baseline the budgets to what a Next 16 + React 19 app with live client state can meet (e.g. JS ≤ 220KB on `/`, ≤ 300KB on a case, perf ≥ 80), with the reason logged; (c) both: re-baseline now, keep (a) as a stretch.
+Decided (2026-10-02): the performance budgets are dropped as a release gate; see P11.
 
-## P11 — Polish & ship
-- [ ] Final critique, `/impeccable polish`, designmd drift check, docs, product name (G8), preview deploy · [ ] production promotion **waits for your approval**
-- Gate: every gate green · PROGRESS.md closed
+## P11 — Polish & ship  ◐ 2026-10-02 (the production promotion and the designmd drift check wait on the Vercel side, see below)
+- [x] Performance budgets: **dropped as a release gate by you (2026-10-02)**; the P10 numbers stay recorded above as the baseline
+- [x] Final critique: `shoot-p9.mjs --phase P11` (every route, 1440 · 390 · 360, light and dark, a phone with reduced motion) plus the case at 390 live and done in light, dark and reduced (`docs/upgrade/screens/P11/`, 98 captures); `design-critic` reviewed them with "be strict: what would make a senior product designer say this is generic?"
+- [x] Critic fixes, each checked against the code first: one "recorded example" notice instead of two (the header text is gone, the banner stays and is tested); no leading dot before "Date not given" and "Older source"; the blocked notice ends with a next step ("To try again, paste only the claim you want checked."); the missing 390px case captures were taken
+- [x] Copy pass (04 §9): a scan of `app`, `components` and `lib` for buzzwords, exclamation marks and Title Case headings found nothing; the one hit for "leverage" is the formula's own term on /method
+- [x] A production build with `NEXT_PUBLIC_API_URL` unset used `http://localhost:8000`, so a Vercel deploy without the variable called the reader's own machine. It now uses the hosted backend (`lib/apiUrl.ts`; one resolver for the client, Ask, runs and the CSP; CI pins localhost so tests never reach the live backend)
+- [x] Docs: README section for the Desk (screenshots, the event-log diagram, how to run the recorded cases, `/method` and `/developers`), `docs/upgrade/CHANGELOG.md` by story id, a 7-second recording of a run in `docs/upgrade/launch/live-run-desktop.webm`
+- [ ] `/impeccable polish` and the designmd drift check: not available here (no CLI or skill); needs a Vercel preview URL to run against, so it is yours or a later pass
+- [ ] Production promotion: see "Release" below
+
+Gate evidence: typecheck ✓ · lint ✓ (0 warnings) · vitest **423/423** · e2e (case report, blocked, case failure, Desk, route smoke with axe, edge cases) on a production build, desktop-light and mobile-reduced: **82 passed, 16 skipped by design** · honesty check ✓ · anti-slop full scan 0 · stillness pass (0 running animations 2s after done) · `design-critic`: 3 P0, 6 P1 (see Deferred; 1 P0 was the missing captures, now taken)
+
+Release:
+- The hosted backend (`https://theshivansh-achp-api.hf.space`) answers `/health` and serves `/runs`, `/runs/{id}/events(.json)`, `/qa` and `/kb/*`. Its CORS accepts `https://achp.vercel.app` and `achp-*.vercel.app` (checked with a live preflight from `https://achp.vercel.app`), which covers the README's `achp-seven.vercel.app`.
+- The Vercel API in this session needs a re-login for the team (403 on project settings), so the project's environment variables could not be read. They no longer matter for the site to work: `NEXT_PUBLIC_API_URL` is optional now. Set it to the hosted backend explicitly if you want the CSP's `connect-src` pinned in the dashboard.
+- Reading `EVALUATION.md` from outside `apps/web` is guarded; if the Vercel root directory excludes it, only the Method drawer's benchmark note is missing.
+
+Decisions:
+- Decision: the performance budgets are no longer a release gate because you said to drop them; the Lighthouse run stays in CI as a measurement.
+- Decision: a production build defaults to the hosted backend when `NEXT_PUBLIC_API_URL` is unset, because the only other default was `localhost:8000`, which can never work for a reader of a deployed site.
+- Decision: the header text "a recorded example, not a new check" was removed from the case bar because the full-width banner says it on every screen size and the two repeated each other.
+
+Deferred (from the critic, prioritized):
+- P0 design: the MIXED stamp does not say which part is wrong at a glance. The tone highlight (loaded wording) and the unsettled part use different marks and sit apart; 04 §3.3 wants the Mixed half-underline on the contested span and "The part we could not settle" directly under the stamp. A layout change to the report, not a patch.
+- P1: "Strong evidence" beside a MIXED stamp can read as a contradiction; say it per part. The Assay tab's formula verdict uses the paper's five-label scale ("Mostly true") next to the Judge's four stamps, which breaks the one-vocabulary rule; needs a decision on mapping. The finished Desk column holds only a collapsed "7 agents" line. The evidence tray is as heavy as the sheet. The five metric badges on the Assay tab need their full forms beside them on first sight (MetricTerm does this in the text, not on the badges).
+- P2: `/runs` column width differs from the Desk and Method; the library `<select>` is browser chrome; the Method jump links wrap raggedly and its agent icons are line icons rather than the hand-drawn marks; the example chips on the Desk.
+- P3: "Not settled" is underlined like a link; the 50× and 20× replay speeds sit in the header.
+- Still open from before: the P10 performance numbers, `/impeccable audit`, `harden` and `polish`, the designmd drift check, a real-device WebKit and Firefox run, the first full Bench run (day 1 of several, see `bench/RESUME.md`).
+
+Next, in order: (1) the Mixed mark on the contested span and the unsettled part under the stamp; (2) finish the Bench run over the coming days (`bench/RESUME.md`), then the measured figures lead /method; (3) the 9:16 launch Reel from a live run (`10_IDEAS.md` §3; this phase recorded the desktop clip only).
 
 ---
 
