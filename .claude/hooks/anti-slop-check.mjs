@@ -20,7 +20,8 @@ import { execFileSync } from 'node:child_process';
 const ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const WEB = path.join(ROOT, 'apps', 'web');
 const EXT = new Set(['.tsx', '.ts', '.jsx', '.js', '.css']);
-const SKIP_DIRS = /(node_modules|\.next|\/e2e\/|__tests__|\/fixtures\/|\/public\/|\.test\.|\.spec\.)/;
+// Test and build output (Playwright traces, Lighthouse reports) holds third-party and generated CSS: not product code.
+const SKIP_DIRS = /(node_modules|\.next|test-results|playwright-report|\.lighthouseci|coverage|\/e2e\/|__tests__|\/fixtures\/|\/public\/|\.test\.|\.spec\.)/;
 
 const RULES = [
   { id: 'neon-cyan', re: /00F0FF|0,\s*240,\s*255/i, hint: 'Neon cyan belongs to the old UI. Use the tokens (--pencil-blue for links and focus).' },

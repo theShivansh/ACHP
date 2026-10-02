@@ -78,13 +78,20 @@ test('⌘K or Ctrl+K opens the command menu and a command goes there', async ({ 
   await expect(menu.getByRole('option', { name: 'Open the Assay' })).toHaveCount(0);
   await menu.getByRole('option', { name: 'How ACHP decides' }).click();
   await expect(page).toHaveURL(/\/method$/);
-  // Escape closes it and gives focus back.
+  // Escape closes it and gives focus back to whatever had it when it opened, never to <body>.
+  const focusedId = () => page.evaluate(() => (document.activeElement && document.activeElement !== document.body ? document.activeElement.id || document.activeElement.getAttribute('data-command-trigger') || document.activeElement.tagName : 'BODY'));
+  await page.locator('[data-command-trigger]').focus();
   await page.keyboard.press('Control+k');
   await expect(menu).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
-  // Opened from the page, it gives focus back to the menu's button rather than dropping it.
   await expect(page.locator('[data-command-trigger]')).toBeFocused();
+  await page.locator('#main').focus();
+  await page.keyboard.press('Control+k');
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  expect(await focusedId()).toBe('main');
 });
 
 test('on a case the menu offers the Assay, the trace and the replay', async ({ page }, info) => {
