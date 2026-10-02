@@ -34,7 +34,9 @@ function biasWords(bis: number): string {
 }
 
 function viewpointWords(pcs: number): string {
-  return pcs < 0.5 ? 'other viewpoints left out' : 'several viewpoints covered';
+  if (pcs < 0.45) return 'other viewpoints left out';
+  if (pcs < 0.7) return 'viewpoints only partly covered';
+  return 'several viewpoints covered';
 }
 
 function clip(text: string, n = 80): string {

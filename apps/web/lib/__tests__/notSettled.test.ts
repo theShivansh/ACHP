@@ -53,6 +53,12 @@ describe('what a Not settled stamp can still say', () => {
     expect(notSettledReading({ verifiable: [true], sources: 0, assay: null }).scores).toBeNull();
   });
 
+  it('does not say viewpoints are covered when they are only partly covered (a reviewer may have said the opposite)', () => {
+    const r = notSettledReading({ verifiable: [true], sources: 2, assay: assay({ BIS: 0.05, PCS: 0.55 }) });
+    expect(r.scores).toContain('viewpoints only partly covered');
+    expect(r.scores).not.toContain('several viewpoints covered');
+  });
+
   it('describes calm wording and covered viewpoints too', () => {
     const r = notSettledReading({ verifiable: [true], sources: 2, assay: assay({ BIS: 0.05, PCS: 0.8 }) });
     expect(r.scores).toContain('calm wording');
