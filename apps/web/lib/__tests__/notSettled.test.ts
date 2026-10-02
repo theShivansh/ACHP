@@ -18,7 +18,7 @@ describe('what a Not settled stamp can still say', () => {
     const r = notSettledReading({ verifiable: [false], sources: 5, assay: null });
     expect(r.why).toContain('opinion or a preference');
     expect(r.why).toContain('not a statement we can call true or false');
-    expect(r.next).toContain('which models');
+    expect(r.next).toContain('by which measure');
   });
 
   it('says plainly when no source was found, and when sources were found but none decides', () => {

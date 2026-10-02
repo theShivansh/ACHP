@@ -65,7 +65,7 @@ export function notSettledReading({
   }
 
   const next = allOpinion
-    ? 'To get something checkable, say what you mean exactly: which models, which feature, which source.'
+    ? 'To get something checkable, say what you mean exactly: what is being compared, by which measure, and from which source.'
     : 'To settle it, say exactly what, where and when, or add a library with a source you trust and ask again.';
 
   return { lead: 'Not settled is not the same as false.', why, scores, next };
