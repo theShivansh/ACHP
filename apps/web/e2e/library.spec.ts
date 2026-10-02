@@ -66,10 +66,13 @@ test('delete asks in a dialog first; Cancel changes nothing; Delete removes it',
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toHaveCount(0);
   expect(calls.deleted).toHaveLength(0);
+  // Focus goes back to the button that opened the dialog.
+  await expect(page.getByRole('button', { name: /Delete Old notes/ })).toBeFocused();
 
   await page.getByRole('button', { name: /Delete Old notes/ }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Delete library' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Deleted “Old notes”.' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Deleted “Old notes”.' })).toBeFocused();
   expect(calls.deleted).toEqual(['kb3']);
   await expect(page.locator('[data-kb="kb3"]')).toHaveCount(0);
   expect(nativeConfirm).toBe(false);
@@ -95,4 +98,15 @@ test('a library that is not there says so', async ({ page }) => {
   await mockBackend(page, { libraries: [KB_READY] });
   await page.goto('/library/kb404');
   await expect(page.getByRole('heading', { name: 'That library is not here.' })).toBeVisible();
+});
+
+test('a file the backend cannot read is refused on the page, with the reason, and nothing is sent', async ({ page }) => {
+  const { calls } = await mockBackend(page, { libraries: [] });
+  await page.goto('/library');
+  await page.locator('[data-file-input]').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: Buffer.from('not a document') });
+  await expect(page.locator('[data-dropzone] [role="alert"]')).toContainText('not a file a library can read');
+  await page.getByLabel('Or paste text').fill('too short');
+  await page.getByRole('button', { name: 'Add text' }).click();
+  await expect(page.locator('[data-dropzone] [role="alert"]')).toContainText('at least 10 characters');
+  expect(calls.uploads).toBe(0);
 });

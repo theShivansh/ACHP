@@ -18,10 +18,15 @@ function TooltipProvider({
   )
 }
 
+// Each tooltip carries its own provider (the shadcn pattern), so a page without one never loads Radix's popper.
 function Tooltip({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+  return (
+    <TooltipProvider>
+      <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+    </TooltipProvider>
+  )
 }
 
 function TooltipTrigger({

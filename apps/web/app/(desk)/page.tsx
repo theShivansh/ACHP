@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
 import { DeskHome } from '@/components/desk/DeskHome';
 import { DeskStory } from '@/components/desk/DeskStory';
 
@@ -9,10 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-  // useSearchParams (a prefilled claim from /ask) needs a boundary; the story is read on the server from a recorded check.
-  return (
-    <Suspense>
-      <DeskHome story={await DeskStory()} />
-    </Suspense>
-  );
+  // The Desk renders on the server; only the ?claim= prefill reads the request (inside DeskHome, in its own boundary).
+  // The story is read on the server from a recorded check.
+  return <DeskHome story={await DeskStory()} />;
 }

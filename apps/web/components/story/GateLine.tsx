@@ -1,23 +1,13 @@
 'use client';
 
 import { motion, useScroll, useTransform, type MotionValue } from 'motion/react';
-import { useSyncExternalStore, type ReactNode, type RefObject } from 'react';
+import type { ReactNode, RefObject } from 'react';
 
 // The fallback for the reading gate (05 §2.4). A browser with CSS scroll-driven animations reveals each
 // gate line with `animation-timeline` and never renders this. Without them (stock Firefox), each line is
 // driven by Motion's useScroll over the gate's own track. Same ranges, same jobs; still no wheel or touch
-// listener, and a normal step simply shows its content.
-
-const QUERY = 'animation-timeline: view()';
-
-/** Does this browser run CSS scroll-driven animations? `true` on the server (the CSS @supports guard decides there). */
-export function useNativeTimelines(): boolean {
-  return useSyncExternalStore(
-    () => () => {},
-    () => typeof CSS === 'undefined' || typeof CSS.supports !== 'function' || CSS.supports(QUERY),
-    () => true,
-  );
-}
+// listener, and a normal step simply shows its content. Loaded only in such a browser (ReplayStory imports it
+// dynamically), so Motion never ships to one that runs the CSS.
 
 /**
  * The gate's revealing lines, driven by ONE scroll tracker (not one per line). Each line is fully there by the

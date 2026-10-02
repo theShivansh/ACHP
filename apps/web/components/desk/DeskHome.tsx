@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { ClaimInput } from '@/components/desk/ClaimInput';
 import { LibrarySelect } from '@/components/desk/LibrarySelect';
 import { buttonVariants } from '@/components/ui/button';
@@ -23,14 +23,25 @@ export const EXAMPLE_CLAIMS = [
   'Electric cars produce no emissions at all.',
 ] as const;
 
+/**
+ * "Check it as a claim instead" (/ask) lands on /?claim=… with the question prefilled. Reading the query is the only
+ * part of the Desk that needs the request, so it is its own small island: the rest of the page renders on the server
+ * (a Suspense boundary around all of it would ship an empty <main> and paint the headline only after hydration).
+ */
+function ClaimFromQuery({ onClaim }: { onClaim: (claim: string) => void }) {
+  const claim = useSearchParams().get('claim');
+  useEffect(() => {
+    if (claim) onClaim(claim.slice(0, 4000));
+  }, [claim, onClaim]);
+  return null;
+}
+
 export function DeskHome({ story }: { story?: React.ReactNode }) {
   const router = useRouter();
-  const search = useSearchParams();
   const backend = useBackend();
   const active = useActiveLibrary();
   const field = useRef<HTMLTextAreaElement>(null);
-  // "Check it as a claim instead" (/ask) lands here with the question prefilled.
-  const [text, setText] = useState(() => (search.get('claim') ?? '').slice(0, 4000));
+  const [text, setText] = useState('');
 
   const submit = async (claim: string) => {
     // The claim stays on the sheet while the desk wakes; the check starts when it answers.
@@ -42,6 +53,9 @@ export function DeskHome({ story }: { story?: React.ReactNode }) {
 
   return (
     <main id="main" tabIndex={-1} className="flex-1 outline-none">
+      <Suspense>
+        <ClaimFromQuery onClaim={setText} />
+      </Suspense>
       <div className="mx-auto w-full max-w-[880px] px-4 pt-12 pb-10 md:px-6 md:pt-20">
         <h1 className="max-w-[20ch] font-display text-[2.25rem] leading-[1.1] font-medium text-balance text-desk-ink md:text-[2.75rem] [font-variation-settings:'opsz'_60]">
           Before you forward it, check it.

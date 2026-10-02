@@ -102,7 +102,12 @@ export function LibraryDetail({ kbId }: { kbId: string }) {
               const isOpen = open.has(c.index);
               const long = c.text.length > PREVIEW;
               return (
-                <li key={c.index} data-chunk={c.index} className="paper rounded-card border-(length:--rule) border-sheet-line px-4 py-3 shadow-lift-card">
+                <li
+                  key={c.index}
+                  data-chunk={c.index}
+                  // A library can hold hundreds of chunks: the browser skips laying out the ones far off screen (09 §3).
+                  className="paper rounded-card border-(length:--rule) border-sheet-line px-4 py-3 shadow-lift-card [contain-intrinsic-size:auto_8rem] [content-visibility:auto]"
+                >
                   <p className="type-meta text-ink-2">
                     <span className="font-semibold text-ink">Chunk {c.index}</span> · {c.char_count.toLocaleString('en')} characters
                   </p>

@@ -222,9 +222,13 @@ describe('the Bench is what-if and never touches the report', () => {
     const local = whatIf(signalsOf(a), a.judge_verdict);
     for (const m of METRICS) expect(local.metrics[m]).toBeCloseTo(a.metrics[m], 3);
     expect(local.composite).toBeCloseTo(a.composite, 3);
-    const t0 = performance.now();
-    whatIf({ ...signalsOf(a), fA: 0.9 }, a.judge_verdict);
-    expect(performance.now() - t0).toBeLessThan(150); // 50 ms on a laptop; the ceiling allows a loaded CI box
+    // The cost of one recompute: the fastest of five, so other test workers competing for the CPU are not measured.
+    const samples = [0.9, 0.8, 0.7, 0.6, 0.5].map((fA) => {
+      const t0 = performance.now();
+      whatIf({ ...signalsOf(a), fA }, a.judge_verdict);
+      return performance.now() - t0;
+    });
+    expect(Math.min(...samples)).toBeLessThan(150); // 50 ms on a laptop; the ceiling allows a loaded CI box
   });
 });
 

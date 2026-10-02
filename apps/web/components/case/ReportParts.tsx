@@ -2,7 +2,7 @@
 
 import { cn } from 'cn';
 import { Copy, Printer, Share2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { Button } from '@/components/ui/button';
 import { ConfirmButton } from '@/components/ui/confirm-button';
 import { shareSummary } from '@/lib/report';
@@ -128,7 +128,7 @@ async function copy(text: string): Promise<boolean> {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    toast('Copying was blocked by the browser. Select the text and copy it by hand.');
+    notify('Copying was blocked by the browser. Select the text and copy it by hand.');
     return false;
   }
 }
@@ -209,7 +209,7 @@ export function EditorsDesk({ band }: { band: BandKey }) {
       <Button
         className="mt-3"
         variant="secondary"
-        onClick={() => toast('Human review is not connected yet. This button does nothing for now.')}
+        onClick={() => notify('Human review is not connected yet. This button does nothing for now.')}
       >
         Request review
       </Button>

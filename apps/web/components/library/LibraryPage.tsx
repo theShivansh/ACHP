@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { setActiveLibrary, useActiveLibrary } from '@/lib/activeLibrary';
 import { useKBDelete, useKBList, useKBUpload, type KBItem } from '@/lib/api';
 import { formatBytes } from '@/lib/format';
+import { fileProblem, KB_FILE_TYPES, textProblem, urlProblem } from '@/lib/kbLimits';
 
 // Libraries (07 §7; successor of the paper's Fig. 2): the reader's own documents, which checks and questions can use.
 // Index cards with a real status (the list polls while anything is indexing), a drop zone for a file, a URL or pasted
@@ -83,6 +84,12 @@ function DropZone() {
   const send = (payload: Parameters<typeof upload.mutate>[0], clear?: () => void) => {
     setProblem('');
     setNote('');
+    // The backend's limits, checked here first so the reader hears what is wrong without a round trip.
+    const local = 'file' in payload && payload.file ? fileProblem(payload.file) : 'url' in payload && payload.url ? urlProblem(payload.url) : 'text' in payload && payload.text != null ? textProblem(payload.text) : null;
+    if (local) {
+      setProblem(local);
+      return;
+    }
     upload.mutate(payload, {
       onSuccess: (r) => {
         setNote(`Added “${r.name}”: ${r.chunk_count} chunks. ${r.status === 'ready' ? 'It is ready.' : 'It is being indexed.'}`);
@@ -114,11 +121,11 @@ function DropZone() {
       <h2 id="add-docs" className="type-ui font-semibold text-desk-ink">
         Add documents
       </h2>
-      <p className="mt-1 type-meta text-desk-ink-2">Drop a PDF, DOCX or text file here, or choose one.</p>
+      <p className="mt-1 type-meta text-desk-ink-2">Drop a PDF, Word or text file of up to 50 MB here, or choose one.</p>
       <input
         ref={file}
         type="file"
-        accept=".pdf,.docx,.doc,.txt,.md"
+        accept={KB_FILE_TYPES.join(',')}
         hidden
         data-file-input
         aria-label="Choose a document to add"
@@ -150,6 +157,7 @@ function DropZone() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://"
+            aria-describedby={problem ? 'kb-problem' : undefined}
             className="min-h-10 min-w-0 flex-1 rounded-button border-(length:--rule) border-desk-ink-2 bg-desk-raised px-3 type-ui text-desk-ink placeholder:text-desk-ink-2 pointer-coarse:min-h-11"
           />
           <Button type="submit" variant="secondary" className="text-desk-ink" disabled={upload.isPending || !url.trim()}>
@@ -173,6 +181,7 @@ function DropZone() {
           rows={3}
           value={text}
           onChange={(e) => setText(e.target.value)}
+          aria-describedby={problem ? 'kb-problem' : undefined}
           className="rounded-button border-(length:--rule) border-desk-ink-2 bg-desk-raised px-3 py-2 type-ui text-desk-ink placeholder:text-desk-ink-2"
         />
         <label htmlFor="kb-name" className="type-meta text-desk-ink-2">
@@ -192,7 +201,7 @@ function DropZone() {
       <p role="status" className="mt-3 type-meta text-desk-ink-2">
         {upload.isPending ? 'Uploading…' : note}
       </p>
-      <p role="alert" className={cn('type-meta text-desk-red', !problem && 'sr-only')}>
+      <p id="kb-problem" role="alert" className={cn('type-meta text-desk-red', !problem && 'sr-only')}>
         {problem}
       </p>
     </li>
@@ -207,6 +216,14 @@ export function LibraryPage() {
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
   const doneRef = useRef<HTMLParagraphElement>(null);
+  // The Delete button that opened the dialog: Cancel or Escape gives focus back to it (WCAG 2.4.3).
+  const opener = useRef<HTMLElement | null>(null);
+  const deleted = useRef(false);
+  const askDelete = (kb: KBItem) => {
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    deleted.current = false;
+    setTarget(kb);
+  };
   const items = list.data?.knowledge_bases ?? [];
 
   const confirmDelete = () => {
@@ -217,9 +234,9 @@ export function LibraryPage() {
       onSuccess: () => {
         if (active === kb.kb_id) setActiveLibrary(null);
         setDone(`Deleted “${kb.name}”.`);
-        setTarget(null);
         // The card (and the button the dialog would return to) is gone: focus lands on the confirmation instead.
-        requestAnimationFrame(() => doneRef.current?.focus());
+        deleted.current = true;
+        setTarget(null);
       },
       onError: (e) => setError(e.message || 'It could not be deleted. Try again.'),
     });
@@ -258,7 +275,7 @@ export function LibraryPage() {
 
       <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((kb) => (
-          <IndexCard key={kb.kb_id} kb={kb} active={kb.kb_id === active} onDelete={setTarget} />
+          <IndexCard key={kb.kb_id} kb={kb} active={kb.kb_id === active} onDelete={askDelete} />
         ))}
         <DropZone />
       </ul>
@@ -269,7 +286,13 @@ export function LibraryPage() {
       )}
 
       <Dialog open={!!target} onOpenChange={(o) => !o && !del.isPending && setTarget(null)}>
-        <DialogContent>
+        <DialogContent
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            if (deleted.current) doneRef.current?.focus();
+            else opener.current?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Delete “{target?.name}”?</DialogTitle>
             <DialogDescription>

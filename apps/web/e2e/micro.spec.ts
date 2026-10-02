@@ -60,7 +60,7 @@ test('copy morphs to a check, reads "Copied", is announced, then reverts after 1
   await expect(icons.nth(1)).toHaveCSS('opacity', '1');
   await expect(icons.nth(0)).toHaveCSS('opacity', '0');
   // No toast on top of it.
-  await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
+  await expect(page.locator('[data-notice]')).toHaveCount(0);
   await expect(button).toHaveAttribute('data-confirm', 'idle', { timeout: 4000 });
   await expect(status).toHaveText('');
 });

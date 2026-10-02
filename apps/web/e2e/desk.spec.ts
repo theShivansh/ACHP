@@ -83,15 +83,20 @@ test('⌘K or Ctrl+K opens the command menu and a command goes there', async ({ 
   await expect(menu).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
+  // Opened from the page, it gives focus back to the menu's button rather than dropping it.
+  await expect(page.locator('[data-command-trigger]')).toBeFocused();
 });
 
 test('on a case the menu offers the Assay, the trace and the replay', async ({ page }, info) => {
   test.skip(info.project.name.includes('mobile'), 'the shortcut is a keyboard path');
   await mockBackend(page, { libraries: [] });
   await page.goto('/case/sample-exercise-mixed');
-  await page.keyboard.press('Control+k');
   const menu = page.getByRole('dialog', { name: 'Command menu' });
-  await expect(menu.getByRole('option', { name: 'Open the Assay' })).toBeVisible();
+  // The shortcut works once the page has hydrated; press until the menu answers (a key before then does nothing).
+  await expect(async () => {
+    if (!(await menu.isVisible())) await page.keyboard.press('Control+k');
+    await expect(menu.getByRole('option', { name: 'Open the Assay' })).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
   await menu.getByRole('option', { name: 'Open the trace' }).click();
   await expect(page).toHaveURL(/tab=trace/);
   await expect(page.getByRole('tab', { name: 'Trace' })).toHaveAttribute('aria-selected', 'true');
@@ -122,6 +127,10 @@ test('on a phone the header is the wordmark, the status and a menu that holds th
   for (const l of ['Check', 'Ask', 'Library', 'Runs', 'Method', 'Developers']) await expect(menu.getByRole('link', { name: l, exact: true })).toBeVisible();
   await menu.getByRole('button', { name: /Theme/ }).click();
   await expect(menu.getByRole('button', { name: /Theme/ })).toContainText('Light');
+  // Closing gives focus back to the menu button.
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Open menu' })).toBeFocused();
 });
 
 test('below the fold the recorded check replays, and ends by taking you back to the field', async ({ page }) => {

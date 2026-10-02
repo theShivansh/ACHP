@@ -2,6 +2,7 @@
 
 import { cn } from 'cn';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -50,10 +51,8 @@ import { ScissorsCut } from './ScissorsCut';
 import { EvidenceTray } from './EvidenceTray';
 import { LaneRail, LaneStrip } from './LaneStrip';
 import { LinkProvider } from './linkStore';
-import { MethodDrawer } from './MethodDrawer';
 import { ConfidenceBand, EditorsDesk, InterpretationNote, PartsThatDontHold, ShareBar } from './ReportParts';
 import { Stamp } from './Stamp';
-import { TraceTable } from './TraceTable';
 import {
   BlockedNotice,
   ExpiredNotice,
@@ -62,6 +61,10 @@ import {
   QueuedNotice,
   WakingNotice,
 } from './RunNotices';
+
+// The trace (its own tab) and the method notes (below the report) load as their own chunks (09 §3).
+const TraceTable = dynamic(() => import('./TraceTable').then((m) => m.TraceTable));
+const MethodDrawer = dynamic(() => import('./MethodDrawer').then((m) => m.MethodDrawer));
 
 // The live investigation board (P3, 07 §3). A projection of the run's event log: every region
 // reads a slice of the reducer's state; nothing here advances or invents progress.
@@ -303,7 +306,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
       const created = await startRun(text, state.kb?.id);
       openCase(router, created.run_id);
     };
-  }, [fixture, text, state.kb?.id, router]);
+  }, [fixture, sample, text, state.kb?.id, router]);
 
   const hasNotice =
     phase === 'waking' ||
@@ -444,7 +447,7 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
 
           <Tabs value={tab} onValueChange={setTab} className="mx-auto max-w-[760px]">
             {phase !== 'expired' && (
-              <TabsList aria-label="Case sections">
+              <TabsList aria-label="Case sections" className="max-[22.5rem]:gap-2.5">
                 <TabsTrigger value="report">Report</TabsTrigger>
                 <TabsTrigger value="evidence">
                   Evidence{' '}

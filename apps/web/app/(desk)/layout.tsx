@@ -1,4 +1,4 @@
-import { Toaster } from '@/components/ui/sonner';
+import { Notices } from '@/components/ui/notices';
 import { BackendProvider } from '@/lib/backend';
 import { DeskHeader } from './_components/DeskHeader';
 
@@ -17,7 +17,7 @@ export default function DeskLayout({ children }: { children: React.ReactNode }) 
       {/* Each page renders its own <main id="main">, so a page's asides (the case's Agents and
           Evidence) stay top-level landmarks beside it rather than inside it. */}
       <div className="flex flex-1 flex-col">{children}</div>
-      <Toaster />
+      <Notices />
     </div>
     </BackendProvider>
   );

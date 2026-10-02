@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from 'cn';
-import { useReducedMotion } from 'motion/react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useRef, type ReactNode } from 'react';
@@ -26,8 +26,12 @@ import {
 } from '@/lib/runs/reducer';
 import type { RunEvent } from '@/lib/runs/types';
 import type { BandKey } from '@/lib/verdict';
-import { GateLines, useNativeTimelines } from './GateLine';
+import { useReducedMotion } from '@/lib/useReducedMotion';
+import { useNativeTimelines } from './nativeTimelines';
 import { StoryRail } from './StoryRail';
+
+// Motion drives the gates only where CSS scroll-driven animations are missing; elsewhere it is never downloaded.
+const GateLines = dynamic(() => import('./GateLine').then((m) => m.GateLines), { ssr: false });
 
 // The replay story (05 §2, 07 §2, S7.1–S7.3): any finished case as a scroll story built from its own event
 // log. The stage content is the real UI (the same strips, marks, evidence cards and stamps as the report),

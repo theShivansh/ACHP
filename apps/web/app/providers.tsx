@@ -1,11 +1,13 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import dynamic from 'next/dynamic';
 import { ThemeProvider } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { isLowFx } from '@/lib/lowfx';
-import { TooltipProvider } from '@/components/ui/tooltip';
+
+// Development only: never part of a production bundle.
+const ReactQueryDevtools = dynamic(() => import('@tanstack/react-query-devtools').then((m) => m.ReactQueryDevtools), { ssr: false });
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -29,8 +31,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     // The dark theme is keyed on [data-theme] (04 §3.2); "system" follows prefers-color-scheme.
     <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>{children}</TooltipProvider>
-        <ReactQueryDevtools initialIsOpen={false} />
+        {children}
+        {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
       </QueryClientProvider>
     </ThemeProvider>
   );
