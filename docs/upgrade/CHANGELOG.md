@@ -83,3 +83,5 @@ A failed run shows an error, never a verdict. ACHP is silent.
   unsettled part is named under the stamp.
 - The Gatekeeper stops SQL injection, reworded prompt injections and script markup (the `/qa` question too). A URL
   library can no longer be pointed at the backend's own network. A library keeps the name it was given.
+- The overall stamp and the part stamps are reconciled once after the Judge, so a refuted part is never hidden under
+  a softer headline. `scripts/live_battery.py` runs a dozen real claims against a backend after a deploy.

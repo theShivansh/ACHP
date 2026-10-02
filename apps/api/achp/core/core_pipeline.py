@@ -109,6 +109,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Protocol
 from pydantic import BaseModel, Field
 
 from achp.assay.emit import assay_payload, build_signals
+from achp.events.consistency import reconcile_judge
 
 logger = logging.getLogger(__name__)
 
@@ -544,6 +545,10 @@ class CorePipeline:
                     mem.analysis, mem.adversary_a, mem.adversary_b, nil_result, mem.evidence, run_id=run_id)
                 mem.record_call("judge", res)
                 mem.add_grounding(dropped)
+            # The overall verdict and the part verdicts must tell one story (never a refuted part under a softer headline).
+            judge.verdict, judge.claims, reconciled = reconcile_judge(judge.verdict, judge.claims, ev.evidence_ids)
+            for why in reconciled:
+                logger.info(f"[{run_id}] verdict reconciled: {why}")
             mem.judge = judge
             mem.models["judge"] = res.model
             latencies["judge"] = (time.perf_counter() - t0) * 1000
