@@ -155,8 +155,8 @@ function EvidenceCardView({ card, uses, n, stopped = false }: CardProps) {
         {n != null && <span className="font-semibold text-ink tabular-nums">Source {n}</span>}
         <Favicon domain={src.domain} />
         <span className="truncate">{where}</span>
-        <span className={cn('tabular-nums', !date && 'text-ink-3')}>· {date ? `Published ${date}` : 'Date not given'}</span>
-        {aged && <span className="text-ochre">· older source</span>}
+        <span className={cn('tabular-nums', !date && 'text-ink-3')}>{date ? `Published ${date}` : 'Date not given'}</span>
+        {aged && <span className="text-ochre">Older source</span>}
         <span className="sr-only">· source {card.evidence_id}</span>
       </p>
       {src.title && (

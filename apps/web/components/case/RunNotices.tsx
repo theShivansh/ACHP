@@ -122,6 +122,7 @@ export function BlockedNotice({ reason }: { reason: string }) {
         <p className="mt-2 type-meta text-ink-2">
           Only the Gatekeeper ran. No sources were searched and no scores were computed.
         </p>
+        <p className="mt-2 type-meta text-ink-2">To try again, paste only the claim you want checked.</p>
       </Ruled>
     </section>
   );

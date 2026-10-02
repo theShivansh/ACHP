@@ -336,7 +336,6 @@ export function CaseLive({ runId, baseUrl, initialEvents, expired = false, fixtu
           </Link>
           <p className="hidden type-meta text-desk-ink-2 md:block">
             Case <span className="tabular-nums">{runId}</span>
-            {sample && ' · a recorded example, not a new check'}
             {fixture && (
               <>
                 {' · '}
