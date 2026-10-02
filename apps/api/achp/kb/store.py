@@ -339,13 +339,14 @@ class KBManager:
         filename: str,
         data: bytes,
         tags: Optional[List[str]] = None,
+        name: Optional[str] = None,
     ) -> KBRecord:
-        """Ingest an uploaded file (PDF / DOCX / TXT)."""
+        """Ingest an uploaded file (PDF / DOCX / TXT). `name` is the library's friendly name; it defaults to the filename."""
         kb_id = uuid.uuid4().hex[:12]
         ext   = Path(filename).suffix.lower()
         rec   = KBRecord(
             kb_id=kb_id,
-            name=filename,
+            name=(name or "").strip()[:120] or filename,
             source_type="file",
             source_name=filename,
             doc_count=0,
@@ -390,11 +391,11 @@ class KBManager:
             rec.error_msg = str(e)
         return rec
 
-    async def ingest_url(self, url: str, tags: Optional[List[str]] = None) -> KBRecord:
-        """Fetch URL and ingest as KB."""
+    async def ingest_url(self, url: str, tags: Optional[List[str]] = None, name: Optional[str] = None) -> KBRecord:
+        """Fetch URL and ingest as KB. `name` is the library's friendly name; it defaults to the address."""
         kb_id = uuid.uuid4().hex[:12]
         rec   = KBRecord(
-            kb_id=kb_id, name=url, source_type="url", source_name=url,
+            kb_id=kb_id, name=(name or "").strip()[:120] or url, source_type="url", source_name=url,
             doc_count=0, chunk_count=0,
             created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             size_bytes=0, status="processing", tags=tags or [],
@@ -418,6 +419,20 @@ class KBManager:
             rec.status    = "error"
             rec.error_msg = str(e)
         return rec
+
+    @staticmethod
+    async def _get_checked(client, url: str):
+        """GET `url`, following redirects only while every address stays public (see achp.kb.netguard)."""
+        from urllib.parse import urljoin
+        from achp.kb.netguard import MAX_REDIRECTS, check_public_url
+        for _ in range(MAX_REDIRECTS + 1):
+            await asyncio.to_thread(check_public_url, url)
+            resp = await client.get(url)
+            if resp.is_redirect and resp.headers.get("location"):
+                url = urljoin(str(resp.url), resp.headers["location"])
+                continue
+            return resp
+        raise ValueError("The address redirected too many times.")
 
     async def _fetch_url_text(self, url: str) -> str:
         """Smart URL fetcher: uses Wikipedia REST API for wikipedia.org, httpx for everything else."""
@@ -483,10 +498,11 @@ class KBManager:
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
         }
+        # Redirects are followed by hand so each hop is checked: a public page must not bounce the fetch inward.
         async with httpx.AsyncClient(
-            follow_redirects=True, timeout=45, headers=headers,
+            follow_redirects=False, timeout=45, headers=headers,
         ) as client:
-            resp = await client.get(url)
+            resp = await self._get_checked(client, url)
             if resp.status_code == 403:
                 raise ValueError(
                     f"Access denied (403) for URL: {url}. "

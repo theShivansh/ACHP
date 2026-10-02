@@ -570,12 +570,17 @@ async def kb_upload(
         data = await file.read()
         if len(data) > 50 * 1024 * 1024:   # 50 MB limit
             raise HTTPException(status_code=413, detail="File too large (max 50 MB)")
-        rec = await kb_manager.ingest_file(file.filename or "upload.txt", data, tags=tag_list)
+        rec = await kb_manager.ingest_file(file.filename or "upload.txt", data, tags=tag_list, name=name)
 
     elif url:
         if not url.startswith(("http://", "https://")):
             raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
-        rec = await kb_manager.ingest_url(url, tags=tag_list)
+        from achp.kb.netguard import UnsafeURL, check_public_url
+        try:
+            await asyncio.to_thread(check_public_url, url)
+        except UnsafeURL as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        rec = await kb_manager.ingest_url(url, tags=tag_list, name=name)
 
     elif text:
         if len(text) < 10:
@@ -967,6 +972,16 @@ async def kb_qa(request: QARequest):
     """
     t0 = time.perf_counter()
     run_id = uuid.uuid4().hex[:8]
+
+    # ── 0. Screen the question like a claim: an instruction or a query is not a question about the library ──
+    from achp.agents.security_validator import SecurityValidatorAgent
+    screen = SecurityValidatorAgent().validate_input(request.question)
+    if not screen.safe:
+        raise HTTPException(
+            status_code=400,
+            detail=f"This question was not sent ({(screen.block_reason or 'unsafe input').lower()}). "
+                   "Ask about what the library says.",
+        )
 
     # ── 1. Validate KB ────────────────────────────────────────────────────────
     kb_meta = await kb_manager.get_kb(request.kb_id)

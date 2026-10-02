@@ -79,3 +79,7 @@ A failed run shows an error, never a verdict. ACHP is silent.
   no stray dot before "Date not given", a next step on the blocked notice.
 - README: the new interface, an architecture diagram with the event log, how to run the recorded cases, links to
   `/method` and `/developers`. A 7-second recording of a run in `docs/upgrade/launch/`.
+- Each part that did not come out Supported carries its verdict mark over its own words in the headline, and the
+  unsettled part is named under the stamp.
+- The Gatekeeper stops SQL injection, reworded prompt injections and script markup (the `/qa` question too). A URL
+  library can no longer be pointed at the backend's own network. A library keeps the name it was given.

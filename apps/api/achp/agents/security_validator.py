@@ -45,6 +45,31 @@ INJECTION_PATTERNS = [
     r"\[\[.*\]\]",           # double-bracket injection
     r"<\|im_start\|>",       # special tokens
     r"<\|endoftext\|>",
+    # Rewordings of the same attacks (a saved test run showed plain "ignore all previous instructions" was the only wording caught)
+    r"\b(?:ignore|disregard|forget|override|bypass)\s+(?:(?:all|any|the|your|my|these|those|previous|prior|above|earlier|preceding|system)\s+){1,4}(?:instructions?|prompts?|rules|guidelines|directions|constraints)\b",
+    r"\b(?:reveal|print|show|repeat|output|display|leak)\s+(?:me\s+)?(?:your|the\s+(?:system|hidden|initial|original))\s+(?:\w+\s+)?(?:prompt|instructions)\b",
+    r"\byou\s+are\s+now\s+(?:DAN|STAN|DUDE|an?\s+(?:unrestricted|unfiltered|jailbroken))\b",
+    # An order to the checker about its own verdict ("then rate this claim TRUE"): a claim to check never says this.
+    r"(?:^|[.!?;:]\s+|\bthen\s+|\band\s+)(?:rate|mark|label|declare|score)\s+(?:this|the|that)\s+(?:claim|message|statement)\s+(?:as\s+)?(?:true|false|supported|verified|correct)\b",
+]
+
+# Database and script payloads. A fact-check is never a query, so these are stopped at the door instead of being "checked".
+# Each pattern needs more than one SQL word in the right order, so ordinary sentences ("select one from the list") pass.
+SQL_INJECTION_PATTERNS = [
+    r";\s*(?:drop|truncate|alter)\s+(?:table|database|schema)\b",
+    r";\s*(?:delete\s+from|insert\s+into|update\s+\w+\s+set)\b",
+    r";\s*exec(?:ute)?\b",
+    r"\bdrop\s+(?:table|database|schema)\s+\w+",
+    r"\bunion\s+(?:all\s+)?select\b",
+    r"\bselect\s+\*\s+from\s+\S+",
+    r"\bselect\s+[\w.,\s]{1,80}?\s+from\s+[\w.]+\s*(?:;|--|\bwhere\b)",
+    r"\bor\s+(['\"]?)\d+\1\s*=\s*\1?\d+\1?",
+]
+
+SCRIPT_MARKUP_PATTERNS = [
+    r"<\s*script\b",
+    r"\bjavascript\s*:",
+    r"\bon(?:error|load|click)\s*=",
 ]
 
 JAILBREAK_SIGNATURES = [
@@ -109,6 +134,8 @@ class SecurityValidatorAgent:
         # Pre-compile regex patterns for speed
         self._injection_re  = [re.compile(p, re.I) for p in INJECTION_PATTERNS]
         self._jailbreak_re  = [re.compile(p, re.I) for p in JAILBREAK_SIGNATURES]
+        self._sql_re        = [re.compile(p, re.I) for p in SQL_INJECTION_PATTERNS]
+        self._script_re     = [re.compile(p, re.I) for p in SCRIPT_MARKUP_PATTERNS]
         self._pii_re        = {k: re.compile(v) for k, v in PII_PATTERNS.items()}
         self._harmful_re    = [re.compile(p, re.I) for p in HARMFUL_OUTPUT_PATTERNS]
         logger.info("SecurityValidatorAgent initialized")
@@ -143,6 +170,18 @@ class SecurityValidatorAgent:
                 result.block_reason = "Prompt injection pattern detected"
         else:
             passed.append("injection_check")
+
+        # SQL and script payloads: always blocked (a message that is a query is not a claim)
+        if any(p.search(text) for p in self._sql_re):
+            failed.append("sql_injection_detected")
+            result.safe = False
+            result.block_reason = "SQL injection pattern detected"
+        elif any(p.search(text) for p in self._script_re):
+            failed.append("script_markup_detected")
+            result.safe = False
+            result.block_reason = "Script markup detected"
+        else:
+            passed.append("payload_check")
 
         # Jailbreak detection
         jb_found = any(p.search(text) for p in self._jailbreak_re)
